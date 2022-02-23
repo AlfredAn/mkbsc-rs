@@ -1,23 +1,30 @@
 use std::hash::Hash;
 
-trait Game<Agt: Agent, Loc: Location, Act: Action, Obs: Observation<Loc>> {
-    fn l0() -> Loc;
-    fn neighbors(l: &Loc) -> &Vec<Neighbor<Loc, Act>>;
+trait Game<Agt, Loc, Act, Obs>
+where
+    Agt: Agent,
+    Loc: Location,
+    Act: Action,
+    Obs: Observation<Agt, Loc>
+{
+    fn l0(&self) -> Loc;
+    fn agents(&self) -> &[Agt];
+    fn neighbors(&self, l: &Loc) -> Vec<Neighbor<Loc, Act>>;
 }
 
-trait Agent {}
+trait Agent: Eq {}
 
 trait Location: Eq + Hash {}
 
 trait Action: Eq + Hash {}
 
-trait Observation<Loc: Location>: Eq + Hash {
-    fn new(l: &Loc) -> Self;
-    fn locations(&self) -> &Vec<Loc>;
+trait Observation<Agt: Agent, Loc: Location>: Eq + Hash {
+    fn observe(a: &Agt, l: &Loc) -> Self;
+    fn locations(&self) -> Vec<Loc>;
     fn contains(&self, l: &Loc) -> bool;
 }
 
-trait Objective<Loc: Location> {
+trait ReachObjective<Loc: Location> {
     fn is_achieved<I: Iterator<Item=Loc>>(history: I) -> bool;
 }
 
