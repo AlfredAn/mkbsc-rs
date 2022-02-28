@@ -1,35 +1,23 @@
-use std::hash::Hash;
+use petgraph::{visit::{GraphBase}};
 
-trait Game<Agt, Loc, Act, Obs>
-where
-    Agt: Agent,
-    Loc: Location,
-    Act: Action,
-    Obs: Observation<Agt, Loc>
-{
-    fn l0(&self) -> Loc;
-    fn agents(&self) -> &[Agt];
-    fn neighbors(&self, l: &Loc) -> Vec<Neighbor<Loc, Act>>;
+pub mod dgame;
+
+pub trait Game: GraphBase {
+    type ActionId: Copy + PartialEq;
+    fn l0(&self) -> Self::NodeId;
 }
 
-trait Agent: Eq {}
-
-trait Location: Eq + Hash {}
-
-trait Action: Eq + Hash {}
-
-trait Observation<Agt: Agent, Loc: Location>: Eq + Hash {
-    fn observe(a: &Agt, l: &Loc) -> Self;
-    fn locations(&self) -> Vec<Loc>;
-    fn contains(&self, l: &Loc) -> bool;
+pub trait IIGame: Game {
+    type ObsId: Copy + PartialEq;
+    fn observe(&self, l: Self::NodeId) -> Self::ObsId;
 }
 
-trait ReachObjective<Loc: Location> {
-    fn is_achieved<I: Iterator<Item=Loc>>(history: I) -> bool;
+impl<G: Game> Game for &G {
+    type ActionId = G::ActionId;
+    fn l0(&self) -> Self::NodeId { (*self).l0() }
 }
 
-#[derive(PartialEq, Eq, Hash)]
-struct Neighbor<Loc: Location, Act: Action> {
-    l: Loc,
-    a: Vec<Act>
+impl<G: IIGame> IIGame for &G {
+    type ObsId = G::ObsId;
+    fn observe(&self, l: Self::NodeId) -> Self::ObsId { (*self).observe(l) }
 }
