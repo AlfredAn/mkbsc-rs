@@ -6,5 +6,6 @@ mod algo;
 
 fn main() {
     let g = three_coin_game();
-    print!("{}", count_locations(&g))
+    print!("{:#?}\n", g);
+    print!("{}", count_locations(&g));
 }
