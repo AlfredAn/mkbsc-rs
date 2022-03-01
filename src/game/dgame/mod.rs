@@ -3,7 +3,7 @@ use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbor
 
 use self::{index::{ObsIndex, ActionIndex}, edge::DEdge, obs::DObs, node::DNode};
 
-use super::{Game, IIGame};
+use super::{Game};
 
 mod index;
 mod node;
@@ -64,9 +64,14 @@ impl<Ix: IndexType> Default for DGame<Ix> {
 
 impl<Ix: IndexType> Game for DGame<Ix> {
     type ActionId = ActionIndex<Ix>;
+    type ObsId = ObsIndex<Ix>;
 
     fn l0(&self) -> Self::NodeId {
         self.l0
+    }
+
+    fn observe(&self, l: Self::NodeId) -> Self::ObsId {
+        self.node(l).obs
     }
 }
 
@@ -83,14 +88,6 @@ impl<'a, Ix: IndexType> IntoNeighborsDirected for &'a DGame<Ix> {
     
     fn neighbors_directed(self, l: NodeIndex<Ix>, dir: Direction) -> Self::NeighborsDirected {
         self.graph.neighbors_directed(l, dir)
-    }
-}
-
-impl<Ix: IndexType> IIGame for DGame<Ix> {
-    type ObsId = ObsIndex<Ix>;
-
-    fn observe(&self, l: Self::NodeId) -> Self::ObsId {
-        self.node(l).obs
     }
 }
 
