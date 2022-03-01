@@ -17,6 +17,55 @@ pub struct DGame<Ix: IndexType = DefaultIx> {
     pub obs: Vec<DObs<Ix>>
 }
 
+impl<Ix: IndexType> GraphBase for DGame<Ix> {
+    type NodeId = NodeIndex<Ix>;
+    type EdgeId = EdgeIndex<Ix>;
+}
+
+impl<Ix: IndexType> Game for DGame<Ix> {
+    type ActionId = ActionIndex<Ix>;
+
+    fn l0(&self) -> Self::NodeId {
+        self.l0
+    }
+}
+
+impl<Ix: IndexType> IIGame for DGame<Ix> {
+    type ObsId = ObsIndex<Ix>;
+
+    fn observe(&self, l: Self::NodeId) -> Self::ObsId {
+        self.node(l).obs
+    }
+}
+
+impl<'a, Ix: IndexType> IntoNeighbors for &'a DGame<Ix> {
+    type Neighbors = Neighbors<'a, DEdge<Ix>, Ix>;
+    
+    fn neighbors(self, l: NodeIndex<Ix>) -> Self::Neighbors {
+        self.graph.neighbors(l)
+    }
+}
+
+impl<'a, Ix: IndexType> IntoNeighborsDirected for &'a DGame<Ix> {
+    type NeighborsDirected = Neighbors<'a, DEdge<Ix>, Ix>;
+    
+    fn neighbors_directed(self, l: NodeIndex<Ix>, dir: Direction) -> Self::NeighborsDirected {
+        self.graph.neighbors_directed(l, dir)
+    }
+}
+
+impl<Ix: IndexType> Visitable for DGame<Ix> {
+    type Map = FixedBitSet;
+
+    fn visit_map(&self) -> Self::Map {
+        FixedBitSet::with_capacity(self.graph.node_count())
+    }
+
+    fn reset_map(&self, map: &mut Self::Map) {
+        map.clear();
+    }
+}
+
 impl<Ix: IndexType> DGame<Ix> {
     pub fn add_node<O>(&mut self, is_winning: bool, o: O) -> NodeIndex<Ix>
     where
@@ -59,54 +108,5 @@ impl<Ix: IndexType> Default for DGame<Ix> {
             l0: node_index(0),
             obs: Vec::new()
         }
-    }
-}
-
-impl<Ix: IndexType> Game for DGame<Ix> {
-    type ActionId = ActionIndex<Ix>;
-
-    fn l0(&self) -> Self::NodeId {
-        self.l0
-    }
-}
-
-impl<'a, Ix: IndexType> IntoNeighbors for &'a DGame<Ix> {
-    type Neighbors = Neighbors<'a, DEdge<Ix>, Ix>;
-    
-    fn neighbors(self, l: NodeIndex<Ix>) -> Self::Neighbors {
-        self.graph.neighbors(l)
-    }
-}
-
-impl<'a, Ix: IndexType> IntoNeighborsDirected for &'a DGame<Ix> {
-    type NeighborsDirected = Neighbors<'a, DEdge<Ix>, Ix>;
-    
-    fn neighbors_directed(self, l: NodeIndex<Ix>, dir: Direction) -> Self::NeighborsDirected {
-        self.graph.neighbors_directed(l, dir)
-    }
-}
-
-impl<Ix: IndexType> IIGame for DGame<Ix> {
-    type ObsId = ObsIndex<Ix>;
-
-    fn observe(&self, l: Self::NodeId) -> Self::ObsId {
-        self.node(l).obs
-    }
-}
-
-impl<Ix: IndexType> GraphBase for DGame<Ix> {
-    type NodeId = NodeIndex<Ix>;
-    type EdgeId = EdgeIndex<Ix>;
-}
-
-impl<Ix: IndexType> Visitable for DGame<Ix> {
-    type Map = FixedBitSet;
-
-    fn visit_map(&self) -> Self::Map {
-        FixedBitSet::with_capacity(self.graph.node_count())
-    }
-
-    fn reset_map(&self, map: &mut Self::Map) {
-        map.clear();
     }
 }
