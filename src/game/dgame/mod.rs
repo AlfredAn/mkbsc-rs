@@ -1,17 +1,19 @@
+use std::fmt;
+
 use fixedbitset::FixedBitSet;
-use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbors}, graph::{NodeIndex, IndexType, EdgeIndex, Neighbors, node_index}, Graph, Directed, Direction};
+use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbors, IntoNodeReferences, EdgeRef}, graph::{NodeIndex, IndexType, EdgeIndex, Neighbors, node_index}, Graph, Directed, Direction};
 use array_init::array_init;
+use itertools::Itertools;
 
 use self::{index::{ObsIndex, ActionIndex, AgentIndex}, edge::DEdge, obs::DObs, node::DNode};
 
-use super::{Game, IIGame, MAGame, MAGIIAN};
+use super::{Game, IIGame, MAGame, MAGIIAN, MultiAgent, ImperfectInformation};
 
 mod index;
 mod node;
 mod edge;
 mod obs;
 
-#[derive(Debug)]
 pub struct DGame<Ix: IndexType, const N_AGT: usize> {
     pub graph: Graph<DNode<Ix, N_AGT>, DEdge<Ix, N_AGT>, Directed, Ix>,
     pub l0: NodeIndex<Ix>,
@@ -24,6 +26,8 @@ impl<Ix: IndexType, const N_AGT: usize> GraphBase for DGame<Ix, N_AGT> {
 }
 
 impl<Ix: IndexType, const N_AGT: usize> Game for DGame<Ix, N_AGT> {
+    type AgtCount = MultiAgent;
+    type InfoType = ImperfectInformation;
     type ActionId = [ActionIndex<Ix>; N_AGT];
 
     fn l0(&self) -> Self::NodeId {
@@ -150,5 +154,28 @@ impl<Ix: IndexType, const N_AGT: usize> Default for DGame<Ix, N_AGT> {
             l0: node_index(0),
             obs: array_init(|_| Vec::new())
         }
+    }
+}
+
+impl<Ix: IndexType, const N_AGT: usize> fmt::Debug for DGame<Ix, N_AGT> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let ns = self.graph.node_references().format_with(", ", |(i, n), f|
+            f(&format_args!("{}:{}", i.index(), if n.is_winning {"W"} else {"-"}))
+        );
+
+        let os = self.obs.iter().enumerate().format_with("\n", |(i, o), f|
+            f(&format_args!("Obs[{}]: {:?}", i, o))
+        );
+        
+        let es = self.graph.edge_references()
+            .format_with(", ", |e, f|
+                f(&format_args!("({}->{}, {:?})",
+                    e.source().index(),
+                    e.target().index(),
+                    e.weight()
+                ))
+            );
+
+        write!(f, "Nodes: [{}]\n{}\nEdges: [{}]", ns, os, es)
     }
 }

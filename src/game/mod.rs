@@ -3,7 +3,8 @@ use petgraph::{visit::{GraphBase}};
 pub mod dgame;
 
 pub trait Game: GraphBase {
-    //type AgtCount: AgentCount;
+    type AgtCount: AgentCount;
+    type InfoType: InformationType;
     type ActionId: Copy + PartialEq;
     fn l0(&self) -> Self::NodeId;
 }
@@ -24,7 +25,7 @@ pub trait MAGIIAN: IIGame + MAGame {
     type AgentObsId: Copy + PartialEq;
     fn obs_i(&self, obs: Self::ObsId, agt: Self::AgentId) -> Self::AgentObsId;
 }
-/*
+
 pub trait AgentCount {}
 pub enum SingleAgent {}
 pub enum MultiAgent {}
@@ -35,15 +36,28 @@ pub trait InformationType {}
 pub enum PerfectInformation {}
 pub enum ImperfectInformation {}
 impl InformationType for PerfectInformation {}
-impl InformationType for ImperfectInformation {}*/
+impl InformationType for ImperfectInformation {}
 
-impl<G: Game> Game for &G {
-    //type AgtCount = G::AgtCount;
-    type ActionId = G::ActionId;
-    fn l0(&self) -> Self::NodeId { (*self).l0() }
+impl<G: Game<InfoType=PerfectInformation>> IIGame for G {
+    type ObsId = Self::NodeId;
+    fn observe(&self, l: Self::NodeId) -> Self::ObsId { l }
 }
 
-impl<G: IIGame> IIGame for &G {
-    type ObsId = G::ObsId;
-    fn observe(&self, l: Self::NodeId) -> Self::ObsId { (*self).observe(l) }
+impl<G: Game<AgtCount=SingleAgent>> MAGame for G {
+    type AgentId = ();
+    type AgentActId = Self::ActionId;
+    fn n_agents(&self) -> usize { 1 }
+    fn act_i(&self, act: Self::ActionId, _: Self::AgentId) -> Self::AgentActId { act }
+}
+
+impl<G: Game<InfoType=PerfectInformation, AgtCount=SingleAgent>> MAGIIAN for G {
+    type AgentObsId = Self::ObsId;
+    fn obs_i(&self, obs: Self::ObsId, _: Self::AgentId) -> Self::AgentObsId { obs }
+}
+
+impl<G: Game> Game for &G {
+    type AgtCount = G::AgtCount;
+    type InfoType = G::InfoType;
+    type ActionId = G::ActionId;
+    fn l0(&self) -> Self::NodeId { (*self).l0() }
 }

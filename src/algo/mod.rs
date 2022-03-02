@@ -1,6 +1,6 @@
 use petgraph::visit::{Dfs, Visitable, IntoNeighbors, GraphBase, VisitMap};
 
-use crate::game::Game;
+use crate::{game::Game};
 
 pub fn count_locations<'a, G>(g: &'a G) -> usize
 where
