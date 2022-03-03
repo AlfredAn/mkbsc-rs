@@ -1,3 +1,5 @@
+#![feature(generic_associated_types)]
+
 use crate::{games::three_coin_game, algo::count_locations};
 
 mod game;

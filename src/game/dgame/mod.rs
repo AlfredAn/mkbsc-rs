@@ -1,7 +1,7 @@
 use std::fmt;
 
 use fixedbitset::FixedBitSet;
-use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbors, IntoNodeReferences, EdgeRef}, graph::{NodeIndex, IndexType, EdgeIndex, Neighbors, node_index}, Graph, Directed, Direction};
+use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbors, IntoNodeReferences, EdgeRef, Data, IntoEdgeReferences, IntoEdges}, graph::{NodeIndex, IndexType, EdgeIndex, Neighbors, node_index, EdgeReference, EdgeReferences}, Graph, Directed, Direction};
 use array_init::array_init;
 use itertools::Itertools;
 
@@ -14,8 +14,11 @@ mod node;
 mod edge;
 mod obs;
 
+type GraphType<Ix, const N_AGT: usize>
+    = Graph<DNode<Ix, N_AGT>, DEdge<Ix, N_AGT>, Directed, Ix>;
+
 pub struct DGame<Ix: IndexType, const N_AGT: usize> {
-    pub graph: Graph<DNode<Ix, N_AGT>, DEdge<Ix, N_AGT>, Directed, Ix>,
+    pub graph: GraphType<Ix, N_AGT>,
     pub l0: NodeIndex<Ix>,
     pub obs: [Vec<DObs<Ix>>; N_AGT],
 }
@@ -25,13 +28,23 @@ impl<Ix: IndexType, const N_AGT: usize> GraphBase for DGame<Ix, N_AGT> {
     type EdgeId = EdgeIndex<Ix>;
 }
 
+impl<Ix: IndexType, const N_AGT: usize> Data for DGame<Ix, N_AGT> {
+    type NodeWeight = DNode<Ix, N_AGT>;
+    type EdgeWeight = DEdge<Ix, N_AGT>;
+}
+
 impl<Ix: IndexType, const N_AGT: usize> Game for DGame<Ix, N_AGT> {
     type AgtCount = MultiAgent;
     type InfoType = ImperfectInformation;
     type ActionId = [ActionIndex<Ix>; N_AGT];
+    type Actions<'a> = std::slice::Iter<'a, Self::ActionId>;
 
     fn l0(&self) -> Self::NodeId {
         self.l0
+    }
+
+    fn act(&self, e: Self::EdgeId) -> Self::Actions<'_> {
+        self.graph[e].act.iter()
     }
 }
 
@@ -77,6 +90,23 @@ impl<'a, Ix: IndexType, const N_AGT: usize> IntoNeighborsDirected for &'a DGame<
     
     fn neighbors_directed(self, l: Self::NodeId, dir: Direction) -> Self::NeighborsDirected {
         self.graph.neighbors_directed(l, dir)
+    }
+}
+
+impl<'a, Ix: IndexType, const N_AGT: usize> IntoEdgeReferences for &'a DGame<Ix, N_AGT> {
+    type EdgeRef = EdgeReference<'a, Self::EdgeWeight, Ix>;
+    type EdgeReferences = EdgeReferences<'a, Self::EdgeWeight, Ix>;
+
+    fn edge_references(self) -> Self::EdgeReferences {
+        self.graph.edge_references()
+    }
+}
+
+impl<'a, Ix: IndexType, const N_AGT: usize> IntoEdges for &'a DGame<Ix, N_AGT> {
+    type Edges = <&'a GraphType<Ix, N_AGT> as IntoEdges>::Edges;
+
+    fn edges(self, n: Self::NodeId) -> Self::Edges {
+        self.graph.edges(n)
     }
 }
 
@@ -163,7 +193,7 @@ impl<Ix: IndexType, const N_AGT: usize> fmt::Debug for DGame<Ix, N_AGT> {
             f(&format_args!("{}:{}", i.index(), if n.is_winning {"W"} else {"-"}))
         );
 
-        let os = self.obs.iter().enumerate().format_with("\n", |(i, o), f|
+        let os = self.obs.iter().enumerate().format_with("\n    ", |(i, o), f|
             f(&format_args!("Obs[{}]: {:?}", i, o))
         );
         
@@ -176,6 +206,9 @@ impl<Ix: IndexType, const N_AGT: usize> fmt::Debug for DGame<Ix, N_AGT> {
                 ))
             );
 
-        write!(f, "Nodes: [{}]\n{}\nEdges: [{}]", ns, os, es)
+        write!(f, "DGame {{\n")?;
+        write!(f, "    l0: {}, n_agents: {}\n", self.l0.index(), self.n_agents())?;
+        write!(f, "    Nodes: [{}]\n    {}\n    Edges: [{}]\n", ns, os, es)?;
+        write!(f, "}}")
     }
 }

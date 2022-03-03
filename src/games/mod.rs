@@ -24,9 +24,9 @@ pub fn three_coin_game() -> DGame<u8, 1> {
                 g.add_edge1(i, i, [0, 1, 2]);
             },
             8 => {
-                g.add_edge1(i, 6, [0]);
-                g.add_edge1(i, 5, [1]);
-                g.add_edge1(i, 3, [2]);
+                g.add_edge1(i, 6, [0, 1, 2]);
+                g.add_edge1(i, 5, [0, 1, 2]);
+                g.add_edge1(i, 3, [0, 1, 2]);
             },
             _ => {
                 g.add_edge1(i, i^1, [0]);
