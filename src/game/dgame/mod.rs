@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, slice, iter};
 
 use fixedbitset::FixedBitSet;
 use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbors, IntoNodeReferences, EdgeRef, Data, IntoEdgeReferences, IntoEdges}, graph::{NodeIndex, IndexType, EdgeIndex, Neighbors, node_index, EdgeReference, EdgeReferences}, Graph, Directed, Direction};
@@ -37,14 +37,18 @@ impl<Ix: IndexType, const N_AGT: usize> Game for DGame<Ix, N_AGT> {
     type AgtCount = MultiAgent;
     type InfoType = ImperfectInformation;
     type ActionId = [ActionIndex<Ix>; N_AGT];
-    type Actions<'a> = std::slice::Iter<'a, Self::ActionId>;
+    type Actions<'a> = iter::Copied<slice::Iter<'a, Self::ActionId>>;
 
     fn l0(&self) -> Self::NodeId {
         self.l0
     }
 
     fn act(&self, e: Self::EdgeId) -> Self::Actions<'_> {
-        self.graph[e].act.iter()
+        self.graph[e].act.iter().copied()
+    }
+
+    fn is_winning(&self, n: Self::NodeId) -> bool {
+        self.node(n).is_winning
     }
 }
 

@@ -4,16 +4,20 @@ pub mod dgame;
 pub mod strategy;
 pub mod history;
 
+#[macro_use]
+pub mod macros;
+
 pub trait Game: GraphBase {
     type AgtCount: AgentCount;
     type InfoType: InformationType;
 
     type ActionId: Copy + PartialEq;
 
-    type Actions<'a>: Iterator<Item=&'a Self::ActionId> where Self: 'a;
+    type Actions<'a>: Iterator<Item=Self::ActionId> where Self: 'a;
 
     fn l0(&self) -> Self::NodeId;
     fn act(&self, e: Self::EdgeId) -> Self::Actions<'_>;
+    fn is_winning(&self, n: Self::NodeId) -> bool;
 }
 
 pub trait IIGame: Game {
@@ -69,4 +73,5 @@ impl<G: Game> Game for &G {
     type Actions<'a> where G: 'a, Self: 'a = G::Actions<'a>;
     fn l0(&self) -> Self::NodeId { (*self).l0() }
     fn act(&self, e: Self::EdgeId) -> Self::Actions<'_> { (*self).act(e) }
+    fn is_winning(&self, n: Self::NodeId) -> bool { (*self).is_winning(n) }
 }
