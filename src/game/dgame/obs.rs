@@ -1,9 +1,11 @@
 use std::fmt;
 
+use array_init::array_init;
 
 use itertools::Itertools;
 use petgraph::graph::{IndexType, NodeIndex};
 
+#[derive(Clone)]
 pub struct DObs<Ix: IndexType> {
     pub set: Vec<NodeIndex<Ix>>
 }
@@ -11,6 +13,10 @@ pub struct DObs<Ix: IndexType> {
 impl<Ix: IndexType> DObs<Ix> {
     pub fn new(set: Vec<NodeIndex<Ix>>) -> Self {
         Self { set: set }
+    }
+
+    pub fn default_array<const N_AGT: usize>() -> [Vec<DObs<Ix>>; N_AGT] {
+        array_init(|_| Vec::new())
     }
 }
 

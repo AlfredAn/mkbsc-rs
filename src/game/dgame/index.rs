@@ -5,8 +5,8 @@ use std::fmt;
 
 use petgraph::graph::{DefaultIx, IndexType};
 
-pub type NodeIndex = petgraph::graph::NodeIndex;
-pub type EdgeIndex = petgraph::graph::EdgeIndex;
+pub type NodeIndex<Ix> = petgraph::graph::NodeIndex<Ix>;
+pub type EdgeIndex<Ix> = petgraph::graph::EdgeIndex<Ix>;
 
 pub use petgraph::graph::{node_index, edge_index};
 
@@ -140,6 +140,11 @@ impl<Ix: fmt::Debug> fmt::Debug for ObsIndex<Ix> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ObsIndex({:?})", self.0)
     }
+}
+
+/// Short version of `ObsIndex::new`
+pub fn agent_index<Ix: IndexType>(index: usize) -> AgentIndex<Ix> {
+    AgentIndex::new(index)
 }
 
 /// Short version of `ActionIndex::new`

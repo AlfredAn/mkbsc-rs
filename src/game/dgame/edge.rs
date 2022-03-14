@@ -5,6 +5,7 @@ use petgraph::graph::IndexType;
 
 use super::index::ActionIndex;
 
+#[derive(Clone)]
 pub struct DEdge<Ix: IndexType, const N_AGT: usize> {
     pub act: Vec<[ActionIndex<Ix>; N_AGT]>
 }

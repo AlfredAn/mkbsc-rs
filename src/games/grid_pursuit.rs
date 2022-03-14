@@ -7,7 +7,7 @@ use nalgebra::{Vector2, ArrayStorage, Matrix2, Similarity2, Matrix, Const, DMatr
 use petgraph::visit::{GraphBase, IntoNeighbors, IntoEdgeReferences, EdgeRef, Data, IntoEdges};
 use itertools::{Itertools, iproduct, izip};
 
-use crate::game::{Game, MultiAgent, ImperfectInformation};
+use crate::game::{Game, MultiAgent, ImperfectInformation, MAGame};
 use crate::game::macros;
 
 type Pos = Vector2<i8>;
@@ -159,6 +159,19 @@ impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N>
 
     fn is_winning(&self, l: Self::NodeId) -> bool {
         l.is_winning()
+    }
+}
+
+impl<const X: i8, const Y: i8, const N: usize> MAGame for GridPursuitGame<X, Y, N> {
+    type AgentId = usize;
+    type AgentActId = Pos;
+
+    fn n_agents(&self) -> usize {
+        N
+    }
+
+    fn act_i(&self, act: Self::ActionId, agt: Self::AgentId) -> Self::AgentActId {
+        act[agt]
     }
 }
 

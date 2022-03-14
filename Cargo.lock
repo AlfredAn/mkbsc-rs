@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "anyhow"
+version = "1.0.56"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4361135be9122e0870de935d7c439aef945b9f9ddd4199a553b5270b49c82a27"
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -51,12 +57,14 @@ checksum = "279fb028e20b3c4c320317955b77c5e0c9701f05a1d309905d6fc702cdc5053e"
 name = "grid_pursuit"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "array-init",
  "arrayvec",
  "fixedbitset",
  "itertools",
  "nalgebra",
  "petgraph",
+ "typenum",
 ]
 
 [[package]]
