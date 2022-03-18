@@ -4,10 +4,12 @@ use std::hash::Hash;
 
 use arrayvec::ArrayVec;
 use nalgebra::{Vector2, ArrayStorage, Matrix2, Similarity2, Matrix, Const, DMatrix};
+use petgraph::graph::IndexType;
 use petgraph::visit::{GraphBase, IntoNeighbors, IntoEdgeReferences, EdgeRef, Data, IntoEdges};
 use itertools::{Itertools, iproduct, izip};
+use array_init::array_init;
 
-use crate::game::{Game, MultiAgent, ImperfectInformation, MAGame};
+use crate::game::{Game, MAGame, IIGame, MAGIIAN};
 use crate::game::macros;
 
 type Pos = Vector2<i8>;
@@ -27,6 +29,8 @@ const MOVE: [Pos; 5] = [
     pos!( 0,  1),
     pos!( 0, -1)
 ];
+
+const VIS: [Pos; 5] = MOVE;
 
 #[derive(Debug)]
 pub struct GridPursuitGame<const X: i8, const Y: i8, const N: usize> {
@@ -142,9 +146,6 @@ impl<const X: i8, const Y: i8, const N: usize> GraphBase for GridPursuitGame<X, 
 }
 
 impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N> {
-    type AgtCount = MultiAgent;
-    type InfoType = ImperfectInformation;
-
     type ActionId = Action<N>;
 
     type Actions<'a> = iter::Once<Self::ActionId>;
@@ -153,12 +154,66 @@ impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N>
         self.l0
     }
 
-    fn act(&self, e: Self::EdgeId) -> Self::Actions<'_> {
+    fn action(&self, e: Self::EdgeId) -> Self::Actions<'_> {
         iter::once(e.act)
     }
 
     fn is_winning(&self, l: Self::NodeId) -> bool {
         l.is_winning()
+    }
+
+    type Successors<'a> where Self: 'a = impl Iterator<Item=Self::EdgeId>;
+
+    fn successors(&self, n: Self::NodeId) -> Self::Successors<'_> {
+        Edges::new(n)
+    }
+
+    fn source(&self, e: Self::EdgeId) -> Self::NodeId {
+        e.from
+    }
+
+    fn target(&self, e: Self::EdgeId) -> Self::NodeId {
+        e.to
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SquareObs {
+    pursuer: Option<u8>,
+    evader: bool
+}
+
+impl SquareObs {
+    pub fn new(pursuer: Option<u8>, evader: bool) -> Self { Self { pursuer, evader } }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Obs(Pos, [SquareObs; VIS.len()]);
+
+impl<const X: i8, const Y: i8, const N: usize> IIGame for GridPursuitGame<X, Y, N> {
+    type ObsId = [Obs; N];
+
+    fn observe(&self, l: Self::NodeId) -> Self::ObsId {
+        array_init(|i| {
+            let p = l.pu[i];
+            Obs(p, array_init(|j| {
+                let p_vis = p + VIS[j];
+                let has_evader = l.ev == p_vis;
+                if let Some((p2, _)) = l.pu.iter().find_position(|&&p2| p2 == p_vis) {
+                    SquareObs::new(Some(p2 as u8), has_evader)
+                } else {
+                    SquareObs::new(None, has_evader)
+                }
+            }))
+        })
+    }
+}
+
+impl<const X: i8, const Y: i8, const N: usize> MAGIIAN for GridPursuitGame<X, Y, N> {
+    type AgentObsId = Obs;
+
+    fn obs_i(&self, obs: Self::ObsId, agt: Self::AgentId) -> Self::AgentObsId {
+        obs[agt.index()]
     }
 }
 
@@ -379,48 +434,6 @@ impl<const X: i8, const Y: i8, const N: usize> EdgeRef for Edge<X, Y, N> {
         *self
     }
 }
-
-impl<'a, const X: i8, const Y: i8, const N: usize> IntoEdgeReferences for &'a GridPursuitGame<X, Y, N> {
-    type EdgeRef = Edge<X, Y, N>;
-    type EdgeReferences = Edges<X, Y, N>;
-
-    fn edge_references(self) -> Self::EdgeReferences {
-        unimplemented!()
-    }
-}
-
-impl<'a, const X: i8, const Y: i8, const N: usize> IntoEdges for &'a GridPursuitGame<X, Y, N> {
-    type Edges = Edges<X, Y, N>;
-
-    fn edges(self, l: Self::NodeId) -> Self::Edges {
-        Edges::new(l)
-    }
-}
-
-pub struct Neighbors<const X: i8, const Y: i8, const N: usize>(Edges<X, Y, N>);
-
-impl<const X: i8, const Y: i8, const N: usize> Iterator for Neighbors<X, Y, N> {
-    type Item = Loc<X, Y, N>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| e.to)
-    }
-}
-
-impl<'a, const X: i8, const Y: i8, const N: usize> IntoNeighbors for &'a GridPursuitGame<X, Y, N> {
-    type Neighbors = Neighbors<X, Y, N>;
-
-    fn neighbors(self, l: Self::NodeId) -> Self::Neighbors {
-        Neighbors(self.edges(l))
-    }
-}
-
-impl<'a, const X: i8, const Y: i8, const N: usize> Data for GridPursuitGame<X, Y, N> {
-    type NodeWeight = ();
-    type EdgeWeight = ();
-}
-
-derive_visitable!(GridPursuitGame<X, Y, N>, const X: i8, const Y: i8, const N: usize);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum SquareContents {

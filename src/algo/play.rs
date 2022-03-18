@@ -99,7 +99,7 @@ where
         }
         
         let act = self.strat[l];
-        let edge = g.edges(l).find(|x| g.act(x.id()).contains(&act));
+        let edge = g.edges(l).find(|x| g.action(x.id()).contains(&act));
 
         if let Some(e) = edge {
             self.loc = e.target();

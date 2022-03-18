@@ -10,6 +10,21 @@ pub type EdgeIndex<Ix> = petgraph::graph::EdgeIndex<Ix>;
 
 pub use petgraph::graph::{node_index, edge_index};
 
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
+pub struct ZeroIndex();
+
+unsafe impl IndexType for ZeroIndex {
+    fn index(&self) -> usize {
+        0
+    }
+    fn new(x: usize) -> Self {
+        Self()
+    }
+    fn max() -> Self {
+        Self()
+    }
+}
+
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct AgentIndex<Ix = DefaultIx>(Ix);
 

@@ -1,4 +1,4 @@
-use petgraph::{visit::{GraphBase}};
+use petgraph::{visit::{GraphBase}, graph::IndexType};
 
 pub mod dgame;
 pub mod strategy;
@@ -8,16 +8,17 @@ pub mod history;
 pub mod macros;
 
 pub trait Game: GraphBase {
-    type AgtCount: AgentCount;
-    type InfoType: InformationType;
-
     type ActionId: Copy + PartialEq;
 
     type Actions<'a>: Iterator<Item=Self::ActionId> where Self: 'a;
+    type Successors<'a>: Iterator<Item=Self::EdgeId> where Self: 'a;
 
     fn l0(&self) -> Self::NodeId;
-    fn act(&self, e: Self::EdgeId) -> Self::Actions<'_>;
+    fn action(&self, e: Self::EdgeId) -> Self::Actions<'_>;
+    fn source(&self, e: Self::EdgeId) -> Self::NodeId;
+    fn target(&self, e: Self::EdgeId) -> Self::NodeId;
     fn is_winning(&self, n: Self::NodeId) -> bool;
+    fn successors(&self, n: Self::NodeId) -> Self::Successors<'_>;
 }
 
 pub trait IIGame: Game {
@@ -26,7 +27,7 @@ pub trait IIGame: Game {
 }
 
 pub trait MAGame: Game {
-    type AgentId: Copy + PartialEq;
+    type AgentId: IndexType;
     type AgentActId: Copy + PartialEq;
     fn n_agents(&self) -> usize;
     fn act_i(&self, act: Self::ActionId, agt: Self::AgentId) -> Self::AgentActId;
@@ -37,41 +38,24 @@ pub trait MAGIIAN: IIGame + MAGame {
     fn obs_i(&self, obs: Self::ObsId, agt: Self::AgentId) -> Self::AgentObsId;
 }
 
-pub trait AgentCount {}
-pub enum SingleAgent {}
-pub enum MultiAgent {}
-impl AgentCount for SingleAgent {}
-impl AgentCount for MultiAgent {}
-
-pub trait InformationType {}
-pub enum PerfectInformation {}
-pub enum ImperfectInformation {}
-impl InformationType for PerfectInformation {}
-impl InformationType for ImperfectInformation {}
-
-impl<G: Game<InfoType=PerfectInformation>> IIGame for G {
-    type ObsId = Self::NodeId;
-    fn observe(&self, l: Self::NodeId) -> Self::ObsId { l }
-}
-
-impl<G: Game<AgtCount=SingleAgent>> MAGame for G {
-    type AgentId = ();
-    type AgentActId = Self::ActionId;
-    fn n_agents(&self) -> usize { 1 }
-    fn act_i(&self, act: Self::ActionId, _: Self::AgentId) -> Self::AgentActId { act }
-}
-
-impl<G: Game<InfoType=PerfectInformation, AgtCount=SingleAgent>> MAGIIAN for G {
-    type AgentObsId = Self::ObsId;
-    fn obs_i(&self, obs: Self::ObsId, _: Self::AgentId) -> Self::AgentObsId { obs }
-}
-
 impl<G: Game> Game for &G {
-    type AgtCount = G::AgtCount;
-    type InfoType = G::InfoType;
     type ActionId = G::ActionId;
     type Actions<'a> where G: 'a, Self: 'a = G::Actions<'a>;
     fn l0(&self) -> Self::NodeId { (*self).l0() }
-    fn act(&self, e: Self::EdgeId) -> Self::Actions<'_> { (*self).act(e) }
+    fn action(&self, e: Self::EdgeId) -> Self::Actions<'_> { (*self).action(e) }
     fn is_winning(&self, n: Self::NodeId) -> bool { (*self).is_winning(n) }
+
+    type Successors<'a> where Self: 'a = G::Successors<'a>;
+
+    fn successors(&self, n: Self::NodeId) -> Self::Successors<'_> {
+        (*self).successors(n)
+    }
+
+    fn source(&self, e: Self::EdgeId) -> Self::NodeId {
+        (*self).source(e)
+    }
+
+    fn target(&self, e: Self::EdgeId) -> Self::NodeId {
+        (*self).target(e)
+    }
 }

@@ -7,7 +7,9 @@ use itertools::Itertools;
 
 use self::{index::{ObsIndex, ActionIndex, AgentIndex}, edge::DEdge, obs::DObs, node::DNode};
 
-use super::{Game, IIGame, MAGame, MAGIIAN, MultiAgent, ImperfectInformation, SingleAgent, PerfectInformation};
+use super::{Game, IIGame, MAGame, MAGIIAN, macros::{derive_ma, derive_ii, derive_magiian}};
+
+use crate::game::macros;
 
 pub mod index;
 pub mod node;
@@ -20,6 +22,27 @@ pub mod generic_builder;
 type GraphType<Ix, const N_AGT: usize>
     = Graph<DNode<Ix, N_AGT>, DEdge<Ix, N_AGT>, Directed, Ix>;
 
+pub trait DGameType<const N_AGT: usize>: Game + Default {
+    type Ix: IndexType;
+
+    fn graph(&self) -> &GraphType<Self::Ix, N_AGT>;
+    fn graph_mut(&mut self) -> &mut GraphType<Self::Ix, N_AGT>;
+    fn l0_mut(&mut self) -> &mut Self::NodeId;
+    fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; N_AGT]>;
+    fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; N_AGT]>;
+}
+
+macro_rules! impl_dgametype_obs {
+    ($na:tt, ImperfectInformation) => {
+        fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; $na]> { Some(&self.obs) }
+        fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; $na]> { Some(&mut self.obs) }
+    };
+    ($na:tt, PerfectInformation) => {
+        fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; $na]> { None }
+        fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; $na]> { None }
+    };
+}
+
 macro_rules! impl_game {
     ($name:ident, $type:ty, $it:ident, $ac:ident, $na:tt, ($($tp:tt)*), ($($obs:tt)*), ($($obs_def:tt)*)) => {
 
@@ -30,10 +53,13 @@ pub struct $name<$($tp)*> {
     $($obs)*
 }
 
-impl<$($tp)*> $type {
-    pub fn graph(&self) -> &GraphType<Ix, $na> {
-        &self.graph
-    }
+impl<$($tp)*> DGameType<$na> for $type {
+    type Ix = Ix;
+
+    fn graph(&self) -> &GraphType<Self::Ix, $na> { &self.graph }
+    fn graph_mut(&mut self) -> &mut GraphType<Self::Ix, $na> { &mut self.graph }
+    fn l0_mut(&mut self) -> &mut Self::NodeId { &mut self.l0 }
+    impl_dgametype_obs!($na, $it);
 }
 
 impl<$($tp)*> GraphBase for $type {
@@ -47,21 +73,32 @@ impl<$($tp)*> Data for $type {
 }
 
 impl<$($tp)*> Game for $type {
-    type AgtCount = $ac;
-    type InfoType = $it;
     type ActionId = [ActionIndex<Ix>; $na];
     type Actions<'a> = iter::Copied<slice::Iter<'a, Self::ActionId>>;
+    type Successors<'a> = impl Iterator<Item=Self::EdgeId>;
 
     fn l0(&self) -> Self::NodeId {
         self.l0
     }
 
-    fn act(&self, e: Self::EdgeId) -> Self::Actions<'_> {
+    fn action(&self, e: Self::EdgeId) -> Self::Actions<'_> {
         self.graph[e].act.iter().copied()
     }
 
     fn is_winning(&self, n: Self::NodeId) -> bool {
         self.node(n).is_winning
+    }
+
+    fn successors(&self, n: Self::NodeId) -> Self::Successors<'_> {
+        self.graph.edges(n).map(|e| e.id())
+    }
+
+    fn source(&self, e: Self::EdgeId) -> Self::NodeId {
+        self.graph.edge_endpoints(e).unwrap().0
+    }
+
+    fn target(&self, e: Self::EdgeId) -> Self::NodeId {
+        self.graph.edge_endpoints(e).unwrap().1
     }
 }
 
@@ -143,7 +180,7 @@ impl<$($tp)*> fmt::Debug for $type {
                 ))
             );
 
-        write!(f, "$type {{\n")?;
+        write!(f, "DGame {{\n")?;
         write!(f, "    l0: {}, n_agents: {}\n", self.l0.index(), self.n_agents())?;
         write!(f, "    Nodes: [{}]\n    {}\n    Edges: [{}]\n", ns, os, es)?;
         write!(f, "}}")
@@ -207,8 +244,15 @@ impl_magiian!(DMAGIIAN, DMAGIIAN<Ix, N_AGT>, N_AGT, (Ix: IndexType, const N_AGT:
 
 impl_game!(DIIGame, DIIGame<Ix>, ImperfectInformation, SingleAgent, 1, (Ix: IndexType), (obs: [Vec<DObs<Ix>>; 1]), (obs: DObs::default_array()));
 impl_iigame!(DIIGame, DIIGame<Ix>, 1, (Ix: IndexType));
+derive_ma!(DIIGame<Ix>, Ix: IndexType);
+derive_magiian!(DIIGame<Ix>, Ix: IndexType);
 
 impl_game!(DMAGame, DMAGame<Ix, N_AGT>, PerfectInformation, MultiAgent, N_AGT, (Ix: IndexType, const N_AGT: usize), (), ());
 impl_magame!(DMAGame, DMAGame<Ix, N_AGT>, N_AGT, (Ix: IndexType, const N_AGT: usize));
+derive_ii!(DMAGame<Ix, N_AGT>, Ix: IndexType, const N_AGT: usize);
+derive_magiian!(DMAGame<Ix, N_AGT>, Ix: IndexType, const N_AGT: usize);
 
 impl_game!(DGame, DGame<Ix>, PerfectInformation, SingleAgent, 1, (Ix: IndexType), (), ());
+derive_ii!(DGame<Ix>, Ix: IndexType);
+derive_ma!(DGame<Ix>, Ix: IndexType);
+derive_magiian!(DGame<Ix>, Ix: IndexType);

@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::game::dgame::{node::DNode, obs::DObs};
 
-use super::{index::{EdgeIndex, NodeIndex, ActionIndex, action_index}, DMAGIIAN, edge::DEdge};
+use super::{index::{EdgeIndex, NodeIndex, ActionIndex, action_index}, DMAGIIAN, edge::DEdge, DGameType};
 
 type NI = NodeIndex<usize>;
 type EI = EdgeIndex<usize>;
@@ -121,8 +121,11 @@ where
         }
     }
 
-    pub fn build<Ix: IndexType>(&self) -> anyhow::Result<DMAGIIAN<Ix, N_AGT>> {
-        let mut g: DMAGIIAN<Ix, N_AGT> = DMAGIIAN::default();
+    pub fn build<DG>(&self) -> anyhow::Result<DG>
+    where
+        DG: DGameType<N_AGT>
+    {
+        let mut g = DG::default();
 
         for n in self.graph.node_indices() {
             let is_winning = if let Some(w) = self.graph[n] {
@@ -130,7 +133,7 @@ where
             } else {
                 bail!("Edge references node that does not exist");
             };
-            let n2 = g.graph.add_node(DNode::new(
+            let n2 = g.graph_mut().add_node(DNode::new(
                 is_winning,
                 [Default::default(); N_AGT]
             ));
@@ -138,7 +141,7 @@ where
         }
 
         for e in self.graph.edge_references() {
-            let e2 = g.graph.add_edge(
+            let e2 = g.graph_mut().add_edge(
                 node_index(e.source().index()),
                 node_index(e.target().index()),
                 DEdge::new(
