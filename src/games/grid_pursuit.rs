@@ -11,6 +11,7 @@ use array_init::array_init;
 
 use crate::game::{Game, MAGame, IIGame, MAGIIAN};
 use crate::game::macros;
+use crate::util::{RangePower, index_power};
 
 type Pos = Vector2<i8>;
 
@@ -123,7 +124,7 @@ impl<const X: i8, const Y: i8, const N: usize> Hash for Loc<X, Y, N> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Edge<const X: i8, const Y: i8, const N: usize> {
     from: Loc<X, Y, N>,
     to: Loc<X, Y, N>,
@@ -136,44 +137,68 @@ const fn act_zero<const N: usize>() -> Action<N> {
     [pos!(0, 0); N]
 }
 
-impl<const X: i8, const Y: i8, const N: usize> GridPursuitGame<X, Y, N> {
-    
-}
-
-impl<const X: i8, const Y: i8, const N: usize> GraphBase for GridPursuitGame<X, Y, N> {
-    type NodeId = Loc<X, Y, N>;
-    type EdgeId = Edge<X, Y, N>;
-}
-
 impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N> {
-    type ActionId = Action<N>;
+    type Loc = Loc<X, Y, N>;
+    type Act = Action<N>;
 
-    type Actions<'a> = iter::Once<Self::ActionId>;
-
-    fn l0(&self) -> Self::NodeId {
+    fn l0(&self) -> Self::Loc {
         self.l0
     }
 
-    fn action(&self, e: Self::EdgeId) -> Self::Actions<'_> {
-        iter::once(e.act)
-    }
-
-    fn is_winning(&self, l: Self::NodeId) -> bool {
+    fn is_winning(&self, l: Self::Loc) -> bool {
         l.is_winning()
     }
 
-    type Successors<'a> where Self: 'a = impl Iterator<Item=Self::EdgeId>;
+    type Post<'a> where Self: 'a = impl Iterator<Item=Self::Loc>;
 
-    fn successors(&self, n: Self::NodeId) -> Self::Successors<'_> {
-        Edges::new(n)
+    fn post(&self, n: Self::Loc, a: Self::Act) -> Self::Post<'_> {
+        Edges::new(n).filter(move |e| e.act == a).map(|e| e.to)
     }
 
-    fn source(&self, e: Self::EdgeId) -> Self::NodeId {
-        e.from
+    type Actions<'a> where Self: 'a = impl Iterator<Item=Self::Act>;
+
+    fn actions(&self) -> Self::Actions<'_> {
+        index_power(MOVE)
     }
 
-    fn target(&self, e: Self::EdgeId) -> Self::NodeId {
-        e.to
+    type Obs = [Obs; N];
+
+    fn observe(&self, l: Self::Loc) -> Self::Obs {
+        array_init(|i| {
+            let p = l.pu[i];
+            Obs(p, array_init(|j| {
+                let p_vis = p + VIS[j];
+                let has_evader = l.ev == p_vis;
+                if let Some((p2, _)) = l.pu.iter().find_position(|&&p2| p2 == p_vis) {
+                    SquareObs::new(Some(p2 as u8), has_evader)
+                } else {
+                    SquareObs::new(None, has_evader)
+                }
+            }))
+        })
+    }
+
+    type Agent = usize;
+    type AgentAct = Pos;
+
+    fn n_agents(&self) -> usize {
+        N
+    }
+
+    fn act_i(&self, act: Self::Act, agt: Self::Agent) -> Self::AgentAct {
+        act[agt]
+    }
+
+    type ActionsI<'a> where Self: 'a = impl Iterator<Item=Pos>;
+
+    fn actions_i(&self, _: Self::Agent) -> Self::ActionsI<'_> {
+        MOVE.iter().copied()
+    }
+
+    type AgentObs = Obs;
+
+    fn obs_i(&self, obs: Self::Obs, agt: Self::Agent) -> Self::AgentObs {
+        obs[agt.index()]
     }
 }
 
@@ -190,45 +215,11 @@ impl SquareObs {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Obs(Pos, [SquareObs; VIS.len()]);
 
-impl<const X: i8, const Y: i8, const N: usize> IIGame for GridPursuitGame<X, Y, N> {
-    type ObsId = [Obs; N];
+impl<const X: i8, const Y: i8, const N: usize> IIGame for GridPursuitGame<X, Y, N> {}
 
-    fn observe(&self, l: Self::NodeId) -> Self::ObsId {
-        array_init(|i| {
-            let p = l.pu[i];
-            Obs(p, array_init(|j| {
-                let p_vis = p + VIS[j];
-                let has_evader = l.ev == p_vis;
-                if let Some((p2, _)) = l.pu.iter().find_position(|&&p2| p2 == p_vis) {
-                    SquareObs::new(Some(p2 as u8), has_evader)
-                } else {
-                    SquareObs::new(None, has_evader)
-                }
-            }))
-        })
-    }
-}
+impl<const X: i8, const Y: i8, const N: usize> MAGIIAN for GridPursuitGame<X, Y, N> {}
 
-impl<const X: i8, const Y: i8, const N: usize> MAGIIAN for GridPursuitGame<X, Y, N> {
-    type AgentObsId = Obs;
-
-    fn obs_i(&self, obs: Self::ObsId, agt: Self::AgentId) -> Self::AgentObsId {
-        obs[agt.index()]
-    }
-}
-
-impl<const X: i8, const Y: i8, const N: usize> MAGame for GridPursuitGame<X, Y, N> {
-    type AgentId = usize;
-    type AgentActId = Pos;
-
-    fn n_agents(&self) -> usize {
-        N
-    }
-
-    fn act_i(&self, act: Self::ActionId, agt: Self::AgentId) -> Self::AgentActId {
-        act[agt]
-    }
-}
+impl<const X: i8, const Y: i8, const N: usize> MAGame for GridPursuitGame<X, Y, N> {}
 
 impl<const X: i8, const Y: i8> Default for GridPursuitGame<X, Y, 2> {
     fn default() -> Self {

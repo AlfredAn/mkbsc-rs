@@ -1,15 +1,15 @@
 use std::{fmt, slice, iter};
 
 use fixedbitset::FixedBitSet;
-use petgraph::{visit::{GraphBase, Visitable, IntoNeighborsDirected, IntoNeighbors, IntoNodeReferences, EdgeRef, Data, IntoEdgeReferences, IntoEdges}, graph::{NodeIndex, IndexType, EdgeIndex, Neighbors, node_index, EdgeReference, EdgeReferences}, Graph, Directed, Direction};
+use petgraph::{visit::*, graph::{IndexType, Neighbors, node_index, EdgeReference, EdgeReferences}, Graph, Directed, Direction};
 use array_init::array_init;
 use itertools::Itertools;
 
-use self::{index::{ObsIndex, ActionIndex, AgentIndex}, edge::DEdge, obs::DObs, node::DNode};
+use self::{index::*, edge::DEdge, obs::DObs, node::DNode};
 
 use super::{Game, IIGame, MAGame, MAGIIAN, macros::{derive_ma, derive_ii, derive_magiian}};
 
-use crate::game::macros;
+use crate::{game::macros, util::*};
 
 pub mod index;
 pub mod node;
@@ -27,7 +27,7 @@ pub trait DGameType<const N_AGT: usize>: Game + Default {
 
     fn graph(&self) -> &GraphType<Self::Ix, N_AGT>;
     fn graph_mut(&mut self) -> &mut GraphType<Self::Ix, N_AGT>;
-    fn l0_mut(&mut self) -> &mut Self::NodeId;
+    fn l0_mut(&mut self) -> &mut Self::Loc;
     fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; N_AGT]>;
     fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; N_AGT]>;
 }
@@ -50,6 +50,7 @@ macro_rules! impl_game {
 pub struct $name<$($tp)*> {
     graph: GraphType<Ix, $na>,
     l0: NodeIndex<Ix>,
+    n_actions: usize,
     $($obs)*
 }
 
@@ -58,94 +59,64 @@ impl<$($tp)*> DGameType<$na> for $type {
 
     fn graph(&self) -> &GraphType<Self::Ix, $na> { &self.graph }
     fn graph_mut(&mut self) -> &mut GraphType<Self::Ix, $na> { &mut self.graph }
-    fn l0_mut(&mut self) -> &mut Self::NodeId { &mut self.l0 }
+    fn l0_mut(&mut self) -> &mut Self::Loc { &mut self.l0 }
     impl_dgametype_obs!($na, $it);
 }
 
-impl<$($tp)*> GraphBase for $type {
-    type NodeId = NodeIndex<Ix>;
-    type EdgeId = EdgeIndex<Ix>;
-}
-
-impl<$($tp)*> Data for $type {
-    type NodeWeight = DNode<Ix, $na>;
-    type EdgeWeight = DEdge<Ix, $na>;
-}
-
 impl<$($tp)*> Game for $type {
-    type ActionId = [ActionIndex<Ix>; $na];
-    type Actions<'a> = iter::Copied<slice::Iter<'a, Self::ActionId>>;
-    type Successors<'a> = impl Iterator<Item=Self::EdgeId>;
+    type Loc = NodeIndex<Ix>;
+    type Act = [ActionIndex<Ix>; $na];
+    type Actions<'a> = impl Iterator<Item=Self::Act>;
+    type Post<'a> = impl Iterator<Item=Self::Loc>;
 
-    fn l0(&self) -> Self::NodeId {
+    fn l0(&self) -> Self::Loc {
         self.l0
     }
 
-    fn action(&self, e: Self::EdgeId) -> Self::Actions<'_> {
-        self.graph[e].act.iter().copied()
+    fn actions(&self) -> Self::Actions<'_> {
+        map_array(range_power(0..self.n_actions), |&a| action_index(a))
     }
 
-    fn is_winning(&self, n: Self::NodeId) -> bool {
+    fn is_winning(&self, n: Self::Loc) -> bool {
         self.node(n).is_winning
     }
 
-    fn successors(&self, n: Self::NodeId) -> Self::Successors<'_> {
-        self.graph.edges(n).map(|e| e.id())
+    fn post(&self, n: Self::Loc, a: Self::Act) -> Self::Post<'_> {
+        self.graph.edges(n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target())
     }
 
-    fn source(&self, e: Self::EdgeId) -> Self::NodeId {
-        self.graph.edge_endpoints(e).unwrap().0
+    type Obs = [ObsIndex<Ix>; $na];
+
+    fn observe(&self, l: Self::Loc) -> Self::Obs {
+        self.node(l).obs
     }
 
-    fn target(&self, e: Self::EdgeId) -> Self::NodeId {
-        self.graph.edge_endpoints(e).unwrap().1
+    type Agent = AgentIndex<Ix>;
+    type AgentAct = ActionIndex<Ix>;
+    type ActionsI<'a> = impl Iterator<Item=Self::AgentAct>;
+
+    fn n_agents(&self) -> usize {
+        $na
     }
-}
 
-impl<'a, $($tp)*> IntoNeighbors for &'a $type {
-    type Neighbors = Neighbors<'a, DEdge<Ix, $na>, Ix>;
-    
-    fn neighbors(self, l: Self::NodeId) -> Self::Neighbors {
-        self.graph.neighbors(l)
+    fn act_i(&self, act: Self::Act, agt: Self::Agent) -> Self::AgentAct {
+        act[agt.index()]
     }
-}
 
-impl<'a, $($tp)*> IntoNeighborsDirected for &'a $type {
-    type NeighborsDirected = Neighbors<'a, DEdge<Ix, $na>, Ix>;
-    
-    fn neighbors_directed(self, l: Self::NodeId, dir: Direction) -> Self::NeighborsDirected {
-        self.graph.neighbors_directed(l, dir)
+    fn actions_i(&self, agt: Self::Agent) -> Self::ActionsI<'_> {
+        (0..self.n_actions).map(|a| action_index(a))
     }
-}
 
-impl<'a, $($tp)*> IntoEdgeReferences for &'a $type {
-    type EdgeRef = EdgeReference<'a, Self::EdgeWeight, Ix>;
-    type EdgeReferences = EdgeReferences<'a, Self::EdgeWeight, Ix>;
+    type AgentObs = ObsIndex<Ix>;
 
-    fn edge_references(self) -> Self::EdgeReferences {
-        self.graph.edge_references()
+    fn obs_i(&self, obs: Self::Obs, agt: Self::Agent) -> Self::AgentObs {
+        obs[agt.index()]
     }
 }
 
-impl<'a, $($tp)*> IntoEdges for &'a $type {
-    type Edges = <&'a GraphType<Ix, $na> as IntoEdges>::Edges;
-
-    fn edges(self, n: Self::NodeId) -> Self::Edges {
-        self.graph.edges(n)
-    }
-}
-
-impl<$($tp)*> Visitable for $type {
-    type Map = FixedBitSet;
-
-    fn visit_map(&self) -> Self::Map {
-        FixedBitSet::with_capacity(self.graph.node_count())
-    }
-
-    fn reset_map(&self, map: &mut Self::Map) {
-        map.clear();
-    }
-}
+impl<$($tp)*> IIGame for $type {}
+impl<$($tp)*> MAGame for $type {}
+impl<$($tp)*> MAGIIAN for $type {}
 
 impl<$($tp)*> $type {
     fn node(&self, l: NodeIndex<Ix>) -> &DNode<Ix, $na> {
@@ -158,6 +129,7 @@ impl<$($tp)*> Default for $type {
         Self {
             graph: Graph::default(),
             l0: node_index(0),
+            n_actions: 0,
             $($obs_def)*
         }
     }
@@ -199,60 +171,4 @@ macro_rules! debug_obs {
     };
 }
 
-macro_rules! impl_iigame {
-    ($name:ident, $type:ty, $na:tt, ($($tp:tt)*)) => {
-    impl<$($tp)*> IIGame for $type {
-        type ObsId = [ObsIndex<Ix>; $na];
-
-        fn observe(&self, l: Self::NodeId) -> Self::ObsId {
-            self.node(l).obs
-        }
-    }
-};}
-
-macro_rules! impl_magame {
-    ($name:ident, $type:ty, $na:tt, ($($tp:tt)*)) => {
-    impl<$($tp)*> MAGame for $type {
-        type AgentId = AgentIndex<Ix>;
-        type AgentActId = ActionIndex<Ix>;
-
-        fn n_agents(&self) -> usize {
-            $na
-        }
-
-        fn act_i(&self, act: Self::ActionId, agt: Self::AgentId) -> Self::AgentActId {
-            act[agt.index()]
-        }
-    }
-};}
-
-macro_rules! impl_magiian {
-    ($name:ident, $type:ty, $na:tt, ($($tp:tt)*)) => {
-    impl<$($tp)*> MAGIIAN for $type {
-        type AgentObsId = ObsIndex<Ix>;
-
-        fn obs_i(&self, obs: Self::ObsId, agt: Self::AgentId) -> Self::AgentObsId {
-            obs[agt.index()]
-        }
-    }
-};}
-
-impl_game!(DMAGIIAN, DMAGIIAN<Ix, N_AGT>, ImperfectInformation, MultiAgent, N_AGT, (Ix: IndexType, const N_AGT: usize), (obs: [Vec<DObs<Ix>>; N_AGT]), (obs: DObs::default_array()));
-impl_iigame!(DMAGIIAN, DMAGIIAN<Ix, N_AGT>, N_AGT, (Ix: IndexType, const N_AGT: usize));
-impl_magame!(DMAGIIAN, DMAGIIAN<Ix, N_AGT>, N_AGT, (Ix: IndexType, const N_AGT: usize));
-impl_magiian!(DMAGIIAN, DMAGIIAN<Ix, N_AGT>, N_AGT, (Ix: IndexType, const N_AGT: usize));
-
-impl_game!(DIIGame, DIIGame<Ix>, ImperfectInformation, SingleAgent, 1, (Ix: IndexType), (obs: [Vec<DObs<Ix>>; 1]), (obs: DObs::default_array()));
-impl_iigame!(DIIGame, DIIGame<Ix>, 1, (Ix: IndexType));
-derive_ma!(DIIGame<Ix>, Ix: IndexType);
-derive_magiian!(DIIGame<Ix>, Ix: IndexType);
-
-impl_game!(DMAGame, DMAGame<Ix, N_AGT>, PerfectInformation, MultiAgent, N_AGT, (Ix: IndexType, const N_AGT: usize), (), ());
-impl_magame!(DMAGame, DMAGame<Ix, N_AGT>, N_AGT, (Ix: IndexType, const N_AGT: usize));
-derive_ii!(DMAGame<Ix, N_AGT>, Ix: IndexType, const N_AGT: usize);
-derive_magiian!(DMAGame<Ix, N_AGT>, Ix: IndexType, const N_AGT: usize);
-
-impl_game!(DGame, DGame<Ix>, PerfectInformation, SingleAgent, 1, (Ix: IndexType), (), ());
-derive_ii!(DGame<Ix>, Ix: IndexType);
-derive_ma!(DGame<Ix>, Ix: IndexType);
-derive_magiian!(DGame<Ix>, Ix: IndexType);
+impl_game!(DGame, DGame<Ix, N_AGT>, ImperfectInformation, MultiAgent, N_AGT, (Ix: IndexType, const N_AGT: usize), (obs: [Vec<DObs<Ix>>; N_AGT]), (obs: DObs::default_array()));

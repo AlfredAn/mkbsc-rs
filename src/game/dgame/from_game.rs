@@ -1,11 +1,11 @@
-use std::{collections::HashMap, hash::Hash, fmt::Debug, error::Error};
+use std::{collections::HashMap, hash::Hash, fmt::Debug, error::Error, iter};
 
 use array_init::from_iter;
 use petgraph::{graph::IndexType, visit::{Visitable, IntoEdges, VisitMap, EdgeRef, GraphBase}};
 
 use crate::game::{Game, MAGame, MAGIIAN};
 
-use super::{DMAGIIAN, builder::Builder, generic_builder::GenericBuilder, index::agent_index, DGameType};
+use super::{DGame, builder::Builder, generic_builder::GenericBuilder, index::agent_index, DGameType};
 
 pub trait FromGame<'a, G, const N_AGT: usize>
 where
@@ -20,9 +20,9 @@ where
 impl<'a, G, DG, const N_AGT: usize> FromGame<'a, G, N_AGT> for DG
 where
     G: MAGIIAN,
-    G::NodeId: Eq + Hash,
-    G::AgentActId: Eq + Hash,
-    G::AgentId: IndexType,
+    G::Loc: Eq + Hash,
+    G::AgentAct: Eq + Hash,
+    G::Agent: IndexType,
     DG: DGameType<N_AGT>
 {
     type Output = DG;
@@ -44,17 +44,12 @@ where
             let is_winning = g.is_winning(l);
             b.add_node(l, is_winning)?;
 
-            for e in g.successors(l) {
-                stack.push(g.target(e));
-                if !(stop_on_win && is_winning) {
-                    b.add_edge(
-                        l, g.target(e),
-                        g.action(e)
-                            .map(|act| (0..N_AGT).map(move |i|
-                                g.act_i(act, G::AgentId::new(i))
-                            )
-                        )
-                    )?;
+            for a in g.actions() {
+                for n in g.post(l, a) {
+                    stack.push(n);
+                    if !(stop_on_win && is_winning) {
+                        b.add_edge(l, n, iter::once((0..g.n_agents()).map(|i| g.act_i(a, G::Agent::new(i)))))?;
+                    }
                 }
             }
         }

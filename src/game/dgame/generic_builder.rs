@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::game::dgame::{node::DNode, obs::DObs};
 
-use super::{index::{EdgeIndex, NodeIndex, ActionIndex, action_index}, DMAGIIAN, edge::DEdge, DGameType};
+use super::{index::{EdgeIndex, NodeIndex, ActionIndex, action_index}, DGame, edge::DEdge, DGameType};
 
 type NI = NodeIndex<usize>;
 type EI = EdgeIndex<usize>;

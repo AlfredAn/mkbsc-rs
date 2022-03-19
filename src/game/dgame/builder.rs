@@ -1,12 +1,13 @@
 use petgraph::graph::IndexType;
 
-use super::{obs::DObs, GraphType, index::{NodeIndex, ObsIndex, EdgeIndex, obs_index}, DMAGIIAN, node::DNode, edge::DEdge};
+use super::{obs::DObs, GraphType, index::{NodeIndex, ObsIndex, EdgeIndex, obs_index}, DGame, node::DNode, edge::DEdge};
 
 
 #[derive(Debug, Clone)]
 pub struct Builder<Ix: IndexType, const N_AGT: usize> {
     graph: GraphType<Ix, N_AGT>,
     l0: NodeIndex<Ix>,
+    n_actions: usize,
     obs: [Vec<DObs<Ix>>; N_AGT]
 }
 
@@ -15,6 +16,7 @@ impl<Ix: IndexType, const N_AGT: usize> Default for Builder<Ix, N_AGT> {
         Self {
             graph: Default::default(),
             l0: Default::default(),
+            n_actions: Default::default(),
             obs: DObs::default_array()
         }
     }
@@ -64,10 +66,12 @@ impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
         self
     }
 
-    pub fn build(self) -> DMAGIIAN<Ix, N_AGT> {
-        DMAGIIAN {
+    pub fn build(self) -> DGame<Ix, N_AGT> {
+        todo!();
+        DGame {
             graph: self.graph,
             l0: self.l0,
+            n_actions: self.n_actions,
             obs: self.obs
         }
     }

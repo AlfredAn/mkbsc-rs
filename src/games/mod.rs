@@ -1,12 +1,12 @@
 use petgraph::graph::node_index;
 
-use crate::game::dgame::{DMAGIIAN, builder::Builder};
+use crate::game::dgame::{DGame, builder::Builder};
 
 pub mod grid_pursuit;
 
 #[allow(dead_code)]
 
-pub fn three_coin_game() -> DMAGIIAN<u8, 1> {
+pub fn three_coin_game() -> DGame<u8, 1> {
     let mut g = Builder::default();
 
     g.l0(8);
