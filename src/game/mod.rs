@@ -14,12 +14,10 @@ pub trait Game<'a, const N: usize> {
     type Loc: Copy + Eq + Hash;
     type Act: Copy + Eq + Hash;
     type Obs: Copy + Eq + Hash;
-
     type Agent: IndexType;
-    type AgentObs: Copy + Eq + Hash;
 
-    type ActionsI: Iterator<Item=Self::Act>;
     type Actions: Iterator<Item=[Self::Act; N]>;
+    type ActionsI: Iterator<Item=Self::Act>;
     type Post: Iterator<Item=Self::Loc>;
 
     fn l0(&self) -> Self::Loc;
@@ -27,9 +25,7 @@ pub trait Game<'a, const N: usize> {
     fn post(&'a self, n: Self::Loc, a: [Self::Act; N]) -> Self::Post;
     fn actions(&'a self) -> Self::Actions;
 
-    fn observe(&self, l: Self::Loc) -> Self::Obs;
+    fn observe(&self, l: Self::Loc) -> [Self::Obs; N];
 
     fn actions_i(&'a self, agt: Self::Agent) -> Self::ActionsI;
-
-    fn obs_i(&self, obs: Self::Obs, agt: Self::Agent) -> Self::AgentObs;
 }

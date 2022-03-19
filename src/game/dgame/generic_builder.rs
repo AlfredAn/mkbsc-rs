@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::game::dgame::{node::DNode, obs::DObs};
 
-use super::{index::{EdgeIndex, NodeIndex, ActionIndex, action_index}, DGame, edge::DEdge, DGameType};
+use super::{index::{EdgeIndex, NodeIndex, ActionIndex, action_index}, DGame, edge::DEdge};
 
 type NI = NodeIndex<usize>;
 type EI = EdgeIndex<usize>;
@@ -121,11 +121,11 @@ where
         }
     }
 
-    pub fn build<'a, DG>(&self) -> anyhow::Result<DG>
+    pub fn build<Ix>(&self) -> anyhow::Result<DGame<Ix, N>>
     where
-        DG: DGameType<'a, N>
+        Ix: IndexType
     {
-        let mut g = DG::default();
+        let mut g = DGame::default();
 
         for n in self.graph.node_indices() {
             let is_winning = if let Some(w) = self.graph[n] {
@@ -133,7 +133,7 @@ where
             } else {
                 bail!("Edge references node that does not exist");
             };
-            let n2 = g.graph_mut().add_node(DNode::new(
+            let n2 = g.graph.add_node(DNode::new(
                 is_winning,
                 [Default::default(); N]
             ));
@@ -141,7 +141,7 @@ where
         }
 
         for e in self.graph.edge_references() {
-            let e2 = g.graph_mut().add_edge(
+            let e2 = g.graph.add_edge(
                 node_index(e.source().index()),
                 node_index(e.target().index()),
                 DEdge::new(

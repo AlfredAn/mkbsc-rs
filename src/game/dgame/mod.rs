@@ -22,51 +22,18 @@ pub mod generic_builder;
 type GraphType<Ix, const N: usize>
     = Graph<DNode<Ix, N>, DEdge<Ix, N>, Directed, Ix>;
 
-pub trait DGameType<'a, const N: usize>: Game<'a, N> + Default {
-    type Ix: IndexType;
-
-    fn graph(&self) -> &GraphType<Self::Ix, N>;
-    fn graph_mut(&mut self) -> &mut GraphType<Self::Ix, N>;
-    fn l0_mut(&mut self) -> &mut Self::Loc;
-    fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; N]>;
-    fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; N]>;
-}
-
-macro_rules! impl_dgametype_obs {
-    ($na:tt, ImperfectInformation) => {
-        fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; $na]> { Some(&self.obs) }
-        fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; $na]> { Some(&mut self.obs) }
-    };
-    ($na:tt, PerfectInformation) => {
-        fn obs(&self) -> Option<&[Vec<DObs<Self::Ix>>; $na]> { None }
-        fn obs_mut(&mut self) -> Option<&mut [Vec<DObs<Self::Ix>>; $na]> { None }
-    };
-}
-
-macro_rules! impl_game {
-    ($name:ident, $type:ty, $it:ident, $ac:ident, $na:tt, ($($tp:tt)*), ($($obs:tt)*), ($($obs_def:tt)*)) => {
-
 #[derive(Clone)]
-pub struct $name<$($tp)*> {
-    graph: GraphType<Ix, $na>,
-    l0: NodeIndex<Ix>,
-    n_actions: usize,
-    $($obs)*
+pub struct DGame<Ix: IndexType, const N: usize> {
+    pub graph: GraphType<Ix, N>,
+    pub l0: NodeIndex<Ix>,
+    pub n_actions: usize,
+    pub obs: [Vec<DObs<Ix>>; N]
 }
 
-impl<'a, $($tp)*> DGameType<'a, $na> for $type {
-    type Ix = Ix;
-
-    fn graph(&self) -> &GraphType<Self::Ix, $na> { &self.graph }
-    fn graph_mut(&mut self) -> &mut GraphType<Self::Ix, $na> { &mut self.graph }
-    fn l0_mut(&mut self) -> &mut Self::Loc { &mut self.l0 }
-    impl_dgametype_obs!($na, $it);
-}
-
-impl<'a, $($tp)*> Game<'a, $na> for $type {
+impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     type Loc = NodeIndex<Ix>;
     type Act = ActionIndex<Ix>;
-    type Actions = impl Iterator<Item=[Self::Act; $na]>;
+    type Actions = impl Iterator<Item=[Self::Act; N]>;
     type Post = impl Iterator<Item=Self::Loc>;
 
     fn l0(&self) -> Self::Loc {
@@ -81,13 +48,13 @@ impl<'a, $($tp)*> Game<'a, $na> for $type {
         self.node(n).is_winning
     }
 
-    fn post(&'a self, n: Self::Loc, a: [Self::Act; $na]) -> Self::Post {
+    fn post(&'a self, n: Self::Loc, a: [Self::Act; N]) -> Self::Post {
         self.graph.edges(n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target())
     }
 
-    type Obs = [ObsIndex<Ix>; $na];
+    type Obs = ObsIndex<Ix>;
 
-    fn observe(&self, l: Self::Loc) -> Self::Obs {
+    fn observe(&self, l: Self::Loc) -> [Self::Obs; N] {
         self.node(l).obs
     }
 
@@ -97,38 +64,34 @@ impl<'a, $($tp)*> Game<'a, $na> for $type {
     fn actions_i(&self, agt: Self::Agent) -> Self::ActionsI {
         (0..self.n_actions).map(|a| action_index(a))
     }
-
-    type AgentObs = ObsIndex<Ix>;
-
-    fn obs_i(&self, obs: Self::Obs, agt: Self::Agent) -> Self::AgentObs {
-        obs[agt.index()]
-    }
 }
 
-impl<$($tp)*> $type {
-    fn node(&self, l: NodeIndex<Ix>) -> &DNode<Ix, $na> {
+impl<Ix: IndexType, const N: usize> DGame<Ix, N> {
+    fn node(&self, l: NodeIndex<Ix>) -> &DNode<Ix, N> {
         self.graph.node_weight(l).unwrap()
     }
 }
 
-impl<$($tp)*> Default for $type {
+impl<Ix: IndexType, const N: usize> Default for DGame<Ix, N> {
     fn default() -> Self {
         Self {
             graph: Graph::default(),
             l0: node_index(0),
             n_actions: 0,
-            $($obs_def)*
+            obs: DObs::default_array()
         }
     }
 }
 
-impl<$($tp)*> fmt::Debug for $type {
+impl<Ix: IndexType, const N: usize> fmt::Debug for DGame<Ix, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ns = self.graph.node_references().format_with(", ", |(i, n), f|
             f(&format_args!("{}:{}", i.index(), if n.is_winning {"W"} else {"-"}))
         );
 
-        let os = debug_obs!(self, $it);
+        let os = self.obs.iter().enumerate().format_with("\n    ", |(i, o), f|
+            f(&format_args!("Obs[{}]: {:?}", i, o))
+        );
         
         let es = self.graph.edge_references()
             .format_with(", ", |e, f|
@@ -140,22 +103,8 @@ impl<$($tp)*> fmt::Debug for $type {
             );
 
         write!(f, "DGame {{\n")?;
-        write!(f, "    l0: {}, n_agents: {}\n", self.l0.index(), $na)?;
+        write!(f, "    l0: {}, n_agents: {}\n", self.l0.index(), N)?;
         write!(f, "    Nodes: [{}]\n    {}\n    Edges: [{}]\n", ns, os, es)?;
         write!(f, "}}")
     }
 }
-
-};}
-
-macro_rules! debug_obs {
-    ($self:ident, PerfectInformation) => {
-        ""
-    }; ($self:ident, ImperfectInformation) => {
-        $self.obs.iter().enumerate().format_with("\n    ", |(i, o), f|
-            f(&format_args!("Obs[{}]: {:?}", i, o))
-            )
-    };
-}
-
-impl_game!(DGame, DGame<Ix, N>, ImperfectInformation, MultiAgent, N, (Ix: IndexType, const N: usize), (obs: [Vec<DObs<Ix>>; N]), (obs: DObs::default_array()));

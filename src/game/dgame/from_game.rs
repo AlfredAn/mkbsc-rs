@@ -5,7 +5,7 @@ use petgraph::{graph::IndexType, visit::{Visitable, IntoEdges, VisitMap, EdgeRef
 
 use crate::game::Game;
 
-use super::{DGame, builder::Builder, generic_builder::GenericBuilder, index::agent_index, DGameType};
+use super::{DGame, builder::Builder, generic_builder::GenericBuilder, index::agent_index};
 
 pub trait FromGame<'a, G, const N: usize>
 where
@@ -17,12 +17,12 @@ where
     fn from_game(g: &'a G, stop_on_win: bool) -> Result<Self::Output, Self::Err>;
 }
 
-impl<'a, G, DG, const N: usize> FromGame<'a, G, N> for DG
+impl<'a, Ix, G, const N: usize> FromGame<'a, G, N> for DGame<Ix, N>
 where
-    G: Game<'a, N>,
-    DG: DGameType<'a, N>
+    Ix: IndexType,
+    G: Game<'a, N>
 {
-    type Output = DG;
+    type Output = DGame<Ix, N>;
     type Err = anyhow::Error;
 
     fn from_game(g: &'a G, stop_on_win: bool) -> Result<Self::Output, Self::Err> {

@@ -1,7 +1,7 @@
 macro_rules! derive_ii {
     () => {
         type Obs = Self::Loc;
-        fn observe(&self, l: Self::Loc) -> Self::Obs { l }
+        fn observe(&self, l: Self::Loc) -> [Self::Obs; N] { [l; N] }
     };
 }
 
@@ -14,10 +14,7 @@ macro_rules! derive_ma {
 }
 
 macro_rules! derive_magiian {
-    () => {
-        type AgentObs = Self::Obs;
-        fn obs_i(&self, obs: Self::Obs, _: Self::Agent) -> Self::AgentObs { obs }
-    }
+    () => {}
 }
 
 pub(crate) use derive_ii;

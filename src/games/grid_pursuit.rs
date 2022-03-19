@@ -161,9 +161,9 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
         index_power(MOVE)
     }
 
-    type Obs = [Obs; N];
+    type Obs = Obs;
 
-    fn observe(&self, l: Self::Loc) -> Self::Obs {
+    fn observe(&self, l: Self::Loc) -> [Obs; N] {
         array_init(|i| {
             let p = l.pu[i];
             Obs(p, array_init(|j| {
@@ -184,12 +184,6 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
 
     fn actions_i(&self, _: Self::Agent) -> Self::ActionsI {
         MOVE.iter().copied()
-    }
-
-    type AgentObs = Obs;
-
-    fn obs_i(&self, obs: Self::Obs, agt: Self::Agent) -> Self::AgentObs {
-        obs[agt.index()]
     }
 }
 
