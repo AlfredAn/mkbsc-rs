@@ -64,7 +64,6 @@ dependencies = [
  "itertools",
  "nalgebra",
  "petgraph",
- "typenum",
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ use petgraph::visit::{GraphBase, IntoNeighbors, IntoEdgeReferences, EdgeRef, Dat
 use itertools::{Itertools, iproduct, izip};
 use array_init::array_init;
 
-use crate::game::{Game, MAGame, IIGame, MAGIIAN};
+use crate::game::Game;
 use crate::game::macros;
 use crate::util::{RangePower, index_power};
 
@@ -137,9 +137,9 @@ const fn act_zero<const N: usize>() -> Action<N> {
     [pos!(0, 0); N]
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N> {
+impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGame<X, Y, N> {
     type Loc = Loc<X, Y, N>;
-    type Act = Action<N>;
+    type Act = Pos;
 
     fn l0(&self) -> Self::Loc {
         self.l0
@@ -149,15 +149,15 @@ impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N>
         l.is_winning()
     }
 
-    type Post<'a> where Self: 'a = impl Iterator<Item=Self::Loc>;
+    type Post = impl Iterator<Item=Self::Loc>;
 
-    fn post(&self, n: Self::Loc, a: Self::Act) -> Self::Post<'_> {
+    fn post(&self, n: Self::Loc, a: Action<N>) -> Self::Post {
         Edges::new(n).filter(move |e| e.act == a).map(|e| e.to)
     }
 
-    type Actions<'a> where Self: 'a = impl Iterator<Item=Self::Act>;
+    type Actions = impl Iterator<Item=Action<N>>;
 
-    fn actions(&self) -> Self::Actions<'_> {
+    fn actions(&self) -> Self::Actions {
         index_power(MOVE)
     }
 
@@ -179,19 +179,10 @@ impl<const X: i8, const Y: i8, const N: usize> Game for GridPursuitGame<X, Y, N>
     }
 
     type Agent = usize;
-    type AgentAct = Pos;
 
-    fn n_agents(&self) -> usize {
-        N
-    }
+    type ActionsI = impl Iterator<Item=Pos>;
 
-    fn act_i(&self, act: Self::Act, agt: Self::Agent) -> Self::AgentAct {
-        act[agt]
-    }
-
-    type ActionsI<'a> where Self: 'a = impl Iterator<Item=Pos>;
-
-    fn actions_i(&self, _: Self::Agent) -> Self::ActionsI<'_> {
+    fn actions_i(&self, _: Self::Agent) -> Self::ActionsI {
         MOVE.iter().copied()
     }
 
@@ -214,12 +205,6 @@ impl SquareObs {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Obs(Pos, [SquareObs; VIS.len()]);
-
-impl<const X: i8, const Y: i8, const N: usize> IIGame for GridPursuitGame<X, Y, N> {}
-
-impl<const X: i8, const Y: i8, const N: usize> MAGIIAN for GridPursuitGame<X, Y, N> {}
-
-impl<const X: i8, const Y: i8, const N: usize> MAGame for GridPursuitGame<X, Y, N> {}
 
 impl<const X: i8, const Y: i8> Default for GridPursuitGame<X, Y, 2> {
     fn default() -> Self {

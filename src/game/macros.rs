@@ -6,13 +6,10 @@ macro_rules! derive_ii {
 }
 
 macro_rules! derive_ma {
-    () => {
+    ($l:lifetime) => {
         type Agent = crate::game::dgame::index::ZeroIndex;
-        type AgentAct = Self::Act;
-        type ActionsI<'reallylongname> where Self: 'reallylongname = impl Iterator<Item=Self::AgentAct>;
-        fn n_agents(&self) -> usize { 1 }
-        fn act_i(&self, act: Self::Act, _: Self::Agent) -> Self::AgentAct { act }
-        fn actions_i(&self, _: Self::Agent) -> Self::ActionsI<'_> { self.actions() }
+        type ActionsI = impl Iterator<Item=Self::Act>;
+        fn actions_i(&$l self, _: Self::Agent) -> Self::ActionsI { self.actions().map(|[a]| a) }
     }
 }
 

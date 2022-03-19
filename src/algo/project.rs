@@ -1,19 +1,19 @@
 use std::iter::{Map, self};
 
 use itertools::Itertools;
-use petgraph::visit::{GraphBase, Data, IntoEdgeReferences, IntoNeighbors, IntoEdges};
+use petgraph::{visit::{GraphBase, Data, IntoEdgeReferences, IntoNeighbors, IntoEdges}, graph::IndexType};
 
-use crate::game::{MAGame, Game, MAGIIAN, IIGame};
+use crate::game::Game;
 
 #[derive(Clone, Copy)]
-pub struct Project<'a, G: MAGame>(pub &'a G, pub G::Agent);
+pub struct Project<'a, G: Game<'a, N>, const N: usize>(pub &'a G, pub G::Agent);
 
-impl<'a, G> Game for Project<'a, G>
+impl<'a, G, const N: usize> Game<'a, 1> for Project<'a, G, N>
 where
-    G: MAGIIAN + 'a
+    G: Game<'a, N>
 {
     type Loc = G::Loc;
-    type Act = G::AgentAct;
+    type Act = G::Act;
 
     fn l0(&self) -> Self::Loc {
         self.0.l0()
@@ -23,20 +23,20 @@ where
         self.0.is_winning(n)
     }
 
-    type Post<'b> where Self: 'b = impl Iterator<Item=Self::Loc>;
+    type Post = impl Iterator<Item=Self::Loc>;
 
-    fn post(&self, n: Self::Loc, a: Self::Act) -> Self::Post<'_> {
+    fn post(&'a self, n: Self::Loc, a: [Self::Act; 1]) -> Self::Post {
         self.0.actions()
-            .filter(move |&aa| self.0.act_i(aa, self.1) == a)
+            .filter(move |&aa| aa[self.1.index()] == a[0])
             .map(move |aa| self.0.post(n, aa))
             .flatten()
             .unique()
     }
 
-    type Actions<'b> where Self: 'b = impl Iterator<Item=Self::Act>;
+    type Actions = impl Iterator<Item=[Self::Act; 1]>;
 
-    fn actions(&self) -> Self::Actions<'_> {
-        self.0.actions_i(self.1)
+    fn actions(&self) -> Self::Actions {
+        self.0.actions_i(self.1).map(|a| [a])
     }
 
     type Obs = G::AgentObs;
@@ -45,10 +45,6 @@ where
         self.0.obs_i(self.0.observe(l), self.1)
     }
 
-    derive_ma!();
+    derive_ma!('a);
     derive_magiian!();
 }
-
-impl<'a, G> IIGame for Project<'a, G> where G: MAGIIAN + 'a {}
-impl<'a, G> MAGame for Project<'a, G> where G: MAGIIAN + 'a {}
-impl<'a, G> MAGIIAN for Project<'a, G> where G: MAGIIAN + 'a {}

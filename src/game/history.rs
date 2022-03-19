@@ -8,8 +8,8 @@ pub trait History<N: Copy + PartialEq>: Index<usize, Output=N> {
         self[i]
     }
 }
-
-pub trait ObsHistory<G: IIGame>: History<G::Loc> {
+/*
+pub trait ObsHistory<G: Game>: History<G::Loc> {
     fn obs(&self, i: usize, g: &G) -> G::Obs;
 }
 
@@ -17,8 +17,9 @@ impl<N: Copy + PartialEq> History<N> for Vec<N> {
     fn len(&self) -> usize { self.len() }
 }
 
-impl<G: IIGame, H: History<G::Loc>> ObsHistory<G> for H {
+impl<G: Game, H: History<G::Loc>> ObsHistory<G> for H {
     fn obs(&self, i: usize, g: &G) -> G::Obs {
         g.observe(self[i])
     }
 }
+*/

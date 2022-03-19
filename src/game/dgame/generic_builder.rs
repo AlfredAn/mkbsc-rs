@@ -25,7 +25,7 @@ pub struct GenericBuilder<N, A, O, const N_AGT: usize> {
     _o: PhantomData<O>
 }
 
-impl<N, A, O, const N_AGT: usize> Default for GenericBuilder<N, A, O, N_AGT> {
+impl<Loc, Act, Obs, const N: usize> Default for GenericBuilder<Loc, Act, Obs, N> {
     fn default() -> Self {
         Self {
             graph: Default::default(),
@@ -39,12 +39,12 @@ impl<N, A, O, const N_AGT: usize> Default for GenericBuilder<N, A, O, N_AGT> {
     }
 }
 
-impl<N, A, O, const N_AGT: usize> GenericBuilder<N, A, O, N_AGT>
+impl<Loc, Act, Obs, const N: usize> GenericBuilder<Loc, Act, Obs, N>
 where
-    N: Copy + Eq + Hash,
-    A: Copy + Eq + Hash
+    Loc: Copy + Eq + Hash,
+    Act: Copy + Eq + Hash
 {
-    fn _add_node(&mut self, node: N, is_winning: Option<bool>) -> anyhow::Result<NI> {
+    fn _add_node(&mut self, node: Loc, is_winning: Option<bool>) -> anyhow::Result<NI> {
         if let Some(&n) = self.nodes.get(&node) {
             if self.graph[n] == None {
                 self.graph[n] = is_winning;
@@ -60,15 +60,15 @@ where
         Ok(n)
     }
 
-    pub fn add_node(&mut self, node: N, is_winning: bool) -> anyhow::Result<NI> {
+    pub fn add_node(&mut self, node: Loc, is_winning: bool) -> anyhow::Result<NI> {
         self._add_node(node, Some(is_winning))
     }
 
-    pub fn node(&self, node: N) -> Option<NI> {
+    pub fn node(&self, node: Loc) -> Option<NI> {
         self.nodes.get(&node).map(|&n| n)
     }
 
-    pub fn has_node(&self, node: N) -> bool {
+    pub fn has_node(&self, node: Loc) -> bool {
         if let Some(&n) = self.nodes.get(&node) {
             self.graph[n].is_some()
         } else {
@@ -76,7 +76,7 @@ where
         }
     }
 
-    fn action(&mut self, act: A) -> AI {
+    fn action(&mut self, act: Act) -> AI {
         if let Some(&a) = self.actions.get(&act) {
             a
         } else {
@@ -86,9 +86,9 @@ where
         }
     }
 
-    fn actions<As>(&mut self, acts: As) -> anyhow::Result<[AI; N_AGT]>
+    fn actions<As>(&mut self, acts: As) -> anyhow::Result<[AI; N]>
     where
-        As: IntoIterator<Item=A>
+        As: IntoIterator<Item=Act>
     {
         let itr = acts.into_iter().map(|a| self.action(a));
         let result = from_iter(itr);
@@ -98,9 +98,9 @@ where
         bail!("Action contains wrong number of elements");
     }
 
-    pub fn add_edge<As1, As2>(&mut self, from: N, to: N, act: As2) -> anyhow::Result<EI>
+    pub fn add_edge<As1, As2>(&mut self, from: Loc, to: Loc, act: As2) -> anyhow::Result<EI>
     where
-        As1: IntoIterator<Item=A>,
+        As1: IntoIterator<Item=Act>,
         As2: IntoIterator<Item=As1>
     {
         let f = self._add_node(from, None)?;
@@ -121,9 +121,9 @@ where
         }
     }
 
-    pub fn build<DG>(&self) -> anyhow::Result<DG>
+    pub fn build<'a, DG>(&self) -> anyhow::Result<DG>
     where
-        DG: DGameType<N_AGT>
+        DG: DGameType<'a, N>
     {
         let mut g = DG::default();
 
@@ -135,7 +135,7 @@ where
             };
             let n2 = g.graph_mut().add_node(DNode::new(
                 is_winning,
-                [Default::default(); N_AGT]
+                [Default::default(); N]
             ));
             assert_eq!(n.index(), n2.index());
         }
