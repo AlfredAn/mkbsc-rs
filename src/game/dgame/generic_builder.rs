@@ -41,7 +41,7 @@ impl<Loc, Act, Obs, const N: usize> Default for GenericBuilder<Loc, Act, Obs, N>
 
 impl<Loc, Act, Obs, const N: usize> GenericBuilder<Loc, Act, Obs, N>
 where
-    Loc: Copy + Eq + Hash,
+    Loc: Clone + Eq + Hash,
     Act: Copy + Eq + Hash
 {
     fn _add_node(&mut self, node: Loc, is_winning: Option<bool>) -> anyhow::Result<NI> {
@@ -64,11 +64,11 @@ where
         self._add_node(node, Some(is_winning))
     }
 
-    pub fn node(&self, node: Loc) -> Option<NI> {
+    pub fn node(&self, node: &Loc) -> Option<NI> {
         self.nodes.get(&node).map(|&n| n)
     }
 
-    pub fn has_node(&self, node: Loc) -> bool {
+    pub fn has_node(&self, node: &Loc) -> bool {
         if let Some(&n) = self.nodes.get(&node) {
             self.graph[n].is_some()
         } else {
@@ -103,10 +103,10 @@ where
         As1: IntoIterator<Item=Act>,
         As2: IntoIterator<Item=As1>
     {
-        let f = self._add_node(from, None)?;
-        let t = self._add_node(to, None)?;
-        
-        if let Some(&e) = self.edges.get(&(from, to)) {
+        let f = self._add_node(from.clone(), None)?;
+        let t = self._add_node(to.clone(), None)?;
+
+        if let Some(&e) = self.edges.get(&(from.clone(), to.clone())) {
             Ok(e)
         } else {
             let mut a_vec = Vec::new();

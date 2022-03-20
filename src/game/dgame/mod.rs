@@ -34,28 +34,28 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     type Loc = NodeIndex<Ix>;
     type Act = ActionIndex<Ix>;
     type Actions = impl Iterator<Item=[Self::Act; N]>;
-    type Post = impl Iterator<Item=Self::Loc>;
+    type Post<'b> where Self: 'b = impl Iterator<Item=Self::Loc>;
 
-    fn l0(&self) -> Self::Loc {
-        self.l0
+    fn l0(&self) -> &Self::Loc {
+        &self.l0
     }
 
     fn actions(&self) -> Self::Actions {
         map_array(range_power(0..self.n_actions), |&a| action_index(a))
     }
 
-    fn is_winning(&self, n: Self::Loc) -> bool {
-        self.node(n).is_winning
+    fn is_winning(&self, n: &Self::Loc) -> bool {
+        self.node(*n).is_winning
     }
 
-    fn post(&'a self, n: Self::Loc, a: [Self::Act; N]) -> Self::Post {
-        self.graph.edges(n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target())
+    fn post(&self, n: &Self::Loc, a: [Self::Act; N]) -> Self::Post<'_> {
+        self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target())
     }
 
     type Obs = ObsIndex<Ix>;
 
-    fn observe(&self, l: Self::Loc) -> [Self::Obs; N] {
-        self.node(l).obs
+    fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
+        self.node(*l).obs
     }
 
     type Agent = AgentIndex<Ix>;
@@ -64,6 +64,8 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     fn actions_i(&self, agt: Self::Agent) -> Self::ActionsI {
         (0..self.n_actions).map(|a| action_index(a))
     }
+
+    //post_set!(N, 'a);
 }
 
 impl<Ix: IndexType, const N: usize> DGame<Ix, N> {

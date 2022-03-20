@@ -141,18 +141,18 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
     type Loc = Loc<X, Y, N>;
     type Act = Pos;
 
-    fn l0(&self) -> Self::Loc {
-        self.l0
+    fn l0(&self) -> &Self::Loc {
+        &self.l0
     }
 
-    fn is_winning(&self, l: Self::Loc) -> bool {
+    fn is_winning(&self, l: &Self::Loc) -> bool {
         l.is_winning()
     }
 
-    type Post = impl Iterator<Item=Self::Loc>;
+    type Post<'b> where Self: 'b = impl Iterator<Item=Self::Loc>;
 
-    fn post(&self, n: Self::Loc, a: Action<N>) -> Self::Post {
-        Edges::new(n).filter(move |e| e.act == a).map(|e| e.to)
+    fn post(&self, n: &Self::Loc, a: Action<N>) -> Self::Post<'_> {
+        Edges::new(*n).filter(move |e| e.act == a).map(|e| e.to)
     }
 
     type Actions = impl Iterator<Item=Action<N>>;
@@ -163,7 +163,7 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
 
     type Obs = Obs;
 
-    fn observe(&self, l: Self::Loc) -> [Obs; N] {
+    fn observe(&self, l: &Self::Loc) -> [Obs; N] {
         array_init(|i| {
             let p = l.pu[i];
             Obs(p, array_init(|j| {
@@ -185,6 +185,8 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
     fn actions_i(&self, _: Self::Agent) -> Self::ActionsI {
         MOVE.iter().copied()
     }
+    
+    post_set!(N, 'a);
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
