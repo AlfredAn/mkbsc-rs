@@ -3,6 +3,7 @@ use petgraph::graph::node_index;
 use crate::game::dgame::{DGame, builder::Builder};
 
 pub mod grid_pursuit;
+pub mod cup_game;
 
 #[allow(dead_code)]
 

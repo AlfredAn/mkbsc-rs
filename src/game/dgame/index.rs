@@ -17,7 +17,7 @@ unsafe impl IndexType for ZeroIndex {
     fn index(&self) -> usize {
         0
     }
-    fn new(x: usize) -> Self {
+    fn new(_: usize) -> Self {
         Self()
     }
     fn max() -> Self {

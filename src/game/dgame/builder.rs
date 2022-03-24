@@ -1,6 +1,8 @@
+use std::cmp::max;
+
 use petgraph::graph::IndexType;
 
-use super::{obs::DObs, GraphType, index::{NodeIndex, ObsIndex, EdgeIndex, obs_index}, DGame, node::DNode, edge::DEdge};
+use super::{obs::DObs, GraphType, index::{NodeIndex, ObsIndex, EdgeIndex, obs_index, action_index}, DGame, node::DNode, edge::DEdge};
 
 
 #[derive(Debug, Clone)]
@@ -23,12 +25,14 @@ impl<Ix: IndexType, const N_AGT: usize> Default for Builder<Ix, N_AGT> {
 }
 
 impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
-    fn add_node<O>(&mut self, is_winning: bool, o: [O; N_AGT]) -> NodeIndex<Ix>
+    pub fn add_node<O>(&mut self, is_winning: bool, o: [O; N_AGT]) -> NodeIndex<Ix>
     where
         O: Into<ObsIndex<Ix>>
     {
         let o = o.map(|x| x.into());
-        let n = self.graph.add_node(DNode::new(is_winning, o));
+        let n = self.graph.add_node(DNode::new(is_winning, o, None));
+
+        println!("{:?}", (n, o));
         
         for (i, o) in o.iter().enumerate() {
             if self.obs[i].len() <= o.index() {
@@ -54,8 +58,15 @@ impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
         J: Into<NodeIndex<Ix>>,
         A: IntoIterator<Item=[Ix; N_AGT]>
     {
-        let itr = a.into_iter().map(|x| x.map(|y| y.into()));
-        self.graph.add_edge(i.into(), j.into(), DEdge::new(Vec::from_iter(itr)))
+        let (v, mx) = a.into_iter()
+            .fold((Vec::new(), Ix::new(0)), |(mut v, mx), a| {
+                v.push(a.map(|aa| action_index(aa.index())));
+                let &a_max = a.iter().max().unwrap();
+                (v, max(mx, a_max))
+            });
+
+        self.n_actions = max(self.n_actions, mx.index()+1);
+        self.graph.add_edge(i.into(), j.into(), DEdge::new(v))
     }
 
     pub fn l0<I>(&mut self, l0: I) -> &mut Self
@@ -67,7 +78,6 @@ impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
     }
 
     pub fn build(self) -> DGame<Ix, N_AGT> {
-        todo!();
         DGame {
             graph: self.graph,
             l0: self.l0,

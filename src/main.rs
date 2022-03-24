@@ -1,13 +1,13 @@
-#![feature(type_alias_impl_trait)]
-#![feature(generic_associated_types)]
-
+#![allow(dead_code)]
 #![allow(unused_imports)]
+use std::fmt::Debug;
+
 use game::{Game, dgame::DGame};
 use games::grid_pursuit::GridPursuitGame;
 use itertools::Itertools;
 use petgraph::visit::{Walker, Dfs, IntoNeighbors, IntoEdges, EdgeRef, Visitable, VisitMap};
 
-use crate::{games::three_coin_game, algo::project::*, game::{strategy::VecStrat, dgame::{from_game::FromGame}}};
+use crate::{games::{three_coin_game, cup_game::cup_game}, algo::{project::*, kbsc::KBSC}, game::{strategy::VecStrat, dgame::{*, index::*}}};
 
 #[macro_use]
 mod game;
@@ -15,15 +15,16 @@ mod games;
 mod algo;
 mod util;
 
+fn print_game<'a, G: Game<'a, N>, const N: usize>(g: &G) {
+    let dg = DGame::<u32, N>::from_game(g, false).unwrap();
+    println!("{:?}", dg);
+}
+
 fn main() {
-    let g = GridPursuitGame::<3, 3, 2>::default();
-    let g2 = DGame::<u32, 2>::from_game(&g, true).unwrap();
-
-    println!("{:?}", g2);
-    println!("{}, {}", g2.graph.node_count(), g2.graph.edge_count());
-
-    let proj = Project(&g, 0);
-    let proj2 = DGame::<u32, 1>::from_game(&proj, true).unwrap();
-    println!("{:?}", proj2);
-    println!("{}, {}", proj2.graph.node_count(), proj2.graph.edge_count());
+    let g = cup_game().unwrap();
+    print_game(&g);
+    let proj = Project(g, agent_index(1));
+    print_game(&proj);
+    let kbsc = KBSC::new(proj);
+    print_game(&kbsc);
 }

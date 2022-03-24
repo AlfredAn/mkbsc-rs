@@ -33,23 +33,21 @@ pub struct DGame<Ix: IndexType, const N: usize> {
 impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     type Loc = NodeIndex<Ix>;
     type Act = ActionIndex<Ix>;
-    type Actions = impl Iterator<Item=[Self::Act; N]>;
-    type Post<'b> where Self: 'b = impl Iterator<Item=Self::Loc>;
 
-    fn l0(&self) -> &Self::Loc {
+    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
         &self.l0
     }
 
-    fn actions(&self) -> Self::Actions {
-        map_array(range_power(0..self.n_actions), |&a| action_index(a))
+    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
+        Box::new(map_array(range_power(0..self.n_actions), |&a| action_index(a)))
     }
 
     fn is_winning(&self, n: &Self::Loc) -> bool {
         self.node(*n).is_winning
     }
 
-    fn post(&self, n: &Self::Loc, a: [Self::Act; N]) -> Self::Post<'_> {
-        self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target())
+    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> where 'a: 'b {
+        Box::new(self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target()))
     }
 
     type Obs = ObsIndex<Ix>;
@@ -59,13 +57,14 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     }
 
     type Agent = AgentIndex<Ix>;
-    type ActionsI = impl Iterator<Item=Self::Act>;
 
-    fn actions_i(&self, agt: Self::Agent) -> Self::ActionsI {
-        (0..self.n_actions).map(|a| action_index(a))
+    fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
+        Box::new((0..self.n_actions).map(|a| action_index(a)))
     }
 
-    //post_set!(N, 'a);
+    fn debug_string(&self, l: &Self::Loc) -> Option<String> {
+        self.node(*l).debug.clone()
+    }
 }
 
 impl<Ix: IndexType, const N: usize> DGame<Ix, N> {
@@ -87,9 +86,13 @@ impl<Ix: IndexType, const N: usize> Default for DGame<Ix, N> {
 
 impl<Ix: IndexType, const N: usize> fmt::Debug for DGame<Ix, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ns = self.graph.node_references().format_with(", ", |(i, n), f|
-            f(&format_args!("{}:{}", i.index(), if n.is_winning {"W"} else {"-"}))
-        );
+        let ns = self.graph.node_references().format_with(", ", |(i, n), f| {
+            if let Some(debug) = &n.debug {
+                f(&format_args!("{}:{}:{}", i.index(), debug, if n.is_winning {"W"} else {"-"}))
+            } else {
+                f(&format_args!("{}:{}", i.index(), if n.is_winning {"W"} else {"-"}))
+            }
+        });
 
         let os = self.obs.iter().enumerate().format_with("\n    ", |(i, o), f|
             f(&format_args!("Obs[{}]: {:?}", i, o))
@@ -105,7 +108,7 @@ impl<Ix: IndexType, const N: usize> fmt::Debug for DGame<Ix, N> {
             );
 
         write!(f, "DGame {{\n")?;
-        write!(f, "    l0: {}, n_agents: {}\n", self.l0.index(), N)?;
+        write!(f, "    l0: {}, n_agents: {}, n_actions: {}\n", self.l0.index(), N, self.n_actions)?;
         write!(f, "    Nodes: [{}]\n    {}\n    Edges: [{}]\n", ns, os, es)?;
         write!(f, "}}")
     }

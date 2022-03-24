@@ -11,7 +11,7 @@ use array_init::array_init;
 
 use crate::game::Game;
 use crate::game::macros;
-use crate::util::{RangePower, index_power};
+use crate::util::{index_power, Itr};
 
 type Pos = Vector2<i8>;
 
@@ -141,7 +141,7 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
     type Loc = Loc<X, Y, N>;
     type Act = Pos;
 
-    fn l0(&self) -> &Self::Loc {
+    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
         &self.l0
     }
 
@@ -149,16 +149,13 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
         l.is_winning()
     }
 
-    type Post<'b> where Self: 'b = impl Iterator<Item=Self::Loc>;
-
-    fn post(&self, n: &Self::Loc, a: Action<N>) -> Self::Post<'_> {
-        Edges::new(*n).filter(move |e| e.act == a).map(|e| e.to)
+    fn post<'b>(&'b self, n: &'b Self::Loc, a: Action<N>) -> Itr<'b, Self::Loc> where 'a: 'b {
+        //todo: optimize
+        Box::new(Edges::new(*n).filter(move |e| e.act == a).map(|e| e.to))
     }
 
-    type Actions = impl Iterator<Item=Action<N>>;
-
-    fn actions(&self) -> Self::Actions {
-        index_power(MOVE)
+    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
+        Box::new(index_power(MOVE))
     }
 
     type Obs = Obs;
@@ -180,13 +177,9 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
 
     type Agent = usize;
 
-    type ActionsI = impl Iterator<Item=Pos>;
-
-    fn actions_i(&self, _: Self::Agent) -> Self::ActionsI {
-        MOVE.iter().copied()
+    fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
+        Box::new(MOVE.iter().copied())
     }
-    
-    post_set!(N, 'a);
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

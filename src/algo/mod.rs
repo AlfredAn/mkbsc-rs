@@ -5,3 +5,4 @@ use crate::{game::Game};
 pub mod play;
 pub mod project;
 pub mod kbsc;
+pub mod mkbsc;
