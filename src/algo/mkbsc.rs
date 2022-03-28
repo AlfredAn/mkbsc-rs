@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::collections::BTreeSet;
 use std::{rc::Rc, iter::{once, self}};
 
@@ -14,7 +15,8 @@ type KLoc<'a, G, const N: usize> = <K<'a, G, N> as Game<'a, 1>>::Loc;
 pub struct MKBSC<'a, G, const N: usize>
 where
     G: Game<'a, N> + 'a,
-    G::Loc: Ord
+    G::Loc: Ord,
+    G::Obs: Hash
 {
     pub g: Rc<G>,
     kbsc: [K<'a, G, N>; N],
@@ -24,7 +26,8 @@ where
 impl<'a, G, const N: usize> MKBSC<'a, G, N>
 where
     G: Game<'a, N>,
-    G::Loc: Ord
+    G::Loc: Ord,
+    G::Obs: Hash
 {
     pub fn new(g: G) -> Self {
         let g = Rc::new(g);
@@ -48,11 +51,11 @@ where
 impl<'a, G, const N: usize> Game<'a, N> for MKBSC<'a, G, N>
 where
     G: Game<'a, N> + 'a,
-    G::Loc: Ord
+    G::Loc: Ord,
+    G::Obs: Hash
 {
     type Loc = [KLoc<'a, G, N>; N];
     type Act = G::Act;
-    //type Obs = ();
     type Agent = G::Agent;
 
     fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
@@ -102,5 +105,5 @@ where
         ))
     }
 
-    derive_ii!(N);
+    derive_observe!('a, N);
 }

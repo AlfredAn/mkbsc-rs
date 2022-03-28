@@ -15,7 +15,6 @@ where
 {
     type Loc = G::Loc;
     type Act = G::Act;
-    type Obs = G::Obs;
 
     fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
         self.0.l0()
@@ -37,8 +36,8 @@ where
         Box::new(self.0.actions_i(self.1).map(|a| [a]))
     }
 
-    fn observe(&self, l: &Self::Loc) -> [Self::Obs; 1] {
-        [self.0.observe(l)[self.1.index()].clone()]
+    fn obs_eq(&self, l1: &Self::Loc, l2: &Self::Loc, _: Self::Agent) -> bool {
+        self.0.obs_eq(l1, l2, self.1)
     }
 
     derive_ma!('a);

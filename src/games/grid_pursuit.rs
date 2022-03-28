@@ -158,9 +158,13 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
         Box::new(index_power(MOVE))
     }
 
-    type Obs = Obs;
+    fn obs_eq(&self, l1: &Self::Loc, l2: &Self::Loc, agt: Self::Agent) -> bool {
+        todo!()
+    }
 
-    fn observe(&self, l: &Self::Loc) -> [Obs; N] {
+    //type Obs = Obs;
+
+    /*fn observe(&self, l: &Self::Loc) -> [Obs; N] {
         array_init(|i| {
             let p = l.pu[i];
             Obs(p, array_init(|j| {
@@ -173,7 +177,7 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
                 }
             }))
         })
-    }
+    }*/
 
     type Agent = usize;
 

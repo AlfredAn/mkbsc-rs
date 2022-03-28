@@ -16,8 +16,11 @@ pub mod macros;
 pub trait Game<'a, const N: usize>: Debug {
     type Loc: Clone + Eq + Hash + Debug;
     type Act: Copy + Eq + Hash + Debug + 'a;
-    type Obs: Clone + Eq + Hash + Debug;
     type Agent: IndexType;
+
+    fn agent(i: usize) -> Self::Agent {
+        Self::Agent::new(i)
+    }
 
     fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b;
     fn is_winning(&self, n: &Self::Loc) -> bool;
@@ -25,7 +28,7 @@ pub trait Game<'a, const N: usize>: Debug {
 
     fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b;
 
-    fn observe(&self, l: &Self::Loc) -> [Self::Obs; N];
+    fn obs_eq(&self, l1: &Self::Loc, l2: &Self::Loc, agt: Self::Agent) -> bool;
 
     fn actions_i<'b>(&'b self, agt: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
         Box::new(self.actions()
@@ -50,6 +53,18 @@ pub trait Game<'a, const N: usize>: Debug {
     }
 }
 
+pub trait ObsSet<'a, const N: usize>: Game<'a, N> {
+    fn obs_set(&self, l: &Self::Loc, agt: Self::Agent) -> Itr<Self::Loc>;
+}
+
+pub trait Game1<'a>: Game<'a, 1> {
+    const AGENT: Self::Agent;
+}
+
+impl<'a, G: Game<'a, 1>> Game1<'a> for G {
+    const AGENT: Self::Agent = Self::agent(0);
+}
+
 impl<'a, R, G, const N: usize> Game<'a, N> for R
 where
     G: Game<'a, N> + 'a,
@@ -57,7 +72,6 @@ where
 {
     type Loc = G::Loc;
     type Act = G::Act;
-    type Obs = G::Obs;
     type Agent = G::Agent;
 
     fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
@@ -74,10 +88,6 @@ where
 
     fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
         self.deref().actions()
-    }
-
-    fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
-        self.deref().observe(l)
     }
 
     fn actions_i<'b>(&'b self, agt: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {

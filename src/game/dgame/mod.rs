@@ -50,12 +50,6 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
         Box::new(self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target()))
     }
 
-    type Obs = ObsIndex<Ix>;
-
-    fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
-        self.node(*l).obs
-    }
-
     type Agent = AgentIndex<Ix>;
 
     fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {

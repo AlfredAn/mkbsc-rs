@@ -1,3 +1,4 @@
+use std::cmp::Eq;
 use std::{ops::{Index, Range, Deref}, rc::Rc, iter::Map};
 use array_init::array_init;
 use typenum::*;
@@ -220,6 +221,24 @@ where
 
         Some(result)
     }
+}
+
+pub fn unique_by_no_hash<I, F>(itr: I, f: F) -> impl Iterator<Item=I::Item>
+where
+    I: IntoIterator,
+    I::Item: Eq + Clone,
+    F: Fn(&I::Item, &I::Item) -> bool
+{
+    let v = Vec::new();
+    itr.into_iter()
+        .filter_map(|x| {
+            if v.iter().any(|y| f(&x, y)) {
+                None
+            } else {
+                v.push(x.clone());
+                Some(x)
+            }
+        })
 }
 
 /*pub trait TypeNumberTrait {

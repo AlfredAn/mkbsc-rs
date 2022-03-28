@@ -1,18 +1,21 @@
-use std::collections::{HashSet, BTreeSet};
+use crate::agent_index;
+use crate::util::unique_by_no_hash;
+use std::{hash::Hash, collections::{HashSet, BTreeSet}};
+use petgraph::graph::IndexType;
 
 use itertools::Itertools;
 
 use crate::{game::*, util::{Itr, into_cloneable}};
 
 #[derive(Clone, Debug)]
-pub struct KBSC<'a, G: Game<'a, 1>> {
+pub struct KBSC<'a, G: Game1<'a>> {
     pub g: G,
     l0: BTreeSet<G::Loc>
 }
 
 impl<'a, G> KBSC<'a, G>
 where
-    G: Game<'a, 1>,
+    G: Game1<'a>,
     G::Loc: Ord
 {
     pub fn new(g: G) -> Self {
@@ -25,7 +28,7 @@ where
 
 impl<'a, G> Game<'a, 1> for KBSC<'a, G>
 where
-    G: Game<'a, 1>,
+    G: Game1<'a>,
     G::Loc: Ord
 {
     type Loc = BTreeSet<G::Loc>;
@@ -42,10 +45,10 @@ where
     fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; 1]) -> Itr<'b, Self::Loc> where 'a: 'b {
         //this is inefficient, needs to be optimized
         let p = into_cloneable(self.g.post_set(n.iter(), a));
-        let all_obs = p.clone().map(|l| self.g.observe(&l)).unique();
+        let all_obs = unique_by_no_hash(p.clone(), |x, y| self.g.obs_eq(x, y, G::AGENT));
         let result = all_obs
             .map(move |o| p.clone()
-                .filter(|l| self.g.observe(&l) == o)
+                .filter(|l| self.g.obs_eq(&l, &o, G::AGENT))
                 .collect()
             );
         Box::new(result)

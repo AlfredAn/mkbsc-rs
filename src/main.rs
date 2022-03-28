@@ -31,8 +31,8 @@ fn main() {
     print_game(&kbsc);
     let mkbsc = MKBSC::new(g);
     print_game(&mkbsc);
-    let mkbsc2 = MKBSC::new(mkbsc);
+    /*let mkbsc2 = MKBSC::new(mkbsc);
     print_game(&mkbsc2);
     let mkbsc3 = MKBSC::new(mkbsc2);
-    print_game(&mkbsc3);
+    print_game(&mkbsc3);*/
 }
