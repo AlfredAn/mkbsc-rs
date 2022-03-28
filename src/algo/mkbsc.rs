@@ -1,6 +1,7 @@
+use std::collections::BTreeSet;
 use std::{rc::Rc, iter::{once, self}};
 
-use crate::{game::{Game, dgame::index::agent_index}, util::{iterator_product, Itr}};
+use crate::{game::{Game, dgame::index::agent_index}, util::{Itr, iterator_product}};
 use array_init::*;
 use itertools::{izip, Itertools};
 use super::{kbsc::KBSC, project::Project};
@@ -65,13 +66,22 @@ where
     }
 
     fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> where 'a: 'b {
-        /*iterator_product(
+        let mut itr = n.iter();
+        let intersection = itr.next()
+            .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & s2)).unwrap();
+        let filter_set: BTreeSet<_> = self.g.post_set(intersection.iter(), a).collect();
+        
+        Box::new(iterator_product!(
             from_iter(
                 izip!(n, a, &self.kbsc)
                     .map(|(n, a, k)| k.post(n, [a]))
             ).unwrap()
-        )*/
-        Box::new([n.clone()].into_iter())
+        ).filter(move |s| {
+            let mut itr = s.iter();
+            let intersection = itr.next()
+                .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & s2)).unwrap();
+            !filter_set.is_disjoint(&intersection)
+        }))
     }
 
     fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
@@ -82,21 +92,15 @@ where
         self.g.actions_i(agt)
     }
 
+    fn debug_string(&self, s: &Self::Loc) -> Option<String> {
+        Some(format!("[{}]",
+            (0..N).map(|i| {
+                let (si, k) = (&s[i], &self.kbsc[i]);
+                k.debug_string(si).unwrap()
+            })
+            .format(", ")
+        ))
+    }
+
     derive_ii!(N);
-
-    fn post_set<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
-    where
-        I: IntoIterator<Item=&'b Self::Loc>,
-        I::IntoIter: 'b,
-        'a: 'b
-    {
-        Box::new(ns.into_iter()
-            .map(move |n| self.post(&n, a))
-            .flatten()
-            .unique())
-    }
-
-    fn debug_string(&self, _: &Self::Loc) -> Option<String> {
-        None
-    }
 }

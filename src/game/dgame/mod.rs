@@ -39,7 +39,7 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     }
 
     fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
-        Box::new(map_array(range_power(0..self.n_actions), |&a| action_index(a)))
+        Box::new(range_power::<N>(0..self.n_actions).map(|x| array_init(|i| action_index(x[i]))))
     }
 
     fn is_winning(&self, n: &Self::Loc) -> bool {

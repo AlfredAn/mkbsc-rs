@@ -11,7 +11,7 @@ impl<Ix, const N: usize> DGame<Ix, N>
 where
     Ix: IndexType
 {
-    pub fn from_game<'a, G: Game<'a, N>>(g: &G, stop_on_win: bool) -> anyhow::Result<DGame<Ix, N>> {
+    pub fn from_game<'a, G: Game<'a, N>>(g: G, stop_on_win: bool) -> anyhow::Result<DGame<Ix, N>> {
         let mut b = GenericBuilder::default();
         b.l0(g.l0().clone())?;
 

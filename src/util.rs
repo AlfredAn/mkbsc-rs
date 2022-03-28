@@ -1,7 +1,7 @@
-use std::{ops::{Index, Range, Deref}, rc::Rc};
+use std::{ops::{Index, Range, Deref}, rc::Rc, iter::Map};
 use array_init::array_init;
 use typenum::*;
-use itertools::Itertools;
+use itertools::*;
 use std::{iter, cell::RefCell};
 
 pub type Itr<'a, T> = Box<dyn Iterator<Item=T> + 'a>;
@@ -82,13 +82,13 @@ where
     
 }*/
 
-pub trait Captures<'a>: 'a {}
+/*pub trait Captures<'a>: 'a {}
 impl<'a, T> Captures<'a> for T where T: 'a {}
 
 pub trait Reference<'a>: Deref + 'a {}
-impl<'a, T> Reference<'a> for T where T: Deref + 'a, T::Target: 'a {}
+impl<'a, T> Reference<'a> for T where T: Deref + 'a, T::Target: 'a {}*/
 
-pub fn iterator_product<I, const N: usize>(x: [I; N]) -> impl Iterator<Item=[I::Item; N]>
+/*pub fn iterator_product<I, const N: usize>(x: [I; N]) -> impl Iterator<Item=[I::Item; N]>
 where
     I: IntoIterator,
     I::Item: Clone + Sized
@@ -96,14 +96,27 @@ where
     let vs = x.map(|itr| itr.into_iter().collect_vec());
     let range = array_init(|i| 0..(&vs[i]).len());
     index_product(vs, range)
+}*/
+
+macro_rules! iterator_product {
+    ($x:expr) => {
+        {
+            let x = $x;
+            let vs = x.map(|itr| itr.into_iter().collect_vec());
+            let range = array_init::array_init(|i| 0..vs[i].len());
+            crate::util::index_product(vs, range)
+        }
+    };
 }
 
-pub fn index_product<I, const N: usize>(x: [I; N], range: [Range<usize>; N]) -> impl Iterator<Item=[I::Output; N]> + Clone
+pub(crate) use iterator_product;
+
+pub fn index_product<T, const N: usize>(x: [Vec<T>; N], range: [Range<usize>; N]) -> impl Iterator<Item=[T; N]>
 where
-    I: Index<usize> + Clone,
-    I::Output: Clone + Sized
+    T: Clone
 {
-    let r = range_product(range)
+    let r = RangeProduct { index: array_init::<_, _, N>(|i| range[i].start), range: move |i| range[i].clone(), index_filter: |_| true };
+    let r = r
         .map(move |is|
             array_init(|j| {
                 let i = is[j];
@@ -114,40 +127,51 @@ where
     r
 }
 
-pub fn index_power<T, const M: usize, const N: usize>(x: [T; M]) -> impl Iterator<Item=[T; N]> + Clone
+pub fn index_power<'a, T, const M: usize, const N: usize>(x: [T; M]) -> impl Iterator<Item=[T; N]> + 'a
+where
+    T: Clone + 'a
+{
+    let r = range_power::<N>(0..M).map(move |is| array_init(|i| x[is[i]].clone()));
+    r
+}
+
+/*pub fn index_power_vec<T, const N: usize>(x: [Vec<T>; N]) -> impl Iterator<Item=[T; N]>
 where
     T: Clone
 {
-    index_power_generic(x, 0..M)
-}
+    let range = x.map(|v| 0..v.len());
 
-pub fn index_power_generic<T, const N: usize>(x: T, range: Range<usize>) -> impl Iterator<Item=[T::Output; N]> + Clone
+}*/
+
+pub fn index_power_generic<'a, T, const N: usize>(x: T, range: Range<usize>) -> impl Iterator<Item=[T::Output; N]> + 'a
 where
-    T: Index<usize> + Clone,
+    T: Index<usize> + 'a,
     T::Output: Clone + Sized
 {
-    map_array(range_power(range), move |&i| x[i].clone())
+    //map_array(range_power(range), move |&i| x[i].clone())
+    let r = range_power::<N>(range).map(move |is| array_init(|i| x[is[i]].clone()));
+    r
 }
 
-pub fn map_array<In, Out, I, F, const N: usize>(itr: I, mut f: F) -> impl Iterator<Item=[Out; N]> + Clone
+pub fn map_array<In, Out, I, F, const N: usize>(itr: I, mut f: F) -> impl Iterator<Item=[Out; N]>
 where
-    I: Iterator<Item=[In; N]> + Clone,
+    I: Iterator<Item=[In; N]>,
     F: FnMut(&In) -> Out + Clone
 {
     itr.map(move |x| array_init(|i| f(&x[i])))
 }
 
-pub fn range_product<const N: usize>(range: [Range<usize>; N]) -> impl Iterator<Item=[usize; N]> + Clone {
+pub fn range_product<const N: usize>(range: [Range<usize>; N]) -> impl Iterator<Item=[usize; N]> {
     RangeProduct { index: array_init(|i| range[i].start), range: move |i| range[i].clone(), index_filter: |_| true }
 }
 
-pub fn range_power<const N: usize>(range: Range<usize>) -> impl Iterator<Item=[usize; N]> + Clone {
+pub fn range_power<const N: usize>(range: Range<usize>) -> RangeProduct<impl Fn(usize) -> bool, impl Fn(usize) -> Range<usize>, N> {
     RangeProduct { index: [range.start; N], range: move |_| range.clone(), index_filter: |_| true }
 }
 
-pub fn range_power_filtered<IF, const N: usize>(range: Range<usize>, index_filter: IF) -> impl Iterator<Item=[usize; N]> + Clone
+pub fn range_power_filtered<IF, const N: usize>(range: Range<usize>, index_filter: IF) -> impl Iterator<Item=[usize; N]>
 where
-    IF: Fn(usize) -> bool + Clone
+    IF: Fn(usize) -> bool
 {
     RangeProduct { index: [range.start; N], range: move |_| range.clone(), index_filter: index_filter }
 }
@@ -171,7 +195,7 @@ where
     type Item = [usize; N];
 
     fn next(&mut self) -> Option<Self::Item> {
-        if N == 0 || self.index[0] == (self.range)(0).end {
+        if N == 0 || (0..N).any(|i| self.index[i] >= (self.range)(i).end) {
             return None;
         }
 
@@ -198,7 +222,7 @@ where
     }
 }
 
-pub trait TypeNumberTrait {
+/*pub trait TypeNumberTrait {
     type N: Unsigned;
 }
 pub struct TypeNumber<const N: usize> {}
@@ -222,4 +246,4 @@ impl_tn!(0, U0, U1, U2, U3, U4, U5, U6, U7, U8, U9, U10, U11, U12, U13, U14, U15
     U76, U77, U78, U79, U80, U81, U82, U83, U84, U85, U86, U87, U88, U89, U90, U91, U92, U93, U94,
     U95, U96, U97, U98, U99, U100, U101, U102, U103, U104, U105, U106, U107, U108, U109, U110,
     U111, U112, U113, U114, U115, U116, U117, U118, U119, U120, U121, U122, U123, U124, U125, U126,
-    U127);
+    U127);*/
