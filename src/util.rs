@@ -1,10 +1,137 @@
+use crate::IndexType;
+use std::marker::PhantomData;
+use fixedbitset::FixedBitSet;
+use std::fmt;
 use std::{ops::{Index, Range, Deref}, rc::Rc, iter::Map};
 use array_init::array_init;
 use typenum::*;
 use itertools::*;
 use std::{iter, cell::RefCell};
 
+pub trait IntoCloneIterator: IntoIterator
+where
+    Self::IntoIter: Clone {}
+
+impl<I> IntoCloneIterator for I
+where
+    I: IntoIterator,
+    I::IntoIter: Clone {}
+
+/*pub struct ItrFnOnce<T, F>(Option<F>, PhantomData<T>)
+where
+    F: FnOnce() -> T;
+
+impl<T, F> ItrFnOnce<T, F>
+where
+    F: FnOnce() -> T
+{
+    pub fn new(x: F) -> Self {
+        Self(Some(x), Default::default())
+    }
+}
+
+impl<T, F> Iterator for ItrFnOnce<T, F>
+where
+    F: FnOnce() -> T
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        if let Some(f) = self.0 {
+            let result = f();
+            self.0 = None;
+            Some(result)
+        } else {
+            None
+        }
+    }
+}*/
+
+/*pub trait CopySet<T: Copy> {
+    type Iter<'a>: Iterator<Item=T> where Self: 'a, T: 'a;
+
+    fn contains(&self, x: T) -> bool;
+    fn set_iter(&self) -> Self::Iter<'_>;
+}
+
+impl CopySet<usize> for FixedBitSet {
+    type Iter<'a> = fixedbitset::Ones<'a>;
+
+    fn contains(&self, x: usize) -> bool { self.contains(x) }
+    fn set_iter(&self) -> Self::Iter<'_> { self.ones() }
+}
+
+pub struct FixedListMap<T, I: IndexType> {
+    map: Vec<Option<T>>,
+    list: Vec<I>
+}
+
+impl<T, I: IndexType> FixedListMap<T, I> {
+    pub fn new(cap: usize) -> Self {
+        Self {
+            map: Vec::with_capacity(cap),
+            list: Vec::with_capacity(cap)
+        }
+    }
+}
+
+impl<T, I: IndexType> CopySet<I> for FixedListMap<T, I> {
+    type Iter<'a> = iter::Copied<std::slice::Iter<'a, I>> where T: 'a;
+
+    fn contains(&self, x: I) -> bool {
+        self.map[x.index()].is_some()
+    }
+    fn set_iter(&self) -> Self::Iter<'_> {
+        self.list.iter().copied()
+    }
+}*/
+
 pub type Itr<'a, T> = Box<dyn Iterator<Item=T> + 'a>;
+
+pub trait CustomIterator: Iterator + Sized {
+    /*fn introduce<T>(self, x: T) -> Introduce<Self, T> {
+        Introduce(self, x)
+    }*/
+}
+
+impl<I: Iterator> CustomIterator for I {}
+
+/*pub struct Introduce<'a, I: Iterator, T>(I, RefCell<T>, PhantomData<&'a ()>);
+
+impl<'a, I: Iterator, T: 'a> Iterator for Introduce<'a, I, T> {
+    type Item = (I::Item, &'a RefCell<T>);
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|x| (x, &self.1))
+    }
+}*/
+
+pub fn unique_fbs<T: Into<usize> + Copy>(itr: impl IntoIterator<Item=T>, cap: usize) -> impl Iterator<Item=T> {
+    UniqueFBS {
+        set: FixedBitSet::with_capacity(cap),
+        itr: itr.into_iter()
+    }
+}
+
+pub struct UniqueFBS<I> {
+    set: FixedBitSet,
+    itr: I
+}
+
+impl<I> Iterator for UniqueFBS<I>
+where
+    I: Iterator,
+    I::Item: Into<usize> + Copy
+{
+    type Item = I::Item;
+    fn next(&mut self) -> Option<I::Item> {
+        if let Some(next) = self.itr.next() {
+            if !self.set.put(next.into()) {
+                return Some(next);
+            }
+        }
+        None
+    }
+}
 
 pub fn into_cloneable<I>(itr: I) -> impl Iterator<Item=I::Item> + Clone
 where
@@ -73,20 +200,6 @@ where
         }
     }
 }
-
-/*pub fn iter_clone<T, I>(i: &I) -> impl Iterator<Item=T>
-where
-    T: Clone,
-    I: Iterator<Item=T>
-{
-    
-}*/
-
-/*pub trait Captures<'a>: 'a {}
-impl<'a, T> Captures<'a> for T where T: 'a {}
-
-pub trait Reference<'a>: Deref + 'a {}
-impl<'a, T> Reference<'a> for T where T: Deref + 'a, T::Target: 'a {}*/
 
 /*pub fn iterator_product<I, const N: usize>(x: [I; N]) -> impl Iterator<Item=[I::Item; N]>
 where
@@ -221,29 +334,3 @@ where
         Some(result)
     }
 }
-
-/*pub trait TypeNumberTrait {
-    type N: Unsigned;
-}
-pub struct TypeNumber<const N: usize> {}
-
-macro_rules! impl_tn {
-    ($n:expr, $t:ty) => {
-        impl TypeNumberTrait for TypeNumber<{$n}> {
-            type N = $t;
-        }
-    };
-    ($n:expr, $t:ty, $($tail:tt)*) => {
-        impl_tn!($n, $t);
-        impl_tn!($n+1, $($tail)*);
-    };
-}
-
-impl_tn!(0, U0, U1, U2, U3, U4, U5, U6, U7, U8, U9, U10, U11, U12, U13, U14, U15, U16, U17, U18,
-    U19, U20, U21, U22, U23, U24, U25, U26, U27, U28, U29, U30, U31, U32, U33, U34, U35, U36, U37,
-    U38, U39, U40, U41, U42, U43, U44, U45, U46, U47, U48, U49, U50, U51, U52, U53, U54, U55, U56,
-    U57, U58, U59, U60, U61, U62, U63, U64, U65, U66, U67, U68, U69, U70, U71, U72, U73, U74, U75,
-    U76, U77, U78, U79, U80, U81, U82, U83, U84, U85, U86, U87, U88, U89, U90, U91, U92, U93, U94,
-    U95, U96, U97, U98, U99, U100, U101, U102, U103, U104, U105, U106, U107, U108, U109, U110,
-    U111, U112, U113, U114, U115, U116, U117, U118, U119, U120, U121, U122, U123, U124, U125, U126,
-    U127);*/

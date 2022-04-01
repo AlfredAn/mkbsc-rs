@@ -1,4 +1,9 @@
+use std::ops::Index;
+use std::cell::RefCell;
+use petgraph::Incoming;
+use crate::game::*;
 use std::{fmt, slice, iter};
+use crate::macros::*;
 
 use fixedbitset::FixedBitSet;
 use petgraph::{visit::*, graph::{IndexType, Neighbors, node_index, EdgeReference, EdgeReferences}, Graph, Directed, Direction};
@@ -64,6 +69,41 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
 
     fn debug_string(&self, l: &Self::Loc) -> Option<String> {
         self.node(*l).debug.clone()
+    }
+}
+
+impl<Ix: IndexType> DGame<Ix, 1> {
+    pub fn pre<'b>(&'b self, s: impl IntoIterator<Item=NodeIndex<Ix>> + 'b, a: ActionIndex<Ix>) -> impl Iterator<Item=NodeIndex<Ix>> + 'b {
+        s.into_iter()
+            .map(move |n| self.graph.edges_directed(n, Incoming)
+                .filter(move |e| e.weight().act.contains(&[a]))
+                .map(|e| e.source())
+            ).flatten()
+    }
+
+    pub fn cpre<'b>(
+        &'b self,
+        mut s: impl FnMut(usize) -> bool + 'b,
+        i: impl Iterator<Item=NodeIndex<Ix>> + Clone + 'b
+    ) -> impl Iterator<Item=(NodeIndex<Ix>, ActionIndex<Ix>)> + 'b
+    {
+        self.actions1()
+            .inspect(|a| println!("    a={:?}", a.index()))
+            .flat_map(move |a|
+                self.pre(i.clone(), a)
+                    .inspect(|l| println!("      pre: {:?}", l.index()))
+                    .map(move |l| (l, a))
+            )
+            .filter(move |(l, a)|
+                self.post1(l, *a)
+                    .inspect(|l2| println!("        post: {:?}", l2.index()))
+                    .all(|l2| {
+                        let b = s(l2.index());
+                        println!("          in s: {}", b);
+                        b
+                    })
+            )
+            .inspect(|_| println!("      +is controllable"))
     }
 }
 

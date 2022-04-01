@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use petgraph::graph::{DefaultIx, IndexType};
+pub use petgraph::graph::{DefaultIx, IndexType};
 
 pub type NodeIndex<Ix> = petgraph::graph::NodeIndex<Ix>;
 pub type EdgeIndex<Ix> = petgraph::graph::EdgeIndex<Ix>;

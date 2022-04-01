@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::iter;
 use std::hash::Hash;
@@ -33,7 +34,7 @@ const MOVE: [Pos; 5] = [
 
 const VIS: [Pos; 5] = MOVE;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GridPursuitGame<const X: i8, const Y: i8, const N: usize> {
     l0: Loc<X, Y, N>
 }
@@ -104,6 +105,17 @@ impl<const X: i8, const Y: i8, const N: usize> Loc<X, Y, N> {
             let bx = b.ord_value();
             if ax < bx { (a, ax) } else { (b, bx) }
         })
+    }
+
+    fn fmt_compact(&self) -> String {
+        if N != 2 {
+            todo!();
+        } else if self.is_winning() {
+            "W".into()
+        } else {
+            //format!("[{}, {}][{}, {}]-[{}, {}]", self.pu[0][0], self.pu[0][1], self.pu[1][0], self.pu[1][1], self.ev[0], self.ev[1])
+            format!("{}{}{}{}{}{}", self.pu[0][0], self.pu[0][1], self.pu[1][0], self.pu[1][1], self.ev[0], self.ev[1])
+        }
     }
 }
 
@@ -179,6 +191,14 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
 
     fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
         Box::new(MOVE.iter().copied())
+    }
+
+    fn debug_string(&self, l: &Self::Loc) -> Option<String> {
+        if N == 2 {
+            Some(l.fmt_compact())
+        } else {
+            todo!();
+        }
     }
 }
 

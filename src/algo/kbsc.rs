@@ -65,7 +65,7 @@ where
                         "?".into()
                     }
                 })
-                .format(", ")
+                .format(" | ")
         ))
     }
 

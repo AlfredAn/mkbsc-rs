@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::{marker::PhantomData, collections::HashMap, hash::Hash, fmt::{Debug, format}, cmp::max};
 
 use anyhow::bail;
@@ -22,7 +23,8 @@ pub struct GenericBuilder<Loc, Act, Obs, const N: usize> {
     l0: Option<NI>,
     nodes: BiHashMap<Loc, NI>,
     actions: HashMap<Act, AI>,
-    obs: HashMap<Obs, (OI, [Vec<NI>; N])>
+    obs: HashMap<Obs, (OI, [Vec<NI>; N])>,
+    labels: Option<Box<dyn Fn(&Loc) -> String>>
 }
 
 impl<Loc, Act, Obs, const N: usize> Default for GenericBuilder<Loc, Act, Obs, N>
@@ -36,20 +38,21 @@ where
             nodes: Default::default(),
             actions: Default::default(),
             obs: Default::default(),
+            labels: None
         }
     }
 }
 
 impl<Loc, Act, Obs, const N: usize> GenericBuilder<Loc, Act, Obs, N>
 where
-    Loc: Clone + Eq + Hash + Debug,
+    Loc: Clone + Eq + Hash,
     Act: Copy + Eq + Hash,
     Obs: Clone + Eq + Hash
 {
-    fn _node(&mut self, node: Loc, is_winning: Option<bool>, debug: Option<&str>) -> anyhow::Result<NI> {
+    fn _node(&mut self, node: Loc, is_winning: Option<bool>, debug: Option<String>) -> anyhow::Result<NI> {
         if let Some(&n) = self.nodes.get_by_left(&node) {
             if self.graph[n].0.is_none() {
-                self.graph[n] = (is_winning, debug.map(|s| s.into()));
+                self.graph[n] = (is_winning, debug);
                 return Ok(n);
             } else if is_winning.is_none() {
                 return Ok(n);
@@ -66,7 +69,7 @@ where
         self._node(node, Some(is_winning), None)
     }
 
-    pub fn node_dbg(&mut self, node: Loc, is_winning: bool, dbg: Option<&str>) -> anyhow::Result<NI> {
+    pub fn node_dbg(&mut self, node: Loc, is_winning: bool, dbg: Option<String>) -> anyhow::Result<NI> {
         self._node(node, Some(is_winning), dbg)
     }
 
@@ -148,9 +151,14 @@ where
         Ok(())
     }
 
+    pub fn labels(&mut self, labels: Box<dyn Fn(&Loc) -> String>) {
+        self.labels = Some(labels)
+    }
+
     pub fn build<Ix>(&self) -> anyhow::Result<DGame<Ix, N>>
     where
-        Ix: IndexType
+        Ix: IndexType,
+        Loc: Debug
     {
         if self.l0.is_none() {
             bail!("l0 is not set");
@@ -170,7 +178,9 @@ where
                 is_winning,
                 [Default::default(); N],
                 {
-                    if let Some(debug) = &self.graph[n].1 {
+                    if let Some(lb) = &self.labels {
+                        Some(lb(self.nodes.get_by_right(&n).unwrap()))
+                    } else if let Some(debug) = &self.graph[n].1 {
                         Some(debug.clone())
                     } else {
                         Some(format!("{:?}", self.nodes.get_by_right(&n).unwrap()))

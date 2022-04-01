@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use petgraph::graph::IndexType;
 
 use super::index::ObsIndex;
@@ -12,5 +13,17 @@ pub struct DNode<Ix: IndexType, const N: usize> {
 impl<Ix: IndexType, const N: usize> DNode<Ix, N> {
     pub fn new(is_winning: bool, obs: [ObsIndex<Ix>; N], debug: Option<String>) -> Self {
         Self { is_winning: is_winning, obs: obs, debug: debug }
+    }
+}
+
+impl<Ix: IndexType, const N: usize> Display for DNode<Ix, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        if let Some(s) = &self.debug {
+            write!(f, "{}", s)?;
+        } else {
+            write!(f, "?")?;
+        }
+
+        Ok(())
     }
 }

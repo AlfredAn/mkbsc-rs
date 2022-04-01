@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::{rc::Rc, iter::{once, self}};
 
@@ -17,8 +19,8 @@ where
     G::Loc: Ord
 {
     pub g: Rc<G>,
-    kbsc: [K<'a, G, N>; N],
-    l0: [KLoc<'a, G, N>; N]
+    pub kbsc: [K<'a, G, N>; N],
+    l0: [KLoc<'a, G, N>; N],
 }
 
 impl<'a, G, const N: usize> MKBSC<'a, G, N>
@@ -52,7 +54,7 @@ where
 {
     type Loc = [KLoc<'a, G, N>; N];
     type Act = G::Act;
-    //type Obs = ();
+    type Obs = KLoc<'a, G, N>;
     type Agent = G::Agent;
 
     fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
@@ -91,9 +93,17 @@ where
     fn actions_i<'b>(&'b self, agt: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
         self.g.actions_i(agt)
     }
+    
+    fn observe_i(&self, l: &Self::Loc, agt: Self::Agent) -> Self::Obs {
+        l[agt.index()].clone()
+    }
+
+    fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
+        l.clone()
+    }
 
     fn debug_string(&self, s: &Self::Loc) -> Option<String> {
-        Some(format!("[{}]",
+        Some(format!("{}",
             (0..N).map(|i| {
                 let (si, k) = (&s[i], &self.kbsc[i]);
                 k.debug_string(si).unwrap()
@@ -101,6 +111,4 @@ where
             .format(", ")
         ))
     }
-
-    derive_ii!(N);
 }

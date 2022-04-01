@@ -1,6 +1,14 @@
+#![feature(min_specialization)]
+
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use std::fmt::Debug;
+use crate::from_game::dgame;
+use std::collections::HashSet;
+use std::fs::File;
+use std::path::Path;
+use petgraph::dot::*;
+use std::fmt;
+use std::io::Write;
 
 use algo::mkbsc::MKBSC;
 use game::{Game, dgame::DGame};
@@ -16,23 +24,96 @@ mod games;
 mod algo;
 #[macro_use]
 mod util;
+#[macro_use]
+mod macros;
+mod test;
 
-fn print_game<'a, G: Game<'a, N>, const N: usize>(g: G) {
+fn main() {
+    //make_cup_game_graphs();
+    strategy_synthesis_test();
+    //grid_pursuit_test();
+}
+
+fn strategy_synthesis_test() {
+    let g = cup_game().mkbsc().mkbsc();
+    let g1 = dgame(&g.kbsc[0]);
+    let s1 = find_memoryless_strategy(&g1);
+    println!("{:?}\n\n{:?}", g1, s1);
+}
+
+fn grid_pursuit_test() {
+    let g = GridPursuitGame::<3, 3, 2>::default();
+    save_graph(&g, "grid_33");
+
+    let dg = DGame::<u32, 2>::from_game(&g, false).unwrap();
+
+    let k = KBSC::new(Project(dg, agent_index(0)));
+    save_graph(&k, "grid_33_kbsc");
+
+
+}
+
+fn print_game<'a, G, const N: usize>(g: G)
+where
+    G: Game<'a, N>
+{
     let dg = DGame::<u32, N>::from_game(g, false).unwrap();
     println!("{:?}", dg);
 }
 
-fn main() {
-    let g = cup_game().unwrap();
-    print_game(&g);
-    let proj = Project(g.clone(), agent_index(1));
-    print_game(&proj);
-    let kbsc = KBSC::new(proj);
-    print_game(&kbsc);
+fn save_graph<'a, G, const N: usize>(g: G, path: &str)
+where
+    G: Game<'a, N>
+{
+    save_graph_labels(g, path, None);
+}
+
+fn save_graph_labels<'a, G, const N: usize>(g: G, path: &str, f: Option<Box<dyn FnMut(&G, &G::Loc) -> Option<String>>>)
+where
+    G: Game<'a, N>
+{
+    let path = format!("out/{}.dot", path);
+    let path = Path::new(&path);
+
+    let dg = if let Some(f) = f {
+        DGame::<u32, N>::from_game_labels(g, false, f).unwrap()
+    } else {
+        DGame::<u32, N>::from_game(g, false).unwrap()
+    };
+
+    let mut edges = HashSet::new();
+    let graph = dg.graph.filter_map(|_, n| Some(n), |ei, e| {
+        let ep = dg.graph.edge_endpoints(ei).unwrap();
+        if edges.contains(&ep) {
+            None
+        } else {
+            edges.insert(ep);
+            Some(e)
+        }
+    });
+
+    let mut file = File::create(path).unwrap();
+    write!(file, "{}", Dot::with_config(&graph, &[Config::EdgeNoLabel])).unwrap();
+}
+
+fn make_cup_game_graphs() {
+    let g = cup_game();
+    save_graph(&g, "base");
+
+    let proj0 = Project(g.clone(), agent_index(0));
+    save_graph(&proj0, "project_0");
+    let proj1 = Project(g.clone(), agent_index(1));
+    save_graph(&proj1, "project_1");
+
+    let kbsc0 = KBSC::new(proj0);
+    save_graph(&kbsc0, "kbsc_0");
+    let kbsc1 = KBSC::new(proj1);
+    save_graph(&kbsc1, "kbsc_1");
+
     let mkbsc = MKBSC::new(g);
-    print_game(&mkbsc);
+    save_graph(&mkbsc, "mkbsc-1");
     let mkbsc2 = MKBSC::new(mkbsc);
-    print_game(&mkbsc2);
+    save_graph(&mkbsc2, "mkbsc-2");
     let mkbsc3 = MKBSC::new(mkbsc2);
-    print_game(&mkbsc3);
+    save_graph(&mkbsc3, "mkbsc-3");
 }

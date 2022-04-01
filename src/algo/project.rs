@@ -1,3 +1,5 @@
+use crate::game::Pre;
+use crate::game::Game1;
 use std::iter::{Map, self};
 
 use itertools::Itertools;
@@ -48,3 +50,29 @@ where
         self.0.debug_string(l)
     }
 }
+
+impl<'a, G, const N: usize> Project<'a, G, N>
+where
+    G: Game<'a, N>
+{
+    pub fn sub_actions(&self, a: G::Act) -> Itr<[G::Act; N]> {
+        Box::new(self.0.actions()
+            .filter(move |aa| aa[self.1.index()] == a)
+        )
+    }
+}
+
+/*impl<'a, G, const N: usize> Pre<'a, 1> for Project<'a, G, N>
+where
+    G: Pre<'a, N>
+{
+    fn pre<'b, I>(&'b self, ns: I, a: [Self::Act; 1]) -> Itr<'b, Self::Loc>
+    where 'a: 'b, I: IntoIterator<Item=&'b Self::Loc>, I::IntoIter: 'b {
+        let ns = ns.into_iter();
+        Box::new(self.sub_actions(a[0])
+            .map(move |a| self.0.pre(ns.clone(), a))
+            .flatten()
+            .unique()
+        )
+    }
+}*/
