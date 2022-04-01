@@ -24,20 +24,20 @@ pub mod from_game;
 pub mod builder;
 pub mod generic_builder;
 
-type GraphType<Ix, const N: usize>
-    = Graph<DNode<Ix, N>, DEdge<Ix, N>, Directed, Ix>;
+type GraphType<const N: usize>
+    = Graph<DNode<N>, DEdge<N>, Directed>;
 
 #[derive(Clone)]
-pub struct DGame<Ix: IndexType, const N: usize> {
-    pub graph: GraphType<Ix, N>,
-    pub l0: NodeIndex<Ix>,
+pub struct DGame<const N: usize> {
+    pub graph: GraphType<N>,
+    pub l0: NodeIndex,
     pub n_actions: usize,
-    pub obs: [Vec<DObs<Ix>>; N]
+    pub obs: [Vec<DObs>; N]
 }
 
-impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
-    type Loc = NodeIndex<Ix>;
-    type Act = ActionIndex<Ix>;
+impl<'a, const N: usize> Game<'a, N> for DGame<N> {
+    type Loc = NodeIndex;
+    type Act = ActionIndex;
 
     fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
         &self.l0
@@ -55,13 +55,13 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
         Box::new(self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target()))
     }
 
-    type Obs = ObsIndex<Ix>;
+    type Obs = ObsIndex;
 
     fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
         self.node(*l).obs
     }
 
-    type Agent = AgentIndex<Ix>;
+    type Agent = AgentIndex;
 
     fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
         Box::new((0..self.n_actions).map(|a| action_index(a)))
@@ -72,8 +72,8 @@ impl<'a, Ix: IndexType, const N: usize> Game<'a, N> for DGame<Ix, N> {
     }
 }
 
-impl<Ix: IndexType> DGame<Ix, 1> {
-    pub fn pre<'b>(&'b self, s: impl IntoIterator<Item=NodeIndex<Ix>> + 'b, a: ActionIndex<Ix>) -> impl Iterator<Item=NodeIndex<Ix>> + 'b {
+impl DGame<1> {
+    pub fn pre<'b>(&'b self, s: impl IntoIterator<Item=NodeIndex> + 'b, a: ActionIndex) -> impl Iterator<Item=NodeIndex> + 'b {
         s.into_iter()
             .map(move |n| self.graph.edges_directed(n, Incoming)
                 .filter(move |e| e.weight().act.contains(&[a]))
@@ -84,8 +84,8 @@ impl<Ix: IndexType> DGame<Ix, 1> {
     pub fn cpre<'b>(
         &'b self,
         mut s: impl FnMut(usize) -> bool + 'b,
-        i: impl Iterator<Item=NodeIndex<Ix>> + Clone + 'b
-    ) -> impl Iterator<Item=(NodeIndex<Ix>, ActionIndex<Ix>)> + 'b
+        i: impl Iterator<Item=NodeIndex> + Clone + 'b
+    ) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b
     {
         self.actions1()
             .inspect(|a| println!("    a={:?}", a.index()))
@@ -107,13 +107,13 @@ impl<Ix: IndexType> DGame<Ix, 1> {
     }
 }
 
-impl<Ix: IndexType, const N: usize> DGame<Ix, N> {
-    fn node(&self, l: NodeIndex<Ix>) -> &DNode<Ix, N> {
+impl<const N: usize> DGame<N> {
+    fn node(&self, l: NodeIndex) -> &DNode<N> {
         self.graph.node_weight(l).unwrap()
     }
 }
 
-impl<Ix: IndexType, const N: usize> Default for DGame<Ix, N> {
+impl<const N: usize> Default for DGame<N> {
     fn default() -> Self {
         Self {
             graph: Graph::default(),
@@ -124,7 +124,7 @@ impl<Ix: IndexType, const N: usize> Default for DGame<Ix, N> {
     }
 }
 
-impl<Ix: IndexType, const N: usize> fmt::Debug for DGame<Ix, N> {
+impl<const N: usize> fmt::Debug for DGame<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ns = self.graph.node_references().format_with(", ", |(i, n), f| {
             if let Some(debug) = &n.debug {

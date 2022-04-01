@@ -6,14 +6,14 @@ use super::{obs::DObs, GraphType, index::{NodeIndex, ObsIndex, EdgeIndex, obs_in
 
 
 #[derive(Debug, Clone)]
-pub struct Builder<Ix: IndexType, const N_AGT: usize> {
-    graph: GraphType<Ix, N_AGT>,
-    l0: NodeIndex<Ix>,
+pub struct Builder<const N_AGT: usize> {
+    graph: GraphType<N_AGT>,
+    l0: NodeIndex,
     n_actions: usize,
-    obs: [Vec<DObs<Ix>>; N_AGT]
+    obs: [Vec<DObs>; N_AGT]
 }
 
-impl<Ix: IndexType, const N_AGT: usize> Default for Builder<Ix, N_AGT> {
+impl<const N_AGT: usize> Default for Builder<N_AGT> {
     fn default() -> Self {
         Self {
             graph: Default::default(),
@@ -24,10 +24,10 @@ impl<Ix: IndexType, const N_AGT: usize> Default for Builder<Ix, N_AGT> {
     }
 }
 
-impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
-    pub fn add_node<O>(&mut self, is_winning: bool, o: [O; N_AGT]) -> NodeIndex<Ix>
+impl<const N_AGT: usize> Builder<N_AGT> {
+    pub fn add_node<O>(&mut self, is_winning: bool, o: [O; N_AGT]) -> NodeIndex
     where
-        O: Into<ObsIndex<Ix>>
+        O: Into<ObsIndex>
     {
         let o = o.map(|x| x.into());
         let n = self.graph.add_node(DNode::new(is_winning, o, None));
@@ -48,18 +48,18 @@ impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
         n
     }
 
-    pub fn add_node_pi(&mut self, is_winning: bool) -> NodeIndex<Ix> {
+    pub fn add_node_pi(&mut self, is_winning: bool) -> NodeIndex {
         self.add_node(is_winning, [obs_index(self.graph.node_count()); N_AGT])
     }
 
-    pub fn add_edge<I, J, A>(&mut self, i: I, j: J, a: A) -> EdgeIndex<Ix>
+    pub fn add_edge<I, J, A>(&mut self, i: I, j: J, a: A) -> EdgeIndex
     where
-        I: Into<NodeIndex<Ix>>,
-        J: Into<NodeIndex<Ix>>,
-        A: IntoIterator<Item=[Ix; N_AGT]>
+        I: Into<NodeIndex>,
+        J: Into<NodeIndex>,
+        A: IntoIterator<Item=[u32; N_AGT]>
     {
         let (v, mx) = a.into_iter()
-            .fold((Vec::new(), Ix::new(0)), |(mut v, mx), a| {
+            .fold((Vec::new(), 0), |(mut v, mx), a| {
                 v.push(a.map(|aa| action_index(aa.index())));
                 let &a_max = a.iter().max().unwrap();
                 (v, max(mx, a_max))
@@ -71,13 +71,13 @@ impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
 
     pub fn l0<I>(&mut self, l0: I) -> &mut Self
     where
-        I: Into<NodeIndex<Ix>>
+        I: Into<NodeIndex>
     {
         self.l0 = l0.into();
         self
     }
 
-    pub fn build(self) -> DGame<Ix, N_AGT> {
+    pub fn build(self) -> DGame<N_AGT> {
         DGame {
             graph: self.graph,
             l0: self.l0,
@@ -87,19 +87,19 @@ impl<Ix: IndexType, const N_AGT: usize> Builder<Ix, N_AGT> {
     }
 }
 
-impl<Ix: IndexType> Builder<Ix, 1> {
-    pub fn add_node1<O>(&mut self, is_winning: bool, o: O) -> NodeIndex<Ix>
+impl Builder<1> {
+    pub fn add_node1<O>(&mut self, is_winning: bool, o: O) -> NodeIndex
     where
-        O: Into<ObsIndex<Ix>>
+        O: Into<ObsIndex>
     {
         self.add_node(is_winning, [o])
     }
 
-    pub fn add_edge1<I, J, A>(&mut self, i: I, j: J, a: A) -> EdgeIndex<Ix>
+    pub fn add_edge1<I, J, A>(&mut self, i: I, j: J, a: A) -> EdgeIndex
     where
-        I: Into<NodeIndex<Ix>>,
-        J: Into<NodeIndex<Ix>>,
-        A: IntoIterator<Item=Ix>
+        I: Into<NodeIndex>,
+        J: Into<NodeIndex>,
+        A: IntoIterator<Item=u32>
     {
         self.add_edge(i, j, a.into_iter().map(|x| [x]))
     }

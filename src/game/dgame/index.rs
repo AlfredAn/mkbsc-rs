@@ -5,8 +5,8 @@ use std::fmt;
 
 pub use petgraph::graph::{DefaultIx, IndexType};
 
-pub type NodeIndex<Ix> = petgraph::graph::NodeIndex<Ix>;
-pub type EdgeIndex<Ix> = petgraph::graph::EdgeIndex<Ix>;
+pub type NodeIndex = petgraph::graph::NodeIndex;
+pub type EdgeIndex = petgraph::graph::EdgeIndex;
 
 pub use petgraph::graph::{node_index, edge_index};
 
@@ -26,15 +26,15 @@ unsafe impl IndexType for ZeroIndex {
 }
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct AgentIndex<Ix = DefaultIx>(Ix);
+pub struct AgentIndex(u32);
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct ActionIndex<Ix = DefaultIx>(Ix);
+pub struct ActionIndex(u32);
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct ObsIndex<Ix = DefaultIx>(Ix);
+pub struct ObsIndex(u32);
 
-impl<Ix: IndexType> AgentIndex<Ix> {
+impl AgentIndex {
     #[inline]
     pub fn new(x: usize) -> Self {
         AgentIndex(IndexType::new(x))
@@ -51,7 +51,7 @@ impl<Ix: IndexType> AgentIndex<Ix> {
     }
 }
 
-unsafe impl<Ix: IndexType> IndexType for AgentIndex<Ix> {
+unsafe impl IndexType for AgentIndex {
     fn index(&self) -> usize {
         self.0.index()
     }
@@ -59,23 +59,23 @@ unsafe impl<Ix: IndexType> IndexType for AgentIndex<Ix> {
         AgentIndex::new(x)
     }
     fn max() -> Self {
-        AgentIndex(<Ix as IndexType>::max())
+        AgentIndex(u32::MAX)
     }
 }
 
-impl<Ix: IndexType> From<Ix> for AgentIndex<Ix> {
-    fn from(ix: Ix) -> Self {
-        AgentIndex(ix)
+impl From<u32> for AgentIndex {
+    fn from(t: u32) -> Self {
+        Self::new(t.index())
     }
 }
 
-impl<Ix: fmt::Debug> fmt::Debug for AgentIndex<Ix> {
+impl fmt::Debug for AgentIndex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "AgentIndex({:?})", self.0)
     }
 }
 
-impl<Ix: IndexType> ActionIndex<Ix> {
+impl ActionIndex {
     #[inline]
     pub fn new(x: usize) -> Self {
         ActionIndex(IndexType::new(x))
@@ -92,7 +92,7 @@ impl<Ix: IndexType> ActionIndex<Ix> {
     }
 }
 
-unsafe impl<Ix: IndexType> IndexType for ActionIndex<Ix> {
+unsafe impl IndexType for ActionIndex {
     fn index(&self) -> usize {
         self.0.index()
     }
@@ -100,23 +100,23 @@ unsafe impl<Ix: IndexType> IndexType for ActionIndex<Ix> {
         ActionIndex::new(x)
     }
     fn max() -> Self {
-        ActionIndex(<Ix as IndexType>::max())
+        ActionIndex(u32::MAX)
     }
 }
 
-impl<Ix: IndexType> From<Ix> for ActionIndex<Ix> {
-    fn from(ix: Ix) -> Self {
-        ActionIndex(ix)
+impl From<u32> for ActionIndex {
+    fn from(t: u32) -> Self {
+        Self::new(t.index())
     }
 }
 
-impl<Ix: fmt::Debug> fmt::Debug for ActionIndex<Ix> {
+impl fmt::Debug for ActionIndex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ActionIndex({:?})", self.0)
     }
 }
 
-impl<Ix: IndexType> ObsIndex<Ix> {
+impl ObsIndex {
     #[inline]
     pub fn new(x: usize) -> Self {
         ObsIndex(IndexType::new(x))
@@ -133,7 +133,7 @@ impl<Ix: IndexType> ObsIndex<Ix> {
     }
 }
 
-unsafe impl<Ix: IndexType> IndexType for ObsIndex<Ix> {
+unsafe impl IndexType for ObsIndex {
     fn index(&self) -> usize {
         self.0.index()
     }
@@ -141,33 +141,33 @@ unsafe impl<Ix: IndexType> IndexType for ObsIndex<Ix> {
         ObsIndex::new(x)
     }
     fn max() -> Self {
-        ObsIndex(<Ix as IndexType>::max())
+        ObsIndex(u32::MAX)
     }
 }
 
-impl<Ix: IndexType> From<Ix> for ObsIndex<Ix> {
-    fn from(ix: Ix) -> Self {
-        ObsIndex(ix)
+impl From<u32> for ObsIndex {
+    fn from(t: u32) -> Self {
+        Self::new(t.index())
     }
 }
 
-impl<Ix: fmt::Debug> fmt::Debug for ObsIndex<Ix> {
+impl fmt::Debug for ObsIndex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ObsIndex({:?})", self.0)
     }
 }
 
 /// Short version of `ObsIndex::new`
-pub fn agent_index<Ix: IndexType>(index: usize) -> AgentIndex<Ix> {
+pub fn agent_index(index: usize) -> AgentIndex {
     AgentIndex::new(index)
 }
 
 /// Short version of `ActionIndex::new`
-pub fn action_index<Ix: IndexType>(index: usize) -> ActionIndex<Ix> {
+pub fn action_index(index: usize) -> ActionIndex {
     ActionIndex::new(index)
 }
 
 /// Short version of `ObsIndex::new`
-pub fn obs_index<Ix: IndexType>(index: usize) -> ObsIndex<Ix> {
+pub fn obs_index(index: usize) -> ObsIndex {
     ObsIndex::new(index)
 }

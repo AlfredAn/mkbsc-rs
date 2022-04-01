@@ -12,24 +12,24 @@ pub enum MapEntry<A> {
     Action(NonZeroU32, A)
 }
 
-trait FindStrat<'a>: Game<'a, 1> {
-    fn find_memoryless_strategy(&'a self) -> Vec<MapEntry<ActionIndex<u32>>>;
+/*trait FindStrat<'a>: Game<'a, 1> {
+    fn find_memoryless_strategy(&'a self) -> Vec<MapEntry<ActionIndex>>;
 }
 
 impl<'a, G: Game<'a, 1>> FindStrat<'a> for G {
-    default fn find_memoryless_strategy(&'a self) -> Vec<MapEntry<ActionIndex<u32>>> {
+    default fn find_memoryless_strategy(&'a self) -> Vec<MapEntry<ActionIndex>> {
         let dg = dgame(self);
         _find_memoryless_strategy(&dg)
     }
 }
 
-impl<'a, Ix: IndexType> FindStrat<'a> for DGame<Ix, 1> {
-    fn find_memoryless_strategy(&'a self) -> Vec<MapEntry<ActionIndex<u32>>> {
+impl<'a> FindStrat<'a> for DGame<1> {
+    fn find_memoryless_strategy(&'a self) -> Vec<MapEntry<ActionIndex>> {
         _find_memoryless_strategy(self)
     }
-}
+}*/
 
-fn _find_memoryless_strategy<Ix: IndexType>(g: &DGame<Ix, 1>) -> Vec<MapEntry<ActionIndex<Ix>>>
+fn _find_memoryless_strategy(g: &DGame<1>) -> Vec<MapEntry<ActionIndex>>
 {
     let mut w = vec![Absent; g.graph.node_count()];
     let mut w_list = Vec::new();

@@ -9,18 +9,15 @@ use crate::game::Game;
 
 use super::{DGame, builder::Builder, generic_builder::GenericBuilder, index::{agent_index, NodeIndex}, node::DNode};
 
-impl<Ix, const N: usize> DGame<Ix, N>
-where
-    Ix: IndexType
-{
-    pub fn from_game<'a, G>(g: G, stop_on_win: bool) -> anyhow::Result<DGame<Ix, N>>
+impl<const N: usize> DGame<N> {
+    pub fn from_game<'a, G>(g: G, stop_on_win: bool) -> anyhow::Result<DGame<N>>
     where
         G: Game<'a, N>
     {
         Self::from_game_labels(g, stop_on_win, |g, l| g.debug_string(l))
     }
 
-    pub fn from_game_labels<'a, G, F>(g: G, stop_on_win: bool, mut f: F) -> anyhow::Result<DGame<Ix, N>>
+    pub fn from_game_labels<'a, G, F>(g: G, stop_on_win: bool, mut f: F) -> anyhow::Result<DGame<N>>
     where
         G: Game<'a, N>,
         F: FnMut(&G, &G::Loc) -> Option<String>
@@ -64,7 +61,7 @@ where
     }
 }
 
-pub fn from_game<'a, G, const N: usize>(g: G) -> DGame<u32, N>
+pub fn dgame<'a, G, const N: usize>(g: G) -> DGame<N>
 where
     G: Game<'a, N>
 {

@@ -1,8 +1,7 @@
-#![feature(min_specialization)]
-
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::from_game::dgame;
+use crate::from_game;
 use std::collections::HashSet;
 use std::fs::File;
 use std::path::Path;
@@ -37,15 +36,15 @@ fn main() {
 fn strategy_synthesis_test() {
     let g = cup_game().mkbsc().mkbsc();
     let g1 = dgame(&g.kbsc[0]);
-    let s1 = find_memoryless_strategy(&g1);
-    println!("{:?}\n\n{:?}", g1, s1);
+    //let s1 = find_memoryless_strategy(&g1);
+    //println!("{:?}\n\n{:?}", g1, s1);
 }
 
 fn grid_pursuit_test() {
     let g = GridPursuitGame::<3, 3, 2>::default();
     save_graph(&g, "grid_33");
 
-    let dg = DGame::<u32, 2>::from_game(&g, false).unwrap();
+    let dg = DGame::<2>::from_game(&g, false).unwrap();
 
     let k = KBSC::new(Project(dg, agent_index(0)));
     save_graph(&k, "grid_33_kbsc");
@@ -57,7 +56,7 @@ fn print_game<'a, G, const N: usize>(g: G)
 where
     G: Game<'a, N>
 {
-    let dg = DGame::<u32, N>::from_game(g, false).unwrap();
+    let dg = DGame::<N>::from_game(g, false).unwrap();
     println!("{:?}", dg);
 }
 
@@ -76,9 +75,9 @@ where
     let path = Path::new(&path);
 
     let dg = if let Some(f) = f {
-        DGame::<u32, N>::from_game_labels(g, false, f).unwrap()
+        DGame::<N>::from_game_labels(g, false, f).unwrap()
     } else {
-        DGame::<u32, N>::from_game(g, false).unwrap()
+        DGame::<N>::from_game(g, false).unwrap()
     };
 
     let mut edges = HashSet::new();

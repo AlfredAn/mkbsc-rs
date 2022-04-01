@@ -7,21 +7,21 @@ use petgraph::graph::IndexType;
 use super::index::ActionIndex;
 
 #[derive(Clone)]
-pub struct DEdge<Ix: IndexType, const N: usize> {
-    pub act: Vec<[ActionIndex<Ix>; N]>
+pub struct DEdge<const N: usize> {
+    pub act: Vec<[ActionIndex; N]>
 }
 
-impl<Ix: IndexType, const N: usize> DEdge<Ix, N> {
-    pub fn new(act: Vec<[ActionIndex<Ix>; N]>) -> Self {
+impl<const N: usize> DEdge<N> {
+    pub fn new(act: Vec<[ActionIndex; N]>) -> Self {
         Self { act: act }
     }
 }
 
-impl<Ix: IndexType, const N: usize> Default for DEdge<Ix, N> {
+impl<const N: usize> Default for DEdge<N> {
     fn default() -> Self { Self::new(Vec::new()) }
 }
 
-impl<Ix: IndexType, const N: usize> fmt::Debug for DEdge<Ix, N> {
+impl<const N: usize> fmt::Debug for DEdge<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.act.iter()
             .format_with("|", |agt, f| f(&format_args!("{}", agt.iter()
@@ -31,7 +31,7 @@ impl<Ix: IndexType, const N: usize> fmt::Debug for DEdge<Ix, N> {
     }
 }
 
-impl<Ix: IndexType, const N: usize> Display for DEdge<Ix, N> {
+impl<const N: usize> Display for DEdge<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         write!(f, "{:?}", self)
     }

@@ -7,7 +7,7 @@ pub mod cup_game;
 
 #[allow(dead_code)]
 
-pub fn three_coin_game() -> DGame<u8, 1> {
+pub fn three_coin_game() -> DGame<1> {
     let mut g = Builder::default();
 
     g.l0(8);

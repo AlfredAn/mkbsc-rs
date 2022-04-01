@@ -13,13 +13,13 @@ use crate::game::dgame::{node::DNode, obs::DObs};
 
 use super::{index::*, DGame, edge::DEdge};
 
-type NI = NodeIndex<usize>;
-type EI = EdgeIndex<usize>;
-type AI = ActionIndex<usize>;
-type OI = ObsIndex<usize>;
+type NI = NodeIndex;
+type EI = EdgeIndex;
+type AI = ActionIndex;
+type OI = ObsIndex;
 
 pub struct GenericBuilder<Loc, Act, Obs, const N: usize> {
-    graph: Graph<(Option<bool>, Option<String>), [AI; N], Directed, usize>,
+    graph: Graph<(Option<bool>, Option<String>), [AI; N], Directed, u32>,
     l0: Option<NI>,
     nodes: BiHashMap<Loc, NI>,
     actions: HashMap<Act, AI>,
@@ -155,9 +155,8 @@ where
         self.labels = Some(labels)
     }
 
-    pub fn build<Ix>(&self) -> anyhow::Result<DGame<Ix, N>>
+    pub fn build(&self) -> anyhow::Result<DGame<N>>
     where
-        Ix: IndexType,
         Loc: Debug
     {
         if self.l0.is_none() {
@@ -166,7 +165,7 @@ where
         let l0 = self.l0.unwrap();
         let mut l0_valid = false;
 
-        let mut g = DGame::<Ix, N>::default();
+        let mut g = DGame::<N>::default();
 
         for n in self.graph.node_indices() {
             let is_winning = if let Some(w) = self.graph[n].0 {
