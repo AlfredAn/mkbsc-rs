@@ -1,3 +1,7 @@
+use crate::KBSC;
+use crate::Project;
+use crate::dgame;
+use crate::DGame;
 use crate::MKBSC;
 use std::{hash::Hash, ops::Deref};
 
@@ -62,12 +66,34 @@ pub trait Game<'a, const N: usize>: Debug where Self: 'a {
         None
     }
 
+    fn project(self, agt: impl Into<Self::Agent>) -> Project<'a, Self, N>
+    where
+        Self: Sized
+    {
+        Project(self, agt.into())
+    }
+
+    fn kbsc(self) -> KBSC<'a, Self>
+    where
+        Self: Sized + Game1<'a>,
+        <Self as Game<'a, 1>>::Loc: Ord
+    {
+        KBSC::new(self)
+    }
+
     fn mkbsc(self) -> MKBSC<'a, Self, N>
     where
         Self: Sized,
         Self::Loc: Ord
     {
         MKBSC::new(self)
+    }
+
+    fn dgame(self) -> DGame<N>
+    where
+        Self: Sized
+    {
+        dgame(self)
     }
 }
 

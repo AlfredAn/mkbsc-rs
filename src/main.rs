@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::algo::strat_synth::strategy1::find_memoryless_strategies;
 use crate::from_game::dgame;
 use crate::from_game;
 use std::collections::HashSet;
@@ -34,17 +35,17 @@ fn main() {
 }
 
 fn strategy_synthesis_test() {
-    let g = cup_game().mkbsc().mkbsc();
-    let g1 = dgame(&g.kbsc[0]);
-    //let s1 = find_memoryless_strategy(&g1);
-    //println!("{:?}\n\n{:?}", g1, s1);
+    let g = cup_game().project(0);
+    //let g = cup_game().mkbsc().mkbsc().project(0);
+    let s = find_memoryless_strategies(&g);
+    println!("{:?}\n\n{:#?}", (&g).dgame(), s);
 }
 
 fn grid_pursuit_test() {
     let g = GridPursuitGame::<3, 3, 2>::default();
     save_graph(&g, "grid_33");
 
-    let dg = DGame::<2>::from_game(&g, false).unwrap();
+    let dg = DGame::from_game(&g, false).unwrap();
 
     let k = KBSC::new(Project(dg, agent_index(0)));
     save_graph(&k, "grid_33_kbsc");
@@ -104,15 +105,15 @@ fn make_cup_game_graphs() {
     let proj1 = Project(g.clone(), agent_index(1));
     save_graph(&proj1, "project_1");
 
-    let kbsc0 = KBSC::new(proj0);
+    let kbsc0 = KBSC::new(&proj0);
     save_graph(&kbsc0, "kbsc_0");
-    let kbsc1 = KBSC::new(proj1);
+    let kbsc1 = KBSC::new(&proj1);
     save_graph(&kbsc1, "kbsc_1");
 
     let mkbsc = MKBSC::new(g);
     save_graph(&mkbsc, "mkbsc-1");
-    let mkbsc2 = MKBSC::new(mkbsc);
+    let mkbsc2 = MKBSC::new(&mkbsc);
     save_graph(&mkbsc2, "mkbsc-2");
-    let mkbsc3 = MKBSC::new(mkbsc2);
+    let mkbsc3 = MKBSC::new(&mkbsc2);
     save_graph(&mkbsc3, "mkbsc-3");
 }

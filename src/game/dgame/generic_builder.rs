@@ -7,7 +7,6 @@ use arrayvec::ArrayVec;
 use bimap::BiHashMap;
 use petgraph::{graphmap::GraphMap, Graph, Directed, graph::{DefaultIx, IndexType, node_index}, visit::EdgeRef};
 use itertools::Itertools;
-use typenum::private::IsEqualPrivate;
 
 use crate::game::dgame::{node::DNode, obs::DObs};
 

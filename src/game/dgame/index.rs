@@ -5,8 +5,8 @@ use std::fmt;
 
 pub use petgraph::graph::{DefaultIx, IndexType};
 
-pub type NodeIndex = petgraph::graph::NodeIndex;
-pub type EdgeIndex = petgraph::graph::EdgeIndex;
+pub type NodeIndex = petgraph::graph::NodeIndex<u32>;
+pub type EdgeIndex = petgraph::graph::EdgeIndex<u32>;
 
 pub use petgraph::graph::{node_index, edge_index};
 
@@ -26,10 +26,10 @@ unsafe impl IndexType for ZeroIndex {
 }
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct AgentIndex(u32);
+pub struct AgentIndex(u8);
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct ActionIndex(u32);
+pub struct ActionIndex(u16);
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct ObsIndex(u32);
@@ -59,13 +59,13 @@ unsafe impl IndexType for AgentIndex {
         AgentIndex::new(x)
     }
     fn max() -> Self {
-        AgentIndex(u32::MAX)
+        AgentIndex(u8::MAX)
     }
 }
 
-impl From<u32> for AgentIndex {
-    fn from(t: u32) -> Self {
-        Self::new(t.index())
+impl From<usize> for AgentIndex {
+    fn from(t: usize) -> Self {
+        Self::new(t)
     }
 }
 
@@ -100,13 +100,13 @@ unsafe impl IndexType for ActionIndex {
         ActionIndex::new(x)
     }
     fn max() -> Self {
-        ActionIndex(u32::MAX)
+        ActionIndex(u16::MAX)
     }
 }
 
-impl From<u32> for ActionIndex {
-    fn from(t: u32) -> Self {
-        Self::new(t.index())
+impl From<usize> for ActionIndex {
+    fn from(t: usize) -> Self {
+        Self::new(t)
     }
 }
 
@@ -145,9 +145,9 @@ unsafe impl IndexType for ObsIndex {
     }
 }
 
-impl From<u32> for ObsIndex {
-    fn from(t: u32) -> Self {
-        Self::new(t.index())
+impl From<usize> for ObsIndex {
+    fn from(t: usize) -> Self {
+        Self::new(t)
     }
 }
 

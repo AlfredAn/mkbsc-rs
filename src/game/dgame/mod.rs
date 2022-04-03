@@ -70,6 +70,10 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
     fn debug_string(&self, l: &Self::Loc) -> Option<String> {
         self.node(*l).debug.clone()
     }
+
+    fn dgame(self) -> Self {
+        self
+    }
 }
 
 impl DGame<1> {
@@ -81,29 +85,38 @@ impl DGame<1> {
             ).flatten()
     }
 
+    pub fn pre_all<'b>(&'b self, i: impl IntoIterator<Item=NodeIndex> + Clone + 'b) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b {
+        self.actions1()
+            .flat_map(move |a|
+                self.pre(i.clone(), a)
+                    .map(move |l| (l, a))
+            )
+    }
+
     pub fn cpre<'b>(
         &'b self,
         mut s: impl FnMut(usize) -> bool + 'b,
         i: impl Iterator<Item=NodeIndex> + Clone + 'b
     ) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b
     {
-        self.actions1()
-            .inspect(|a| println!("    a={:?}", a.index()))
-            .flat_map(move |a|
-                self.pre(i.clone(), a)
-                    .inspect(|l| println!("      pre: {:?}", l.index()))
-                    .map(move |l| (l, a))
-            )
+        self.pre_all(i)
             .filter(move |(l, a)|
                 self.post1(l, *a)
-                    .inspect(|l2| println!("        post: {:?}", l2.index()))
-                    .all(|l2| {
-                        let b = s(l2.index());
-                        println!("          in s: {}", b);
-                        b
-                    })
+                    .all(|l2| s(l2.index()))
             )
-            .inspect(|_| println!("      +is controllable"))
+    }
+
+    pub fn pre_winnable<'b>(
+        &'b self,
+        mut s: impl FnMut(usize) -> bool + 'b,
+        i: impl Iterator<Item=NodeIndex> + Clone + 'b
+    ) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b
+    {
+        self.pre_all(i)
+            .filter(move |(l, a)|
+                self.post1(l, *a)
+                    .any(|l2| s(l2.index()))
+            )
     }
 }
 

@@ -4,7 +4,6 @@ use fixedbitset::FixedBitSet;
 use std::fmt;
 use std::{ops::{Index, Range, Deref}, rc::Rc, iter::Map};
 use array_init::array_init;
-use typenum::*;
 use itertools::*;
 use std::{iter, cell::RefCell};
 
