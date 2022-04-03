@@ -71,8 +71,8 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
         self.node(*l).debug.clone()
     }
 
-    fn dgame(self) -> Self {
-        self
+    fn dgame(&self) -> Self {
+        self.clone()
     }
 }
 

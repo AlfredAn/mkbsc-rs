@@ -18,7 +18,7 @@ pub mod history;
 #[macro_use]
 pub mod macros;
 
-pub trait Game<'a, const N: usize>: Debug where Self: 'a {
+pub trait Game<'a, const N: usize>: Debug {
     type Loc: Clone + Eq + Hash + Debug;
     type Act: Copy + Eq + Hash + Debug + 'a;
     type Obs: Clone + Eq + Hash + Debug;
@@ -89,9 +89,9 @@ pub trait Game<'a, const N: usize>: Debug where Self: 'a {
         MKBSC::new(self)
     }
 
-    fn dgame(self) -> DGame<N>
+    fn dgame(&self) -> DGame<N>
     where
-        Self: Sized
+        Self: Sized + 'a
     {
         dgame(self)
     }
@@ -131,8 +131,8 @@ impl<'a, G: Game<'a, 1>> Game1<'a> for G {}
 
 impl<'a, R, G, const N: usize> Game<'a, N> for R
 where
-    G: Game<'a, N>,
-    R: Deref<Target=G> + Debug + 'a
+    G: Game<'a, N> + 'a,
+    R: Deref<Target=G> + Debug
 {
     type Loc = G::Loc;
     type Act = G::Act;
@@ -187,7 +187,7 @@ where
 
 impl<'a, R, G, const N: usize> Pre<'a, N> for R
 where
-    G: Pre<'a, N>,
+    G: Pre<'a, N> + 'a,
     R: Deref<Target=G> + Debug + 'a
 {
     fn pre<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>

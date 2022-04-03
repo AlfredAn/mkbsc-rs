@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::algo::strat_synth::strategy1::all_strategies;
 use crate::algo::strat_synth::strategy1::find_memoryless_strategies;
 use crate::from_game::dgame;
 use crate::from_game;
@@ -35,10 +36,16 @@ fn main() {
 }
 
 fn strategy_synthesis_test() {
-    let g = cup_game().project(0);
+    let g = &cup_game().mkbsc().kbsc[1];
     //let g = cup_game().mkbsc().mkbsc().project(0);
-    let s = find_memoryless_strategies(&g);
-    println!("{:?}\n\n{:#?}", (&g).dgame(), s);
+    //let s = find_memoryless_strategies(&g.dgame());
+    //println!("{:?}\n\n{:#?}", &g.dgame(), s);
+    println!("{:?}\n", &g.dgame());
+
+    let mut s = all_strategies(&g.dgame());
+    while let Some(s) = s.next() {
+        println!("\n\n{:?}", s);
+    }
 }
 
 fn grid_pursuit_test() {

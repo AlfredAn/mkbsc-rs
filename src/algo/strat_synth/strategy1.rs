@@ -1,115 +1,114 @@
 
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::cmp::*;
 use std::ops::*;
-use self::NodeStatus::*;
+use Outcome::*;
 use crate::*;
 use crate::game::*;
 
 type Depth = u16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
-pub enum NodeStatus {
+pub enum Outcome {
     Win(Depth), // guaranteed to win in at most x steps
-    Maybe(Depth, Depth), // possible to win after x steps; possible to reach Win(_) state in y steps
-    Unknown
+    Either(Depth, Depth), // possible to win after x steps; possible to reach Win(_) state in y steps
+    Lose
 }
 
-impl NodeStatus {
+impl Outcome {
     pub fn is_win(self) -> bool { if let Win(_) = self {true} else {false} }
-    pub fn is_either(self) -> bool { if let Maybe(_, _) = self {true} else {false} }
-    pub fn is_known(self) -> bool { self != Unknown }
-    pub fn is_unknown(self) -> bool { self == Unknown }
-    pub fn can_win(self) -> bool { self.is_known() }
-    pub fn increment(self) -> Self { match self { Win(x) => Win(x+1), Maybe(x, y) => Maybe(x+1, y+1), Unknown => Unknown } }
+    pub fn is_either(self) -> bool { if let Either(_, _) = self {true} else {false} }
+    pub fn is_lose(self) -> bool { self == Lose }
+    pub fn can_win(self) -> bool { self != Lose }
+    pub fn increment(self) -> Self { match self { Win(x) => Win(x+1), Either(x, y) => Either(x+1, y+1), Lose => Lose } }
 }
 
-impl Ord for NodeStatus {
+impl Ord for Outcome {
     fn cmp(&self, rhs: &Self) -> Ordering {
         match (self, rhs) {
             (Win(a), Win(b)) => a.cmp(b),
             (Win(_), _) => Ordering::Less,
             (_, Win(_)) => Ordering::Greater,
-            (Maybe(a, b), Maybe(c, d)) => b.cmp(d).then(a.cmp(c)),
-            (Maybe(_, _), Unknown) => Ordering::Less,
-            (Unknown, Maybe(_, _)) => Ordering::Greater,
-            (Unknown, Unknown) => Ordering::Equal
+            (Either(a, b), Either(c, d)) => b.cmp(d).then(a.cmp(c)),
+            (Either(_, _), Lose) => Ordering::Less,
+            (Lose, Either(_, _)) => Ordering::Greater,
+            (Lose, Lose) => Ordering::Equal
         }
     }
 }
 
-impl BitAnd for NodeStatus {
+impl BitAnd for Outcome {
     type Output = Self;
     fn bitand(self, rhs: Self) -> Self {
         match (self, rhs) {
             (Win(a), Win(b)) => Win(max(a, b)),
-            (Win(a), Maybe(b, _)) => Maybe(min(a, b), 0),
-            (Win(a), Unknown) => Maybe(a, 0),
-            (Maybe(a, _), Win(b)) => Maybe(min(a, b), 0),
-            (Maybe(a, b), Maybe(c, d)) => Maybe(min(a, c), min(b, d)),
-            (Maybe(a, b), Unknown) => Maybe(a, b),
-            (Unknown, Win(a)) => Maybe(a, 0),
-            (Unknown, Maybe(a, b)) => Maybe(a, b),
-            (Unknown, Unknown) => Unknown
+            (Win(a), Either(b, _)) => Either(min(a, b), 0),
+            (Win(a), Lose) => Either(a, 0),
+            (Either(a, _), Win(b)) => Either(min(a, b), 0),
+            (Either(a, b), Either(c, d)) => Either(min(a, c), min(b, d)),
+            (Either(a, b), Lose) => Either(a, b),
+            (Lose, Win(a)) => Either(a, 0),
+            (Lose, Either(a, b)) => Either(a, b),
+            (Lose, Lose) => Lose
         }
     }
 }
 
-impl BitOr for NodeStatus {
+impl BitOr for Outcome {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self {
         match (self, rhs) {
             (Win(a), Win(b)) => Win(min(a, b)),
-            (Win(a), Maybe(_, _)) => Win(a),
-            (Maybe(_, _), Win(a)) => Win(a),
-            (Maybe(a, b), Maybe(c, d)) => Maybe(min(a, c), min(b, d)),
-            (Unknown, x) => x,
-            (x, Unknown) => x
+            (Win(a), Either(_, _)) => Win(a),
+            (Either(_, _), Win(a)) => Win(a),
+            (Either(a, b), Either(c, d)) => Either(min(a, c), min(b, d)),
+            (Lose, x) => x,
+            (x, Lose) => x
         }
     }
 }
 
-impl BitAndAssign for NodeStatus {
+impl BitAndAssign for Outcome {
     fn bitand_assign(&mut self, rhs: Self) {
         *self = *self & rhs;
     }
 }
 
-impl BitOrAssign for NodeStatus {
+impl BitOrAssign for Outcome {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
     }
 }
 
-impl Default for NodeStatus {
-    fn default() -> Self { Unknown }
+impl Default for Outcome {
+    fn default() -> Self { Lose }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct StratEntry {
-    action: Vec<NodeStatus>,
-    status: NodeStatus
+    pub action: Vec<Outcome>,
+    pub outcome: Outcome
 }
 
 impl StratEntry {
     fn new(n: usize, is_goal: bool) -> Self {
         Self {
-            action: vec![Unknown; n],
-            status: if is_goal {Win(0)} else {Unknown}
+            action: vec![Lose; n],
+            outcome: if is_goal {Win(0)} else {Lose}
         }
     }
-    fn insert(&mut self, a: ActionIndex, status: NodeStatus) -> bool {
-        self.action[a.index()] |= status;
+    fn insert(&mut self, a: ActionIndex, outcome: Outcome) -> bool {
+        self.action[a.index()] |= outcome;
 
-        let old_status = self.status;
-        self.status |= status;
+        let old_outcome = self.outcome;
+        self.outcome |= outcome;
 
-        old_status != self.status
+        old_outcome != self.outcome
     }
 }
 
-pub fn find_memoryless_strategies<'a>(g: impl Game<'a, 1>) -> Vec<StratEntry> {
-    let g = g.dgame();
+pub fn find_memoryless_strategies(g: &DGame<1>) -> Vec<StratEntry> {
     let n = g.graph.node_count();
 
     let mut w = Vec::with_capacity(n);
@@ -131,21 +130,21 @@ pub fn find_memoryless_strategies<'a>(g: impl Game<'a, 1>) -> Vec<StratEntry> {
 
         for a in g.actions1() {
             for l in g.pre(w_list.iter().copied(), a) {
-                let status = g.post1(&l, a)
-                    .map(|l2| w[l2.index()].status)
+                let outcome = g.post1(&l, a)
+                    .map(|l2| w[l2.index()].outcome)
                     .inspect(|x| println!("    {:?}", x))
                     .reduce(|x, y| x & y)
                     .unwrap();
                 
-                println!("  pre: {:?}", (l, a, status.increment()));
-                buf.push((l, a, status.increment()));
+                println!("  pre: {:?}", (l, a, outcome.increment()));
+                buf.push((l, a, outcome.increment()));
             }
         }
 
         let mut inserted = false;
-        for (l, a, status) in buf.drain(..) {
-            if w[l.index()].insert(a, status) {
-                println!("  push: {:?}", (l, a, status));
+        for (l, a, outcome) in buf.drain(..) {
+            if w[l.index()].insert(a, outcome) {
+                println!("  push: {:?}", (l, a, outcome));
                 w_list.push(l);
                 inserted = true;
             }
@@ -156,4 +155,102 @@ pub fn find_memoryless_strategies<'a>(g: impl Game<'a, 1>) -> Vec<StratEntry> {
     }
 
     w
+}
+
+#[derive(Debug, Clone)]
+pub struct AllStrategies {
+    strat: Vec<Option<ActionIndex>>,
+    variables: Vec<(NodeIndex, Vec<ActionIndex>, i16)>,
+    is_finished: bool
+}
+
+impl AllStrategies {
+    pub fn next(&mut self) -> Option<&Vec<Option<ActionIndex>>> {
+        if self.is_finished {
+            return None;
+        }
+
+        let mut valid = false;
+        for (l, actions, i) in &mut self.variables {
+            *i += 1;
+
+            if (*i as usize) < actions.len() {
+                self.strat[l.index()] = Some(actions[*i as usize]);
+                valid = true;
+                break;
+            } else {
+                *i = 0;
+                self.strat[l.index()] = Some(actions[0]);
+            }
+        }
+
+        if valid {
+            Some(&self.strat)
+        } else if self.variables.is_empty() {
+            self.is_finished = true;
+            Some(&self.strat)
+        } else {
+            self.is_finished = true;
+            None
+        }
+    }
+
+    fn new(w: &Vec<StratEntry>, n: usize) -> Self {
+        let mut base = Vec::with_capacity(n);
+        let mut variables = Vec::new();
+
+        let mut buf = Vec::new();
+        
+        for (l, entry) in w.iter().enumerate() {
+            for (a, &outcome) in entry.action.iter().enumerate() {
+                if outcome.can_win() {
+                    buf.push((a.into(), outcome));
+                }
+            }
+
+            if entry.outcome.is_win() {
+                let best = buf.iter()
+                    .copied()
+                    .reduce(|(l1, o1), (l2, o2)| if o1 <= o2 {(l1, o1)} else {(l2, o2)})
+                    .unwrap();
+                buf.clear();
+                buf.push(best);
+            }
+
+            match buf.len() {
+                0 => base.push(None),
+                1 => {
+                    base.push(Some(buf[0].0));
+                    buf.clear();
+                },
+                _ => {
+                    buf.sort_by(|(_, o1), (_, o2)| o1.cmp(o2));
+                    base.push(Some(buf[0].0));
+                    
+                    variables.push((
+                        node_index(l),
+                        buf.drain(..)
+                            .map(|(a, _)| a)
+                            .collect(),
+                        0
+                    ));
+                }
+            }
+        }
+
+        if !variables.is_empty() {
+            variables[0].2 = -1;
+        }
+
+        Self {
+            strat: base,
+            variables: variables,
+            is_finished: false
+        }
+    }
+}
+
+pub fn all_strategies<'a>(g: &DGame<1>) -> AllStrategies {
+    let w = find_memoryless_strategies(&g);
+    AllStrategies::new(&w, g.n_actions)
 }
