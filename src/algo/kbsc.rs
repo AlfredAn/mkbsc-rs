@@ -1,7 +1,5 @@
+use std::collections::BTreeSet;
 use std::borrow::Borrow;
-use std::ops::Deref;
-use std::collections::{HashSet, BTreeSet};
-
 use itertools::Itertools;
 
 use crate::{game::*, util::{Itr, into_cloneable}};

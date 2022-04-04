@@ -1,20 +1,16 @@
-use std::ops::Index;
-use std::cell::RefCell;
 use petgraph::Incoming;
 use crate::game::*;
-use std::{fmt, slice, iter};
-use crate::macros::*;
+use std::fmt;
 
-use fixedbitset::FixedBitSet;
-use petgraph::{visit::*, graph::{IndexType, Neighbors, node_index, EdgeReference, EdgeReferences}, Graph, Directed, Direction};
+use petgraph::{visit::*, graph::node_index, Graph, Directed};
 use array_init::array_init;
 use itertools::Itertools;
 
-use self::{index::*, edge::DEdge, obs::DObs, node::DNode};
+use self::{edge::DEdge, obs::DObs, node::DNode};
 
-use super::{Game, macros::{derive_ma, derive_ii, derive_magiian}};
+use super::Game;
 
-use crate::{game::macros, util::*};
+use crate::util::*;
 
 pub mod index;
 pub mod node;
@@ -23,6 +19,12 @@ pub mod obs;
 pub mod from_game;
 pub mod builder;
 pub mod generic_builder;
+
+pub use index::*;
+pub use node::*;
+pub use edge::*;
+pub use obs::*;
+pub use generic_builder::*;
 
 type GraphType<const N: usize>
     = Graph<DNode<N>, DEdge<N>, Directed>;

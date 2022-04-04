@@ -1,10 +1,8 @@
-use crate::game::Game1;
-use crate::Game;
-use crate::MKBSC;
-use crate::DGame;
+use crate::algo::MKBSC;
+use crate::game::dgame::DGame;
+use crate::game::*;
 use array_init::array_init;
-use crate::ActionIndex;
-use super::strategy1::*;
+use super::*;
 
 #[derive(Debug, Clone)]
 pub struct AllStrategies<const N: usize> {

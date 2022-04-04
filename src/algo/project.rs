@@ -1,11 +1,8 @@
-use std::{borrow::Borrow, ops::Deref};
-use crate::game::Pre;
+use std::borrow::Borrow;
 use crate::game::Game1;
-use std::iter::{Map, self};
 
 use itertools::Itertools;
-use petgraph::{visit::{GraphBase, Data, IntoEdgeReferences, IntoNeighbors, IntoEdges}, graph::IndexType};
-use array_init::array_init;
+use petgraph::graph::IndexType;
 
 use crate::{game::Game, util::Itr};
 

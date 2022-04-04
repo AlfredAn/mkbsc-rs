@@ -1,27 +1,19 @@
-use std::borrow::Borrow;
-use std::borrow::Cow;
-use crate::util::MaybeRef;
-use crate::algo::strat_synth::strategy::AllStrategies;
-use crate::find_memoryless_strategies;
-use crate::AllStrategies1;
-use crate::KBSC;
-use crate::Project;
-use crate::DGame;
-use crate::MKBSC;
-use std::{hash::Hash, ops::Deref};
+use crate::algo::*;
+use crate::game::dgame::DGame;
+use std::borrow::*;
+use std::hash::Hash;
 
 use itertools::Itertools;
-use petgraph::{visit::{GraphBase}, graph::IndexType};
-use std::fmt::Debug;
+use petgraph::graph::IndexType;
 
 use crate::util::{Itr};
 
 pub mod dgame;
-pub mod strategy;
-pub mod history;
 
 #[macro_use]
 pub mod macros;
+
+pub use dgame::*;
 
 pub trait Game<'a, const N: usize> {
     type Loc: Clone + Eq + Hash;

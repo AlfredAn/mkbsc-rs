@@ -1,19 +1,16 @@
-use std::fmt::Display;
-use std::{marker::PhantomData, collections::HashMap, hash::Hash, fmt::{Debug, format}, cmp::max};
+use petgraph::visit::EdgeRef;
+use std::{collections::HashMap, hash::Hash, cmp::max};
 
 use anyhow::bail;
 use array_init::*;
-use arrayvec::ArrayVec;
 use bimap::BiHashMap;
-use petgraph::{graphmap::GraphMap, Graph, Directed, graph::{DefaultIx, IndexType, node_index}, visit::EdgeRef};
-use itertools::Itertools;
+use petgraph::*;
 
 use crate::game::dgame::{node::DNode, obs::DObs};
 
 use super::{index::*, DGame, edge::DEdge};
 
 type NI = NodeIndex;
-type EI = EdgeIndex;
 type AI = ActionIndex;
 type OI = ObsIndex;
 

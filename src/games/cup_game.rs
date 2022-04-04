@@ -1,4 +1,4 @@
-use crate::game::dgame::{DGame, builder::Builder, generic_builder::GenericBuilder};
+use crate::game::dgame::{DGame, generic_builder::GenericBuilder};
 
 #[allow(dead_code)]
 

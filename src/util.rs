@@ -1,141 +1,11 @@
-use crate::IndexType;
-use std::marker::PhantomData;
+#[allow(dead_code)]
+
 use fixedbitset::FixedBitSet;
-use std::fmt;
-use std::{ops::{Index, Range, Deref}, rc::Rc, iter::Map};
+use std::{ops::{Index, Range}, rc::Rc};
 use array_init::array_init;
-use itertools::*;
-use std::{iter, cell::RefCell};
-
-#[derive(Debug, Copy, Clone)]
-pub enum MaybeRef<'a, T> {
-    Value(T),
-    Ref(&'a T)
-}
-
-impl<'a, T> MaybeRef<'a, T> {
-    pub fn into_value(self) -> Option<T> {
-        if let Self::Value(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-    pub fn into_ref(self) -> Option<&'a T> {
-        if let Self::Ref(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a, T> Deref for MaybeRef<'a, T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Value(ref x) => x,
-            Self::Ref(x) => x
-        }
-    }
-}
-
-pub trait IntoCloneIterator: IntoIterator
-where
-    Self::IntoIter: Clone {}
-
-impl<I> IntoCloneIterator for I
-where
-    I: IntoIterator,
-    I::IntoIter: Clone {}
-
-/*pub struct ItrFnOnce<T, F>(Option<F>, PhantomData<T>)
-where
-    F: FnOnce() -> T;
-
-impl<T, F> ItrFnOnce<T, F>
-where
-    F: FnOnce() -> T
-{
-    pub fn new(x: F) -> Self {
-        Self(Some(x), Default::default())
-    }
-}
-
-impl<T, F> Iterator for ItrFnOnce<T, F>
-where
-    F: FnOnce() -> T
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<T> {
-        if let Some(f) = self.0 {
-            let result = f();
-            self.0 = None;
-            Some(result)
-        } else {
-            None
-        }
-    }
-}*/
-
-/*pub trait CopySet<T: Copy> {
-    type Iter<'a>: Iterator<Item=T> where Self: 'a, T: 'a;
-
-    fn contains(&self, x: T) -> bool;
-    fn set_iter(&self) -> Self::Iter<'_>;
-}
-
-impl CopySet<usize> for FixedBitSet {
-    type Iter<'a> = fixedbitset::Ones<'a>;
-
-    fn contains(&self, x: usize) -> bool { self.contains(x) }
-    fn set_iter(&self) -> Self::Iter<'_> { self.ones() }
-}
-
-pub struct FixedListMap<T, I: IndexType> {
-    map: Vec<Option<T>>,
-    list: Vec<I>
-}
-
-impl<T, I: IndexType> FixedListMap<T, I> {
-    pub fn new(cap: usize) -> Self {
-        Self {
-            map: Vec::with_capacity(cap),
-            list: Vec::with_capacity(cap)
-        }
-    }
-}
-
-impl<T, I: IndexType> CopySet<I> for FixedListMap<T, I> {
-    type Iter<'a> = iter::Copied<std::slice::Iter<'a, I>> where T: 'a;
-
-    fn contains(&self, x: I) -> bool {
-        self.map[x.index()].is_some()
-    }
-    fn set_iter(&self) -> Self::Iter<'_> {
-        self.list.iter().copied()
-    }
-}*/
+use std::{cell::RefCell};
 
 pub type Itr<'a, T> = Box<dyn Iterator<Item=T> + 'a>;
-
-pub trait CustomIterator: Iterator + Sized {
-    /*fn introduce<T>(self, x: T) -> Introduce<Self, T> {
-        Introduce(self, x)
-    }*/
-}
-
-impl<I: Iterator> CustomIterator for I {}
-
-/*pub struct Introduce<'a, I: Iterator, T>(I, RefCell<T>, PhantomData<&'a ()>);
-
-impl<'a, I: Iterator, T: 'a> Iterator for Introduce<'a, I, T> {
-    type Item = (I::Item, &'a RefCell<T>);
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|x| (x, &self.1))
-    }
-}*/
 
 pub fn unique_fbs<T: Into<usize> + Copy>(itr: impl IntoIterator<Item=T>, cap: usize) -> impl Iterator<Item=T> {
     UniqueFBS {
@@ -233,16 +103,6 @@ where
     }
 }
 
-/*pub fn iterator_product<I, const N: usize>(x: [I; N]) -> impl Iterator<Item=[I::Item; N]>
-where
-    I: IntoIterator,
-    I::Item: Clone + Sized
-{
-    let vs = x.map(|itr| itr.into_iter().collect_vec());
-    let range = array_init(|i| 0..(&vs[i]).len());
-    index_product(vs, range)
-}*/
-
 macro_rules! iterator_product {
     ($x:expr) => {
         {
@@ -280,20 +140,11 @@ where
     r
 }
 
-/*pub fn index_power_vec<T, const N: usize>(x: [Vec<T>; N]) -> impl Iterator<Item=[T; N]>
-where
-    T: Clone
-{
-    let range = x.map(|v| 0..v.len());
-
-}*/
-
 pub fn index_power_generic<'a, T, const N: usize>(x: T, range: Range<usize>) -> impl Iterator<Item=[T::Output; N]> + 'a
 where
     T: Index<usize> + 'a,
     T::Output: Clone + Sized
 {
-    //map_array(range_power(range), move |&i| x[i].clone())
     let r = range_power::<N>(range).map(move |is| array_init(|i| x[is[i]].clone()));
     r
 }

@@ -1,13 +1,5 @@
-use std::fmt;
-use std::fmt::Display;
-use std::{collections::HashMap, hash::Hash, fmt::Debug, error::Error, iter};
-
-use array_init::from_iter;
-use petgraph::{graph::IndexType, visit::*};
-
-use crate::game::Game;
-
-use super::{DGame, builder::Builder, generic_builder::GenericBuilder, index::{agent_index, NodeIndex}, node::DNode};
+use std::iter;
+use super::*;
 
 impl<const N: usize> DGame<N> {
     pub fn from_game<'a, G>(g: &G, stop_on_win: bool) -> anyhow::Result<DGame<N>>

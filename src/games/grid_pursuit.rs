@@ -1,17 +1,13 @@
-use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::iter;
 use std::hash::Hash;
 
 use arrayvec::ArrayVec;
-use nalgebra::{Vector2, ArrayStorage, Matrix2, Similarity2, Matrix, Const, DMatrix};
-use petgraph::graph::IndexType;
-use petgraph::visit::{GraphBase, IntoNeighbors, IntoEdgeReferences, EdgeRef, Data, IntoEdges};
-use itertools::{Itertools, iproduct, izip};
+use nalgebra::{Vector2, ArrayStorage, DMatrix};
+use itertools::{Itertools, izip};
 use array_init::array_init;
 
 use crate::game::Game;
-use crate::game::macros;
 use crate::util::{index_power, Itr};
 
 type Pos = Vector2<i8>;
@@ -398,7 +394,7 @@ impl<const X: i8, const Y: i8, const N: usize> Edge<X, Y, N> {
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> EdgeRef for Edge<X, Y, N> {
+/*impl<const X: i8, const Y: i8, const N: usize> EdgeRef for Edge<X, Y, N> {
     type NodeId = Loc<X, Y, N>;
     type EdgeId = Self;
     type Weight = ();
@@ -418,7 +414,7 @@ impl<const X: i8, const Y: i8, const N: usize> EdgeRef for Edge<X, Y, N> {
     fn id(&self) -> Self::EdgeId {
         *self
     }
-}
+}*/
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum SquareContents {

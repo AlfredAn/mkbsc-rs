@@ -1,13 +1,10 @@
-use crate::Game1;
-use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use std::{rc::Rc, iter::{once, self}};
+use std::{rc::Rc};
 
-use crate::{game::{Game, dgame::index::agent_index}, util::{Itr, iterator_product}};
 use array_init::*;
 use itertools::{izip, Itertools};
-use super::{kbsc::KBSC, project::Project};
+use super::*;
+use crate::{game::*, util::*};
 use petgraph::adj::IndexType;
 
 type K<'a, G, const N: usize> = KBSC<'a, Project<'a, G, Rc<G>, N>, Project<'a, G, Rc<G>, N>>;

@@ -20,21 +20,3 @@ macro_rules! derive_ma {
 macro_rules! derive_magiian {
     () => {}
 }
-
-/*macro_rules! post_set {
-    ($na:expr) => {
-        type PostSet<'b, I> where Self: 'b, I: 'b = impl Iterator<Item=Self::Loc> + Clone + 'b;
-        fn post_set<'b, I>(&'b self, ns: I, a: [Self::Act; $na]) -> Self::PostSet<'b, I>
-        where
-            I: IntoIterator<Item=&'b Self::Loc> + 'b,
-            I::IntoIter: Clone
-        {
-            crate::game::post_set_default(self, ns, a)
-        }
-    };
-}*/
-
-pub(crate) use derive_ii;
-pub(crate) use derive_ma;
-pub(crate) use derive_magiian;
-//pub(crate) use post_set;

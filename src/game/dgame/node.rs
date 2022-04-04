@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use petgraph::graph::IndexType;
 
 use super::index::ObsIndex;
 
