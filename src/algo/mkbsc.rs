@@ -1,3 +1,4 @@
+use crate::Game1;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -9,10 +10,10 @@ use itertools::{izip, Itertools};
 use super::{kbsc::KBSC, project::Project};
 use petgraph::adj::IndexType;
 
-type K<'a, G, const N: usize> = KBSC<'a, Project<'a, Rc<G>, N>>;
+type K<'a, G, const N: usize> = KBSC<'a, Project<'a, G, Rc<G>, N>, Project<'a, G, Rc<G>, N>>;
 type KLoc<'a, G, const N: usize> = <K<'a, G, N> as Game<'a, 1>>::Loc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MKBSC<'a, G, const N: usize>
 where
     G: Game<'a, N> + 'a,
@@ -112,3 +113,9 @@ where
         ))
     }
 }
+
+impl<'a, G> Game1<'a> for MKBSC<'a, G, 1>
+where
+    G: Game<'a, 1>,
+    G::Loc: Ord
+{}

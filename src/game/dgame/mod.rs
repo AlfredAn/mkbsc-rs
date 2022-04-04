@@ -71,8 +71,19 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
         self.node(*l).debug.clone()
     }
 
-    fn dgame(&self) -> Self {
-        self.clone()
+    fn dgame<'b>(&self) -> Cow<Self> where 'a: 'b {
+        Cow::Borrowed(self)
+    }
+
+    fn into_dgame(self) -> Self {
+        self
+    }
+}
+
+impl<'a> Game1<'a> for DGame<1> {
+    fn all_strategies(&self) -> AllStrategies1 {
+        let w = find_memoryless_strategies(self);
+        AllStrategies1::new(&w, self.n_actions)
     }
 }
 

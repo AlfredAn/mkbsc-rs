@@ -154,10 +154,7 @@ where
         self.labels = Some(labels)
     }
 
-    pub fn build(&self) -> anyhow::Result<DGame<N>>
-    where
-        Loc: Debug
-    {
+    pub fn build(&self) -> anyhow::Result<DGame<N>> {
         if self.l0.is_none() {
             bail!("l0 is not set");
         }
@@ -181,7 +178,7 @@ where
                     } else if let Some(debug) = &self.graph[n].1 {
                         Some(debug.clone())
                     } else {
-                        Some(format!("{:?}", self.nodes.get_by_right(&n).unwrap()))
+                        None
                     }
                 }
             ));

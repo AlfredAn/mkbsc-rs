@@ -7,6 +7,39 @@ use array_init::array_init;
 use itertools::*;
 use std::{iter, cell::RefCell};
 
+#[derive(Debug, Copy, Clone)]
+pub enum MaybeRef<'a, T> {
+    Value(T),
+    Ref(&'a T)
+}
+
+impl<'a, T> MaybeRef<'a, T> {
+    pub fn into_value(self) -> Option<T> {
+        if let Self::Value(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+    pub fn into_ref(self) -> Option<&'a T> {
+        if let Self::Ref(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T> Deref for MaybeRef<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Value(ref x) => x,
+            Self::Ref(x) => x
+        }
+    }
+}
+
 pub trait IntoCloneIterator: IntoIterator
 where
     Self::IntoIter: Clone {}

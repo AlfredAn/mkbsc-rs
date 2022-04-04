@@ -1,6 +1,11 @@
+use std::borrow::Borrow;
+use std::borrow::Cow;
+use crate::util::MaybeRef;
+use crate::algo::strat_synth::strategy::AllStrategies;
+use crate::find_memoryless_strategies;
+use crate::AllStrategies1;
 use crate::KBSC;
 use crate::Project;
-use crate::dgame;
 use crate::DGame;
 use crate::MKBSC;
 use std::{hash::Hash, ops::Deref};
@@ -18,10 +23,10 @@ pub mod history;
 #[macro_use]
 pub mod macros;
 
-pub trait Game<'a, const N: usize>: Debug {
-    type Loc: Clone + Eq + Hash + Debug;
-    type Act: Copy + Eq + Hash + Debug + 'a;
-    type Obs: Clone + Eq + Hash + Debug;
+pub trait Game<'a, const N: usize> {
+    type Loc: Clone + Eq + Hash;
+    type Act: Copy + Eq + Hash + 'a;
+    type Obs: Clone + Eq + Hash;
     type Agent: IndexType;
 
     fn agent(i: usize) -> Self::Agent {
@@ -66,34 +71,15 @@ pub trait Game<'a, const N: usize>: Debug {
         None
     }
 
-    fn project(self, agt: impl Into<Self::Agent>) -> Project<'a, Self, N>
+    fn dgame<'b>(&'b self) -> Cow<'b, DGame<N>> where 'a: 'b {
+        Cow::Owned(DGame::from_game(self, false).unwrap())
+    }
+
+    fn into_dgame(self) -> DGame<N>
     where
         Self: Sized
     {
-        Project(self, agt.into())
-    }
-
-    fn kbsc(self) -> KBSC<'a, Self>
-    where
-        Self: Sized + Game1<'a>,
-        <Self as Game<'a, 1>>::Loc: Ord
-    {
-        KBSC::new(self)
-    }
-
-    fn mkbsc(self) -> MKBSC<'a, Self, N>
-    where
-        Self: Sized,
-        Self::Loc: Ord
-    {
-        MKBSC::new(self)
-    }
-
-    fn dgame(&self) -> DGame<N>
-    where
-        Self: Sized + 'a
-    {
-        dgame(self)
+        self.dgame().into_owned()
     }
 }
 
@@ -115,83 +101,35 @@ pub trait Game1<'a>: Game<'a, 1> {
         self.post(n, [a])
     }
 
-    /*fn cpre<'b>(&'b self, n: &'b Self::Loc) -> Itr<'b, Self::Loc> where 'a: 'b;
-
-    fn cpre_set<'b, I>(&'b self, ns: I) -> Itr<'b, Self::Loc>
-    where 'a: 'b, I: IntoIterator<Item=&'b Self::Loc>, I::IntoIter: 'b {
-        Box::new(ns.into_iter()
-            .map(|n| self.cpre(&n))
-            .flatten()
-            .unique()
-        )
-    }*/
+    fn all_strategies(&self) -> AllStrategies1 {
+        self.dgame().all_strategies()
+    }
 }
 
-impl<'a, G: Game<'a, 1>> Game1<'a> for G {}
-
-impl<'a, R, G, const N: usize> Game<'a, N> for R
-where
-    G: Game<'a, N> + 'a,
-    R: Deref<Target=G> + Debug
-{
-    type Loc = G::Loc;
-    type Act = G::Act;
-    type Obs = G::Obs;
-    type Agent = G::Agent;
-
-    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
-        self.deref().l0()
+pub trait GameRef<'a, G: Game<'a, N>, const N: usize>: Borrow<G> + Sized {
+    fn project(self, agt: impl Into<G::Agent>) -> Project<'a, G, Self, N> {
+        Project(self, agt.into())
     }
 
-    fn is_winning(&self, n: &Self::Loc) -> bool {
-        self.deref().is_winning(n)
-    }
-
-    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> where 'a: 'b {
-        self.deref().post(n, a)
-    }
-
-    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
-        self.deref().actions()
-    }
-
-    fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
-        self.deref().observe(l)
-    }
-
-    fn observe_i(&self, l: &Self::Loc, agt: Self::Agent) -> Self::Obs {
-        self.deref().observe_i(l, agt)
-    }
-
-    fn obs_eq(&self, l1: &Self::Loc, l2: &Self::Loc, agt: Self::Agent) -> bool {
-        self.deref().obs_eq(l1, l2, agt)
-    }
-
-    fn actions_i<'b>(&'b self, agt: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
-        self.deref().actions_i(agt)
-    }
-    
-    fn post_set<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
+    fn kbsc(self) -> KBSC<'a, G, Self>
     where
-        I: IntoIterator<Item=&'b Self::Loc>,
-        I::IntoIter: 'b,
-        'a: 'b
+        G: Game1<'a>,
+        <G as Game<'a, 1>>::Loc: Ord
     {
-        self.deref().post_set(ns, a)
+        KBSC::new(self)
     }
 
-    fn debug_string(&self, l: &Self::Loc) -> Option<String> {
-        self.deref().debug_string(l)
+    fn mkbsc(self) -> MKBSC<'a, G, N>
+    where
+        Self: ToOwned<Owned=G>,
+        G::Loc: Ord
+    {
+        MKBSC::new(self.to_owned())
     }
 }
 
-impl<'a, R, G, const N: usize> Pre<'a, N> for R
+impl<'a, G, R, const N: usize> GameRef<'a, G, N> for R
 where
-    G: Pre<'a, N> + 'a,
-    R: Deref<Target=G> + Debug + 'a
-{
-    fn pre<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
-    where 'a: 'b, I: IntoIterator<Item=&'b Self::Loc>, I::IntoIter: 'b {
-        self.deref().pre(ns, a)
-    }
-}
+    G: Game<'a, N>,
+    R: Borrow<G>
+{}

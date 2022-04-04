@@ -158,44 +158,39 @@ pub fn find_memoryless_strategies(g: &DGame<1>) -> Vec<StratEntry> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AllStrategies {
+pub struct AllStrategies1 {
     strat: Vec<Option<ActionIndex>>,
-    variables: Vec<(NodeIndex, Vec<ActionIndex>, i16)>,
-    is_finished: bool
+    variables: Vec<(NodeIndex, Vec<ActionIndex>, u32)>
 }
 
-impl AllStrategies {
-    pub fn next(&mut self) -> Option<&Vec<Option<ActionIndex>>> {
-        if self.is_finished {
-            return None;
-        }
-
-        let mut valid = false;
+impl AllStrategies1 {
+    pub fn advance(&mut self) -> bool {
         for (l, actions, i) in &mut self.variables {
             *i += 1;
 
             if (*i as usize) < actions.len() {
                 self.strat[l.index()] = Some(actions[*i as usize]);
-                valid = true;
-                break;
+                return true;
             } else {
                 *i = 0;
                 self.strat[l.index()] = Some(actions[0]);
             }
         }
 
-        if valid {
-            Some(&self.strat)
-        } else if self.variables.is_empty() {
-            self.is_finished = true;
-            Some(&self.strat)
-        } else {
-            self.is_finished = true;
-            None
+        false
+    }
+
+    pub fn get(&self) -> &Vec<Option<ActionIndex>> {
+        &self.strat
+    }
+
+    pub fn reset(&mut self) {
+        for (_, _, i) in &mut self.variables {
+            *i = 0;
         }
     }
 
-    fn new(w: &Vec<StratEntry>, n: usize) -> Self {
+    pub(crate) fn new(w: &Vec<StratEntry>, n: usize) -> Self {
         let mut base = Vec::with_capacity(n);
         let mut variables = Vec::new();
 
@@ -238,19 +233,9 @@ impl AllStrategies {
             }
         }
 
-        if !variables.is_empty() {
-            variables[0].2 = -1;
-        }
-
-        Self {
+        AllStrategies1 {
             strat: base,
-            variables: variables,
-            is_finished: false
+            variables: variables
         }
     }
-}
-
-pub fn all_strategies<'a>(g: &DGame<1>) -> AllStrategies {
-    let w = find_memoryless_strategies(&g);
-    AllStrategies::new(&w, g.n_actions)
 }
