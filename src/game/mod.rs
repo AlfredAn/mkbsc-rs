@@ -75,6 +75,42 @@ pub trait Game<'a, const N: usize> {
     }
 }
 
+pub trait HasVisitSet<'a, const N: usize>: Game<'a, N> {
+    type VisitSet: VisitSet<Self::Loc>;
+    fn visit_set(&self) -> Self::VisitSet;
+}
+
+pub trait VisitSet<Loc> {
+    fn insert(&mut self, l: impl Borrow<Loc> + ToOwned<Owned=Loc>) -> bool;
+    fn clear(&mut self);
+    fn contains(&self, l: impl Borrow<Loc>) -> bool;
+
+    fn insert_clone(&mut self, l: impl Borrow<Loc>) -> bool
+    where
+        Loc: Clone
+    {
+        let l = l.borrow();
+        if self.contains(l) {
+            false
+        } else {
+            self.insert(l.clone());
+            true
+        }
+    }
+
+    fn try_insert<Q>(&mut self, l: Q) -> Option<Q>
+    where
+        Q: Borrow<Loc> + ToOwned<Owned=Loc>
+    {
+        if self.contains(l.borrow()) {
+            Some(l)
+        } else {
+            self.insert(l);
+            None
+        }
+    }
+}
+
 pub trait Pre<'a, const N: usize>: Game<'a, N> {
     fn pre<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
     where 'a: 'b, I: IntoIterator<Item=&'b Self::Loc>, I::IntoIter: 'b;
@@ -87,6 +123,10 @@ pub trait Game1<'a>: Game<'a, 1> {
 
     fn actions1<'b>(&'b self) -> Itr<'b, Self::Act> where 'a: 'b {
         self.actions_i(Self::agent1())
+    }
+
+    fn observe1(&self, l: &Self::Loc) -> Self::Obs {
+        self.observe_i(l, Self::agent1())
     }
 
     fn post1<'b>(&'b self, n: &'b Self::Loc, a: Self::Act) -> Itr<'b, Self::Loc> where 'a: 'b {

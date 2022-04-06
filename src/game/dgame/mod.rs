@@ -1,3 +1,4 @@
+use fixedbitset::FixedBitSet;
 use petgraph::Incoming;
 use crate::game::*;
 use std::fmt;
@@ -86,6 +87,27 @@ impl<'a> Game1<'a> for DGame<1> {
     fn all_strategies(&self) -> AllStrategies1 {
         let w = find_memoryless_strategies(self);
         AllStrategies1::new(&w, self.n_actions)
+    }
+}
+
+impl<'a, const N: usize> HasVisitSet<'a, N> for DGame<N> {
+    type VisitSet = FixedBitSet;
+    fn visit_set(&self) -> FixedBitSet {
+        FixedBitSet::with_capacity(self.graph.node_count())
+    }
+}
+
+impl VisitSet<NodeIndex> for FixedBitSet {
+    fn insert(&mut self, l: impl Borrow<NodeIndex>) -> bool {
+        !self.put(l.borrow().index())
+    }
+    
+    fn clear(&mut self) {
+        FixedBitSet::clear(self);
+    }
+
+    fn contains(&self, l: impl Borrow<NodeIndex>) -> bool {
+        self[l.borrow().index()]
     }
 }
 

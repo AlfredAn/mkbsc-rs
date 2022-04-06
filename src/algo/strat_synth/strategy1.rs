@@ -3,6 +3,7 @@ use crate::game::index::node_index;
 use crate::game::dgame::DGame;
 use std::cmp::*;
 use std::ops::*;
+use std::iter;
 use Outcome::*;
 use crate::game::*;
 
@@ -123,19 +124,19 @@ pub fn find_memoryless_strategies(g: &DGame<1>) -> Vec<StratEntry> {
     }
     
     let mut buf = Vec::new();
-    let mut depth = 1;
+    //let mut depth = 1;
     loop {
-        println!("depth={}", depth);
+        //println!("depth={}", depth);
 
         for a in g.actions1() {
             for l in g.pre(w_list.iter().copied(), a) {
                 let outcome = g.post1(&l, a)
                     .map(|l2| w[l2.index()].outcome)
-                    .inspect(|x| println!("    {:?}", x))
+                    //.inspect(|x| //println!("    {:?}", x))
                     .reduce(|x, y| x & y)
                     .unwrap();
                 
-                println!("  pre: {:?}", (l, a, outcome.increment()));
+                //println!("  pre: {:?}", (l, a, outcome.increment()));
                 buf.push((l, a, outcome.increment()));
             }
         }
@@ -143,14 +144,14 @@ pub fn find_memoryless_strategies(g: &DGame<1>) -> Vec<StratEntry> {
         let mut inserted = false;
         for (l, a, outcome) in buf.drain(..) {
             if w[l.index()].insert(a, outcome) {
-                println!("  push: {:?}", (l, a, outcome));
+                //println!("  push: {:?}", (l, a, outcome));
                 w_list.push(l);
                 inserted = true;
             }
         }
         if !inserted { break; }
 
-        depth += 1;
+        //depth += 1;
     }
 
     w
@@ -187,6 +188,24 @@ impl AllStrategies1 {
         for (_, _, i) in &mut self.variables {
             *i = 0;
         }
+    }
+
+    pub fn iter<'b>(&'b mut self) -> impl Iterator<Item=Vec<Option<ActionIndex>>> + 'b {
+        let mut finished = false;
+        let mut first = true;
+        iter::from_fn(move || {
+            if finished {
+                return None;
+            } else if !first {
+                if !self.advance() {
+                    finished = true;
+                    return None;
+                }
+            } else {
+                first = false;
+            }
+            Some(self.get().clone())
+        })
     }
 
     pub(crate) fn new(w: &Vec<StratEntry>, n: usize) -> Self {
