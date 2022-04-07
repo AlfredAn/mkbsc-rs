@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 use crate::algo::KBSC;
-use std::marker::PhantomData;
 use crate::algo::MKBSC;
 use crate::game::dgame::DGame;
 use crate::game::*;

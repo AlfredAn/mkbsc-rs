@@ -3,7 +3,7 @@ pub mod strategy1;
 
 use crate::algo::SimAction;
 use crate::algo::simulate;
-use array_init::from_iter;
+use array_init::*;
 use crate::*;
 
 use thiserror::Error;
@@ -19,26 +19,30 @@ pub enum StrategyError {
     Incomplete
 }
 
-pub fn verify_strategy<'a, G, const N: usize>(
+pub fn verify_strategy<'a, G, M, const N: usize>(
     g: &G,
-    strat: impl Fn(&G::Obs, G::Agent) -> Option<G::Act>
+    init: [M; N],
+    strat: impl Fn(&G::Obs, &M, G::Agent) -> Option<(G::Act, M)>
 ) -> Result<(), StrategyError>
 where
-    G: Game<'a, N> + HasVisitSet<'a, N>
+    G: Game<'a, N> + HasVisitSet<'a, N>,
+    M: Clone
 {
-    simulate(g, (), |l, _, repeat|
-        if repeat {
-            SimAction::Stop(StrategyError::Losing)
-        } else if g.is_winning(l) {
+    simulate(g, init, |l, mem, is_visited|
+        if g.is_winning(l) {
             SimAction::Skip
+        } else if is_visited {
+            SimAction::Stop(StrategyError::Losing)
         } else {
             let obs = g.observe(l);
-            if let Some(a) = from_iter(
+            if let Some(x) = from_iter(
                 (0..N).map_while(
-                    |i| strat(&obs[i], G::agent(i))
+                    |i| strat(&obs[i], &mem[i], G::agent(i))
                 )
             ) {
-                SimAction::Visit(a, ())
+                let a = array_init(|i| x[i].0);
+                let mem = x.map(|(_, m)| m);
+                SimAction::Visit(a, mem)
             } else {
                 SimAction::Stop(StrategyError::Incomplete)
             }
@@ -46,9 +50,40 @@ where
     )
 }
 
-/*pub fn verify_strategy1<'a, G>(g: &G, strat: impl Fn(&G::Obs) -> Option<G::Act>) -> Result<(), StrategyError>
+pub fn verify_strategy_memoryless<'a, G, const N: usize>(
+    g: &G,
+    strat: impl Fn(&G::Obs, G::Agent) -> Option<G::Act>
+) -> Result<(), StrategyError>
+where
+    G: Game<'a, N> + HasVisitSet<'a, N>
+{
+    verify_strategy(g, [(); N], |obs, _, agt|
+        strat(obs, agt).map(|a| (a, ()))
+    )
+}
+
+pub fn verify_strategy1<'a, G, M>(
+    g: &G,
+    init: M,
+    strat: impl Fn(&G::Obs, &M) -> Option<(G::Act, M)>
+) -> Result<(), StrategyError>
+where
+    G: Game1<'a> + HasVisitSet<'a, 1>,
+    M: Clone
+{
+    verify_strategy(g, [init], |obs, mem, _|
+        strat(obs, mem)
+    )
+}
+
+pub fn verify_strategy_memoryless1<'a, G>(
+    g: &G,
+    strat: impl Fn(&G::Obs) -> Option<G::Act>
+) -> Result<(), StrategyError>
 where
     G: Game1<'a> + HasVisitSet<'a, 1>
 {
-    verify_strategy(g, |obs, _| strat(obs))
-}*/
+    verify_strategy1(g, (), |obs, _|
+        strat(obs).map(|a| (a, ()))
+    )
+}

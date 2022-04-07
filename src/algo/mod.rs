@@ -37,23 +37,13 @@ where
                     stack.push((l2, mem.clone()));
                 }
             },
-            SimAction::Skip => {
-                continue;
-            },
+            SimAction::Skip => (),
             SimAction::Stop(result) => {
                 return Err(result);
             }
         }
-
         visited.insert(l);
     }
 
     Ok(())
 }
-
-/*pub fn simulate1<'a, G>(g: &G, mut f: impl FnMut(&G::Loc, bool) -> Option<G::Act>)
-where
-    G: Game1<'a> + HasVisitSet<'a, 1>
-{
-    simulate(g, |l, repeat| f(l, repeat).map(|a| [a]))
-}*/
