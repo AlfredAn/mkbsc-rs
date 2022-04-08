@@ -23,7 +23,7 @@ pub fn simulate<'a, G, M, E, const N: usize>(
         -> SimAction<[G::Act; N], M, E>
 ) -> Result<(), E>
 where
-    G: Game<'a, N> + HasVisitSet<'a, N>,
+    G: Game<N> + HasVisitSet<N>,
     M: Clone
 {
     let mut stack = vec![(g.l0().clone(), init)];

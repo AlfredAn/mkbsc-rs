@@ -38,15 +38,15 @@ pub struct DGame<const N: usize> {
     pub obs: [Vec<DObs>; N]
 }
 
-impl<'a, const N: usize> Game<'a, N> for DGame<N> {
+impl<const N: usize> Game<N> for DGame<N> {
     type Loc = NodeIndex;
     type Act = ActionIndex;
 
-    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
+    fn l0(&self) -> &Self::Loc {
         &self.l0
     }
 
-    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
+    fn actions(&self) -> Itr<[Self::Act; N]> {
         Box::new(range_power::<N>(0..self.n_actions).map(|x| array_init(|i| action_index(x[i]))))
     }
 
@@ -54,7 +54,7 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
         self.node(*n).is_winning
     }
 
-    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> where 'a: 'b {
+    fn post(&self, n: &Self::Loc, a: [Self::Act; N]) -> Itr<Self::Loc> {
         Box::new(self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target()))
     }
 
@@ -64,9 +64,9 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
         self.node(*l).obs
     }
 
-    type Agent = AgentIndex;
+    type Agt = AgtIndex;
 
-    fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
+    fn actions_i(&self, _: Self::Agt) -> Itr<Self::Act> {
         Box::new((0..self.n_actions).map(|a| action_index(a)))
     }
 
@@ -74,7 +74,7 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
         self.node(*l).debug.clone()
     }
 
-    fn dgame<'b>(&self) -> Cow<Self> where 'a: 'b {
+    fn dgame(&self) -> Cow<Self> {
         Cow::Borrowed(self)
     }
 
@@ -83,14 +83,14 @@ impl<'a, const N: usize> Game<'a, N> for DGame<N> {
     }
 }
 
-impl<'a> Game1<'a> for DGame<1> {
-    fn all_strategies(&self) -> AllStrategies1 {
+impl<'a> Game1 for DGame<1> {
+    fn all_strategies1(&self) -> AllStrategies1 {
         let w = find_memoryless_strategies(self);
         AllStrategies1::new(&w, self.n_actions)
     }
 }
 
-impl<'a, const N: usize> HasVisitSet<'a, N> for DGame<N> {
+impl<const N: usize> HasVisitSet<N> for DGame<N> {
     type VisitSet = FixedBitSet;
     fn visit_set(&self) -> FixedBitSet {
         FixedBitSet::with_capacity(self.graph.node_count())

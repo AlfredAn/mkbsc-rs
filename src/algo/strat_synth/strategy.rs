@@ -60,20 +60,20 @@ impl<const N: usize> AllStrategies<N> {
 
 pub fn all_strategies<const N: usize>(g: [&DGame<1>; N]) -> AllStrategies<N> {
     AllStrategies::new(
-        g.map(|g| g.all_strategies())
+        g.map(|g| g.all_strategies1())
     )
 }
 
-impl<'a, G, R> KBSC<'a, G, R>
+impl<G, R> KBSC<G, R>
 where
-    G: Game1<'a> + HasVisitSet<'a, 1>,
+    G: Game1 + HasVisitSet<1>,
     G::Loc: Ord,
     R: Borrow<G>
 {
     /*pub fn translate_strategy(
         &self,
-        strat: impl Fn(<Self as Game<'a, 1>>::Loc) -> Option<G::Act>
-    ) -> impl FnMut(G::Obs) -> Option<G::Act> + Clone {
+        strat: impl MemorylessStrategy1<<Self as Game<1>>::Obs, G::Act>
+    ) -> impl Strategy1<G::Obs, G::Act, ()> {
         let g = self.g.borrow();
 
 
@@ -85,59 +85,60 @@ where
     }*/
 }
 
-impl<'a, G, const N: usize> MKBSC<'a, G, N>
+impl<G, const N: usize> MKBSC<G, N>
 where
-    G: Game<'a, N> + 'a,
+    G: Game<N>,
     G::Loc: Ord
 {
     pub fn all_strategies(&self) -> AllStrategies<N> {
         AllStrategies::new(
-            array_init(|i| self.kbsc[i].dgame().all_strategies())
+            array_init(|i| self.kbsc[i].all_strategies1())
         )
     }
 
     /*pub fn translate_strategy(
         &self,
-        strat: impl Fn(<Self as Game<'a, N>>::Obs, G::Agent) -> G::Act
-    ) -> impl FnMut(G::Obs, G::Agent) -> G::Act {
+        strat: impl Fn(<Self as Game<N>>::Obs, G::Agt) -> G::Act
+    ) -> impl FnMut(G::Obs, G::Agt) -> G::Act {
         
     }*/
 }
 
 
-pub trait Strategy<Obs, Act, Agt, M> {
-    fn call(&self, obs: &Obs, mem: &M, agt: Agt) -> Option<(Act, M)>;
+pub trait Strategy<G: Game<N>, const N: usize> {
+    type M;
+    fn call(&self, obs: &G::Obs, mem: &Self::M, agt: G::Agt) -> Option<(G::Act, Self::M)>;
 }
 
-pub trait MemorylessStrategy<Obs, Act, Agt>: Strategy<Obs, Act, Agt, ()> {
-    fn call_ml(&self, obs: &Obs, agt: Agt) -> Option<Act> {
+pub trait MemorylessStrategy<G: Game<N>, const N: usize>: Strategy<G, N, M=()> {
+    fn call_ml(&self, obs: &G::Obs, agt: G::Agt) -> Option<G::Act> {
         self.call(obs, &(), agt).map(|(a, _)| a)
     }
 }
 
-pub trait Strategy1<Obs, Act, M>: Strategy<Obs, Act, ZeroIndex, M> {
-    fn call1(&self, obs: &Obs, mem: &M) -> Option<(Act, M)> {
-        self.call(obs, mem, ().into())
+pub trait Strategy1<G: Game1>: Strategy<G, 1> {
+    fn call1(&self, obs: &G::Obs, mem: &Self::M) -> Option<(G::Act, Self::M)> {
+        self.call(obs, mem, G::agent1())
     }
 }
 
-pub trait MemorylessStrategy1<Obs, Act>:
-    MemorylessStrategy<Obs, Act, ZeroIndex>
-     + Strategy1<Obs, Act, ()>
+pub trait MemorylessStrategy1<G: Game1>:
+    MemorylessStrategy<G, 1>
+     + Strategy1<G, M=()>
 {
-    fn call_ml1(&self, obs: &Obs) -> Option<Act> {
-        self.call_ml(obs, ().into())
+    fn call_ml1(&self, obs: &G::Obs) -> Option<G::Act> {
+        self.call_ml(obs, G::agent1())
     }
 }
 
-impl<T, Obs, Act, Agt> MemorylessStrategy<Obs, Act, Agt> for T
-where T: Strategy<Obs, Act, Agt, ()> {}
+impl<T, G: Game<N>, const N: usize> MemorylessStrategy<G, N> for T
+where T: Strategy<G, N, M=()> {}
 
-impl<T, Obs, Act, M> Strategy1<Obs, Act, M> for T
-where T: Strategy<Obs, Act, ZeroIndex, M> {}
+impl<T, G: Game1> Strategy1<G> for T
+where T: Strategy<G, 1> {}
 
-impl<T, Obs, Act> MemorylessStrategy1<Obs, Act> for T
-where T: MemorylessStrategy<Obs, Act, ZeroIndex> + Strategy1<Obs, Act, ()> {}
+impl<T, G: Game1> MemorylessStrategy1<G> for T
+where T: MemorylessStrategy<G, 1> + Strategy1<G, M=()> {}
 
 pub struct Strat<'a, F, Obs, Act, Agt, M>(F, PhantomData<&'a (Obs, Act, Agt, M)>)
 where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a;
@@ -147,30 +148,34 @@ where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a {
     fn new(f: F) -> Self { Self(f, Default::default()) }
 }
 
-impl<'a, F, Obs, Act, Agt, M> Strategy<Obs, Act, Agt, M> for Strat<'a, F, Obs, Act, Agt, M>
-where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> {
-    fn call(&self, obs: &Obs, mem: &M, agt: Agt) -> Option<(Act, M)> {
+impl<'a, F, G, M, const N: usize> Strategy<G, N> for Strat<'a, F, G::Obs, G::Act, G::Agt, M>
+where
+    F: Fn(&G::Obs, &M, G::Agt) -> Option<(G::Act, M)>,
+    G: Game<N>
+{
+    type M = M;
+    fn call(&self, obs: &G::Obs, mem: &M, agt: G::Agt) -> Option<(G::Act, M)> {
         (self.0)(obs, mem, agt)
     }
 }
 
-pub fn strategy<'a, Obs: 'a, Act: 'a, Agt: 'a, M: 'a>(f: impl Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a) -> impl Strategy<Obs, Act, Agt, M> + 'a {
+pub fn strategy<'a, G: Game<N> + 'a, M: 'a, const N: usize>(f: impl Fn(&G::Obs, &M, G::Agt) -> Option<(G::Act, M)> + 'a) -> impl Strategy<G, N, M=M> + 'a {
     Strat::new(f)
 }
 
-pub fn strategy1<'a, Obs: 'a, Act: 'a, M: 'a>(f: impl Fn(&Obs, &M) -> Option<(Act, M)> + 'a) -> impl Strategy1<Obs, Act, M> + 'a {
+pub fn strategy1<'a, G: Game1 + 'a, M: 'a>(f: impl Fn(&G::Obs, &M) -> Option<(G::Act, M)> + 'a) -> impl Strategy1<G, M=M> + 'a {
     strategy(move |obs, mem, _|
         f(obs, mem)
     )
 }
 
-pub fn memoryless_strategy<'a, Obs: 'a, Act: 'a, Agt: 'a>(f: impl Fn(&Obs, Agt) -> Option<Act> + 'a) -> impl MemorylessStrategy<Obs, Act, Agt> + 'a {
+pub fn memoryless_strategy<'a, G: Game<N> + 'a, const N: usize>(f: impl Fn(&G::Obs, G::Agt) -> Option<G::Act> + 'a) -> impl MemorylessStrategy<G, N, M=()> + 'a {
     strategy(move |obs, _, agt|
         f(obs, agt).map(|a| (a, ()))
     )
 }
 
-pub fn memoryless_strategy1<'a, Obs: 'a, Act: 'a>(f: impl Fn(&Obs) -> Option<Act> + 'a) -> impl MemorylessStrategy1<Obs, Act> + 'a {
+pub fn memoryless_strategy1<'a, G: Game1 + 'a>(f: impl Fn(&G::Obs) -> Option<G::Act> + 'a) -> impl MemorylessStrategy1<G, M=()> + 'a {
     memoryless_strategy(move |obs, _|
         f(obs)
     )

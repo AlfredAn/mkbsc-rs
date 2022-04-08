@@ -7,15 +7,15 @@ use itertools::Itertools;
 use crate::{game::*, dgame::*, util::{Itr, into_cloneable}};
 
 #[derive(Clone, Debug)]
-pub struct KBSC<'a, G: Game<'a, 1>, R: Borrow<G>> {
+pub struct KBSC<G: Game<1>, R: Borrow<G>> {
     pub g: R,
     dg: LazyCell<DGame<1>>,
     l0: BTreeSet<G::Loc>
 }
 
-impl<'a, G, R> KBSC<'a, G, R>
+impl<G, R> KBSC<G, R>
 where
-    G: Game<'a, 1>,
+    G: Game<1>,
     G::Loc: Ord,
     R: Borrow<G>,
 {
@@ -28,16 +28,16 @@ where
     }
 }
 
-impl<'a, G, R> Game<'a, 1> for KBSC<'a, G, R>
+impl<G, R> Game<1> for KBSC<G, R>
 where
-    G: Game<'a, 1>,
+    G: Game<1>,
     G::Loc: Ord,
     R: Borrow<G>
 {
     type Loc = BTreeSet<G::Loc>;
     type Act = G::Act;
 
-    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
+    fn l0(&self) -> &Self::Loc {
         &self.l0
     }
 
@@ -45,7 +45,7 @@ where
         n.iter().all(|l| self.g.borrow().is_winning(l))
     }
 
-    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; 1]) -> Itr<'b, Self::Loc> where 'a: 'b {
+    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; 1]) -> Itr<'b, Self::Loc> {
         //this is inefficient, needs to be optimized
         let p = into_cloneable(self.g.borrow().post_set(n.iter(), a));
         let all_obs = p.clone().map(|l| self.g.borrow().observe(&l)).unique();
@@ -57,11 +57,11 @@ where
         Box::new(result)
     }
 
-    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; 1]> where 'a: 'b {
+    fn actions(&self) -> Itr<[Self::Act; 1]> {
         self.g.borrow().actions()
     }
 
-    fn dgame<'b>(&'b self) -> Cow<'b, DGame<1>> where 'a: 'b {
+    fn dgame(&self) -> Cow<DGame<1>> {
         Cow::Borrowed(
             self.dg.borrow_with(|| DGame::from_game(self, false).unwrap())
         )
@@ -87,15 +87,15 @@ where
     }
 
     derive_ii!(1);
-    derive_ma!('a);
+    derive_ma!();
     derive_magiian!();
 }
 
-impl<'a, G, R> Game1<'a> for KBSC<'a, G, R>
+impl<G, R> Game1 for KBSC<G, R>
 where
-    G: Game<'a, 1>,
+    G: Game<1>,
     G::Loc: Ord,
     R: Borrow<G>
 {}
 
-//impl_ref!(KBSC<'a, G, R>, ('a, G: Game<'a, 1> + 'a), (where G::Loc: Ord), 1, {});
+//impl_ref!(KBSC<G, R>, ('a, G: Game<1> + 'a), (where G::Loc: Ord), 1, {});

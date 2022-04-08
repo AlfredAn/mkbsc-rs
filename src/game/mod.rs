@@ -15,33 +15,33 @@ pub mod macros;
 
 pub use dgame::*;
 
-pub trait Game<'a, const N: usize> {
+pub trait Game<const N: usize> {
     type Loc: Clone + Eq + Hash;
-    type Act: Copy + Eq + Hash + 'a;
+    type Act: Copy + Eq + Hash;
     type Obs: Clone + Eq + Hash;
-    type Agent: IndexType;
+    type Agt: IndexType;
 
-    fn agent(i: usize) -> Self::Agent {
-        Self::Agent::new(i)
+    fn agent(i: usize) -> Self::Agt {
+        Self::Agt::new(i)
     }
 
-    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b;
+    fn l0(&self) -> &Self::Loc;
     fn is_winning(&self, n: &Self::Loc) -> bool;
 
-    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> where 'a: 'b;
+    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc>;
 
-    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b;
+    fn actions(&self) -> Itr<[Self::Act; N]>;
 
     fn observe(&self, l: &Self::Loc) -> [Self::Obs; N];
-    fn observe_i(&self, l: &Self::Loc, agt: Self::Agent) -> Self::Obs {
+    fn observe_i(&self, l: &Self::Loc, agt: Self::Agt) -> Self::Obs {
         self.observe(l)[agt.index()].clone()
     }
 
-    fn obs_eq(&self, l1: &Self::Loc, l2: &Self::Loc, agt: Self::Agent) -> bool {
+    fn obs_eq(&self, l1: &Self::Loc, l2: &Self::Loc, agt: Self::Agt) -> bool {
         self.observe_i(l1, agt) == self.observe_i(l2, agt)
     }
 
-    fn actions_i<'b>(&'b self, agt: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
+    fn actions_i(&self, agt: Self::Agt) -> Itr<Self::Act> {
         Box::new(self.actions()
             .map(move |a| a[agt.index()])
             .unique())
@@ -50,8 +50,7 @@ pub trait Game<'a, const N: usize> {
     fn post_set<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
     where
         I: IntoIterator<Item=&'b Self::Loc>,
-        I::IntoIter: 'b,
-        'a: 'b
+        I::IntoIter: 'b
     {
         Box::new(ns.into_iter()
             .map(move |n| self.post(n, a))
@@ -63,7 +62,7 @@ pub trait Game<'a, const N: usize> {
         None
     }
 
-    fn dgame<'b>(&'b self) -> Cow<'b, DGame<N>> where 'a: 'b {
+    fn dgame<'b>(&'b self) -> Cow<'b, DGame<N>> {
         Cow::Owned(DGame::from_game(self, false).unwrap())
     }
 
@@ -75,7 +74,7 @@ pub trait Game<'a, const N: usize> {
     }
 }
 
-pub trait HasVisitSet<'a, const N: usize>: Game<'a, N> {
+pub trait HasVisitSet<const N: usize>: Game<N> {
     type VisitSet: VisitSet<Self::Loc>;
     fn visit_set(&self) -> Self::VisitSet;
 }
@@ -111,17 +110,17 @@ pub trait VisitSet<Loc> {
     }
 }
 
-pub trait Pre<'a, const N: usize>: Game<'a, N> {
+pub trait Pre<'a, const N: usize>: Game<N> {
     fn pre<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
-    where 'a: 'b, I: IntoIterator<Item=&'b Self::Loc>, I::IntoIter: 'b;
+    where I: IntoIterator<Item=&'b Self::Loc>, I::IntoIter: 'b;
 }
 
-pub trait Game1<'a>: Game<'a, 1> {
-    fn agent1() -> Self::Agent {
+pub trait Game1: Game<1> {
+    fn agent1() -> Self::Agt {
         Self::agent(0)
     }
 
-    fn actions1<'b>(&'b self) -> Itr<'b, Self::Act> where 'a: 'b {
+    fn actions1<'b>(&'b self) -> Itr<'b, Self::Act> {
         self.actions_i(Self::agent1())
     }
 
@@ -129,29 +128,29 @@ pub trait Game1<'a>: Game<'a, 1> {
         self.observe_i(l, Self::agent1())
     }
 
-    fn post1<'b>(&'b self, n: &'b Self::Loc, a: Self::Act) -> Itr<'b, Self::Loc> where 'a: 'b {
+    fn post1<'b>(&'b self, n: &'b Self::Loc, a: Self::Act) -> Itr<'b, Self::Loc> {
         self.post(n, [a])
     }
 
-    fn all_strategies(&self) -> AllStrategies1 {
-        self.dgame().all_strategies()
+    fn all_strategies1(&self) -> AllStrategies1 {
+        self.dgame().all_strategies1()
     }
 }
 
-pub trait GameRef<'a, G: Game<'a, N>, const N: usize>: Borrow<G> + Sized {
-    fn project(self, agt: impl Into<G::Agent>) -> Project<'a, G, Self, N> {
+pub trait GameRef<G: Game<N>, const N: usize>: Borrow<G> + Sized {
+    fn project(self, agt: impl Into<G::Agt>) -> Project<G, Self, N> {
         Project(self, agt.into())
     }
 
-    fn kbsc(self) -> KBSC<'a, G, Self>
+    fn kbsc(self) -> KBSC<G, Self>
     where
-        G: Game1<'a>,
-        <G as Game<'a, 1>>::Loc: Ord
+        G: Game1,
+        <G as Game<1>>::Loc: Ord
     {
         KBSC::new(self)
     }
 
-    fn mkbsc(self) -> MKBSC<'a, G, N>
+    fn mkbsc(self) -> MKBSC<G, N>
     where
         Self: ToOwned<Owned=G>,
         G::Loc: Ord
@@ -160,8 +159,8 @@ pub trait GameRef<'a, G: Game<'a, N>, const N: usize>: Borrow<G> + Sized {
     }
 }
 
-impl<'a, G, R, const N: usize> GameRef<'a, G, N> for R
+impl<G, R, const N: usize> GameRef<G, N> for R
 where
-    G: Game<'a, N>,
+    G: Game<N>,
     R: Borrow<G>
 {}

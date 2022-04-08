@@ -4,14 +4,14 @@ use super::*;
 impl<const N: usize> DGame<N> {
     pub fn from_game<'a, G>(g: &G, stop_on_win: bool) -> anyhow::Result<DGame<N>>
     where
-        G: Game<'a, N> + ?Sized
+        G: Game<N> + ?Sized
     {
         Self::from_game_labels(g, stop_on_win, |g, l| g.debug_string(l))
     }
 
     pub fn from_game_labels<'a, G, F>(g: &G, stop_on_win: bool, mut f: F) -> anyhow::Result<DGame<N>>
     where
-        G: Game<'a, N> + ?Sized,
+        G: Game<N> + ?Sized,
         F: FnMut(&G, &G::Loc) -> Option<String>
     {
         let mut b = GenericBuilder::default();

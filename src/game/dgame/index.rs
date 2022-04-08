@@ -30,7 +30,7 @@ impl From<()> for ZeroIndex {
 }
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct AgentIndex(u8);
+pub struct AgtIndex(u8);
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct ActionIndex(u16);
@@ -38,10 +38,10 @@ pub struct ActionIndex(u16);
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct ObsIndex(u32);
 
-impl AgentIndex {
+impl AgtIndex {
     #[inline]
     pub fn new(x: usize) -> Self {
-        AgentIndex(IndexType::new(x))
+        AgtIndex(IndexType::new(x))
     }
 
     #[inline]
@@ -51,31 +51,31 @@ impl AgentIndex {
 
     #[inline]
     pub fn end() -> Self {
-        AgentIndex(IndexType::max())
+        AgtIndex(IndexType::max())
     }
 }
 
-unsafe impl IndexType for AgentIndex {
+unsafe impl IndexType for AgtIndex {
     fn index(&self) -> usize {
         self.0.index()
     }
     fn new(x: usize) -> Self {
-        AgentIndex::new(x)
+        AgtIndex::new(x)
     }
     fn max() -> Self {
-        AgentIndex(u8::MAX)
+        AgtIndex(u8::MAX)
     }
 }
 
-impl From<usize> for AgentIndex {
+impl From<usize> for AgtIndex {
     fn from(t: usize) -> Self {
         Self::new(t)
     }
 }
 
-impl fmt::Debug for AgentIndex {
+impl fmt::Debug for AgtIndex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "AgentIndex({:?})", self.0)
+        write!(f, "AgtIndex({:?})", self.0)
     }
 }
 
@@ -162,8 +162,8 @@ impl fmt::Debug for ObsIndex {
 }
 
 /// Short version of `ObsIndex::new`
-pub fn agent_index(index: usize) -> AgentIndex {
-    AgentIndex::new(index)
+pub fn agent_index(index: usize) -> AgtIndex {
+    AgtIndex::new(index)
 }
 
 /// Short version of `ActionIndex::new`

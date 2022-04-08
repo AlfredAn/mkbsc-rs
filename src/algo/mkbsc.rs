@@ -7,30 +7,30 @@ use super::*;
 use crate::{game::*, util::*};
 use petgraph::adj::IndexType;
 
-type K<'a, G, const N: usize> = KBSC<'a, Project<'a, G, Rc<G>, N>, Project<'a, G, Rc<G>, N>>;
-type KLoc<'a, G, const N: usize> = <K<'a, G, N> as Game<'a, 1>>::Loc;
+type K<G, const N: usize> = KBSC<Project<G, Rc<G>, N>, Project<G, Rc<G>, N>>;
+type KLoc<G, const N: usize> = <K<G, N> as Game<1>>::Loc;
 
 #[derive(Clone)]
-pub struct MKBSC<'a, G, const N: usize>
+pub struct MKBSC<G, const N: usize>
 where
-    G: Game<'a, N> + 'a,
+    G: Game<N>,
     G::Loc: Ord
 {
     pub g: Rc<G>,
-    pub kbsc: [K<'a, G, N>; N],
-    l0: [KLoc<'a, G, N>; N],
+    pub kbsc: [K<G, N>; N],
+    l0: [KLoc<G, N>; N],
 }
 
-impl<'a, G, const N: usize> MKBSC<'a, G, N>
+impl<G, const N: usize> MKBSC<G, N>
 where
-    G: Game<'a, N>,
+    G: Game<N>,
     G::Loc: Ord
 {
     pub fn new(g: G) -> Self {
         let g = Rc::new(g);
         let kbsc = array_init(|i|
             K::new(
-                Project(g.clone(), G::Agent::new(i))
+                Project(g.clone(), G::Agt::new(i))
             )
         );
         let l0 = array_init(|i|
@@ -45,17 +45,17 @@ where
     }
 }
 
-impl<'a, G, const N: usize> Game<'a, N> for MKBSC<'a, G, N>
+impl<G, const N: usize> Game<N> for MKBSC<G, N>
 where
-    G: Game<'a, N> + 'a,
+    G: Game<N>,
     G::Loc: Ord
 {
-    type Loc = [KLoc<'a, G, N>; N];
+    type Loc = [KLoc<G, N>; N];
     type Act = G::Act;
-    type Obs = KLoc<'a, G, N>;
-    type Agent = G::Agent;
+    type Obs = KLoc<G, N>;
+    type Agt = G::Agt;
 
-    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
+    fn l0(&self) -> &Self::Loc {
         &self.l0
     }
 
@@ -65,7 +65,7 @@ where
         )
     }
 
-    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> where 'a: 'b {
+    fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> {
         let mut itr = n.iter();
         let intersection = itr.next()
             .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & s2)).unwrap();
@@ -84,15 +84,15 @@ where
         }))
     }
 
-    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
+    fn actions(&self) -> Itr<[Self::Act; N]> {
         self.g.actions()
     }
 
-    fn actions_i<'b>(&'b self, agt: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
+    fn actions_i(&self, agt: Self::Agt) -> Itr<Self::Act> {
         self.g.actions_i(agt)
     }
     
-    fn observe_i(&self, l: &Self::Loc, agt: Self::Agent) -> Self::Obs {
+    fn observe_i(&self, l: &Self::Loc, agt: Self::Agt) -> Self::Obs {
         l[agt.index()].clone()
     }
 
@@ -111,8 +111,8 @@ where
     }
 }
 
-impl<'a, G> Game1<'a> for MKBSC<'a, G, 1>
+impl<G> Game1 for MKBSC<G, 1>
 where
-    G: Game<'a, 1>,
+    G: Game<1>,
     G::Loc: Ord
 {}

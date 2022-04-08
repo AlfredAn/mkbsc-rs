@@ -145,11 +145,11 @@ const fn act_zero<const N: usize>() -> Action<N> {
     [pos!(0, 0); N]
 }
 
-impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGame<X, Y, N> {
+impl<const X: i8, const Y: i8, const N: usize> Game<N> for GridPursuitGame<X, Y, N> {
     type Loc = Loc<X, Y, N>;
     type Act = Pos;
 
-    fn l0<'b>(&'b self) -> &'b Self::Loc where 'a: 'b {
+    fn l0(&self) -> &Self::Loc {
         &self.l0
     }
 
@@ -157,12 +157,12 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
         l.is_winning()
     }
 
-    fn post<'b>(&'b self, n: &'b Self::Loc, a: Action<N>) -> Itr<'b, Self::Loc> where 'a: 'b {
+    fn post(&self, n: &Self::Loc, a: Action<N>) -> Itr<Self::Loc> {
         //todo: optimize
         Box::new(Edges::new(*n).filter(move |e| e.act == a).map(|e| e.to))
     }
 
-    fn actions<'b>(&'b self) -> Itr<'b, [Self::Act; N]> where 'a: 'b {
+    fn actions(&self) -> Itr<[Self::Act; N]> {
         Box::new(index_power(MOVE))
     }
 
@@ -183,9 +183,9 @@ impl<'a, const X: i8, const Y: i8, const N: usize> Game<'a, N> for GridPursuitGa
         })
     }
 
-    type Agent = usize;
+    type Agt = usize;
 
-    fn actions_i<'b>(&'b self, _: Self::Agent) -> Itr<'b, Self::Act> where 'a: 'b {
+    fn actions_i(&self, _: Self::Agt) -> Itr<Self::Act> {
         Box::new(MOVE.iter().copied())
     }
 

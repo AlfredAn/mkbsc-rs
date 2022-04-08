@@ -20,13 +20,13 @@ pub enum StrategyError {
     Incomplete
 }
 
-pub fn verify_strategy<'a, G, M, const N: usize>(
+pub fn verify_strategy<G, M, const N: usize>(
     g: &G,
     init: [M; N],
-    strat: impl Strategy<G::Obs, G::Act, G::Agent, M>
+    strat: impl Strategy<G, N, M=M>
 ) -> Result<(), StrategyError>
 where
-    G: Game<'a, N> + HasVisitSet<'a, N>,
+    G: Game<N> + HasVisitSet<N>,
     M: Clone
 {
     simulate(g, init, |l, mem, is_visited|
@@ -51,12 +51,12 @@ where
     )
 }
 
-pub fn verify_memoryless_strategy<'a, G, const N: usize>(
+pub fn verify_memoryless_strategy<G, const N: usize>(
     g: &G,
-    strat: impl MemorylessStrategy<G::Obs, G::Act, G::Agent>
+    strat: impl MemorylessStrategy<G, N>
 ) -> Result<(), StrategyError>
 where
-    G: Game<'a, N> + HasVisitSet<'a, N>
+    G: Game<N> + HasVisitSet<N>
 {
     verify_strategy(g, [(); N], strat)
 }

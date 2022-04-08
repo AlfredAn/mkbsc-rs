@@ -6,12 +6,9 @@ macro_rules! derive_ii {
 }
 
 macro_rules! derive_ma {
-    ($l:lifetime) => {
-        type Agent = crate::game::dgame::index::ZeroIndex;
-        fn actions_i<'z>(&'z self, _: Self::Agent) -> crate::util::Itr<'z, Self::Act>
-        where
-            $l: 'z
-        {
+    () => {
+        type Agt = crate::game::dgame::index::ZeroIndex;
+        fn actions_i<'z>(&'z self, _: Self::Agt) -> crate::util::Itr<'z, Self::Act> {
             Box::new(self.actions().map(|[a]| a))
         }
     }
