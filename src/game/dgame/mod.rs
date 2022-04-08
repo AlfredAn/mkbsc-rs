@@ -106,7 +106,7 @@ impl VisitSet<NodeIndex> for FixedBitSet {
         FixedBitSet::clear(self);
     }
 
-    fn contains(&self, l: impl Borrow<NodeIndex>) -> bool {
+    fn contains(&self, l: &NodeIndex) -> bool {
         self[l.borrow().index()]
     }
 }

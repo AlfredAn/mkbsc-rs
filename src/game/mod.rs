@@ -81,32 +81,7 @@ pub trait HasVisitSet<const N: usize>: Game<N> {
 pub trait VisitSet<Loc> {
     fn insert(&mut self, l: impl Borrow<Loc> + ToOwned<Owned=Loc>) -> bool;
     fn clear(&mut self);
-    fn contains(&self, l: impl Borrow<Loc>) -> bool;
-
-    fn insert_clone(&mut self, l: impl Borrow<Loc>) -> bool
-    where
-        Loc: Clone
-    {
-        let l = l.borrow();
-        if self.contains(l) {
-            false
-        } else {
-            self.insert(l.clone());
-            true
-        }
-    }
-
-    fn try_insert<Q>(&mut self, l: Q) -> Option<Q>
-    where
-        Q: Borrow<Loc> + ToOwned<Owned=Loc>
-    {
-        if self.contains(l.borrow()) {
-            Some(l)
-        } else {
-            self.insert(l);
-            None
-        }
-    }
+    fn contains(&self, l: &Loc) -> bool;
 }
 
 pub trait Pre<'a, const N: usize>: Game<N> {
