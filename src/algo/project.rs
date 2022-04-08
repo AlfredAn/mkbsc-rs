@@ -31,7 +31,7 @@ where
             .filter(move |&aa| aa[self.1.index()] == a[0])
             .map(move |aa| self.0.borrow().post(n, aa))
             .flatten()
-            .unique())
+        )
     }
 
     fn actions(&self) -> Itr<[Self::Act; 1]> {

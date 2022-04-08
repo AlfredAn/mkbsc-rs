@@ -44,7 +44,7 @@ pub trait Game<const N: usize> {
     fn actions_i(&self, agt: Self::Agt) -> Itr<Self::Act> {
         Box::new(self.actions()
             .map(move |a| a[agt.index()])
-            .unique())
+        )
     }
     
     fn post_set<'b, I>(&'b self, ns: I, a: [Self::Act; N]) -> Itr<'b, Self::Loc>
@@ -55,7 +55,7 @@ pub trait Game<const N: usize> {
         Box::new(ns.into_iter()
             .map(move |n| self.post(n, a))
             .flatten()
-            .unique())
+        )
     }
     
     fn debug_string(&self, _: &Self::Loc) -> Option<String> {
