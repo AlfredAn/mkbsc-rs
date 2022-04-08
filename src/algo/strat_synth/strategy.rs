@@ -103,3 +103,75 @@ where
         
     }*/
 }
+
+
+pub trait Strategy<Obs, Act, Agt, M> {
+    fn call(&self, obs: &Obs, mem: &M, agt: Agt) -> Option<(Act, M)>;
+}
+
+pub trait MemorylessStrategy<Obs, Act, Agt>: Strategy<Obs, Act, Agt, ()> {
+    fn call_ml(&self, obs: &Obs, agt: Agt) -> Option<Act> {
+        self.call(obs, &(), agt).map(|(a, _)| a)
+    }
+}
+
+pub trait Strategy1<Obs, Act, M>: Strategy<Obs, Act, ZeroIndex, M> {
+    fn call1(&self, obs: &Obs, mem: &M) -> Option<(Act, M)> {
+        self.call(obs, mem, ().into())
+    }
+}
+
+pub trait MemorylessStrategy1<Obs, Act>:
+    MemorylessStrategy<Obs, Act, ZeroIndex>
+     + Strategy1<Obs, Act, ()>
+{
+    fn call_ml1(&self, obs: &Obs) -> Option<Act> {
+        self.call_ml(obs, ().into())
+    }
+}
+
+impl<T, Obs, Act, Agt> MemorylessStrategy<Obs, Act, Agt> for T
+where T: Strategy<Obs, Act, Agt, ()> {}
+
+impl<T, Obs, Act, M> Strategy1<Obs, Act, M> for T
+where T: Strategy<Obs, Act, ZeroIndex, M> {}
+
+impl<T, Obs, Act> MemorylessStrategy1<Obs, Act> for T
+where T: MemorylessStrategy<Obs, Act, ZeroIndex> + Strategy1<Obs, Act, ()> {}
+
+pub struct Strat<'a, F, Obs, Act, Agt, M>(F, PhantomData<&'a (Obs, Act, Agt, M)>)
+where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a;
+
+impl<'a, F, Obs, Act, Agt, M> Strat<'a, F, Obs, Act, Agt, M>
+where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a {
+    fn new(f: F) -> Self { Self(f, Default::default()) }
+}
+
+impl<'a, F, Obs, Act, Agt, M> Strategy<Obs, Act, Agt, M> for Strat<'a, F, Obs, Act, Agt, M>
+where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> {
+    fn call(&self, obs: &Obs, mem: &M, agt: Agt) -> Option<(Act, M)> {
+        (self.0)(obs, mem, agt)
+    }
+}
+
+pub fn strategy<'a, Obs: 'a, Act: 'a, Agt: 'a, M: 'a>(f: impl Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a) -> impl Strategy<Obs, Act, Agt, M> + 'a {
+    Strat::new(f)
+}
+
+pub fn strategy1<'a, Obs: 'a, Act: 'a, M: 'a>(f: impl Fn(&Obs, &M) -> Option<(Act, M)> + 'a) -> impl Strategy1<Obs, Act, M> + 'a {
+    strategy(move |obs, mem, _|
+        f(obs, mem)
+    )
+}
+
+pub fn memoryless_strategy<'a, Obs: 'a, Act: 'a, Agt: 'a>(f: impl Fn(&Obs, Agt) -> Option<Act> + 'a) -> impl MemorylessStrategy<Obs, Act, Agt> + 'a {
+    strategy(move |obs, _, agt|
+        f(obs, agt).map(|a| (a, ()))
+    )
+}
+
+pub fn memoryless_strategy1<'a, Obs: 'a, Act: 'a>(f: impl Fn(&Obs) -> Option<Act> + 'a) -> impl MemorylessStrategy1<Obs, Act> + 'a {
+    memoryless_strategy(move |obs, _|
+        f(obs)
+    )
+}

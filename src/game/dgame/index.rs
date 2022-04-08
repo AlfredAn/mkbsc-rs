@@ -25,6 +25,10 @@ unsafe impl IndexType for ZeroIndex {
     }
 }
 
+impl From<()> for ZeroIndex {
+    fn from(_: ()) -> Self { Self() }
+}
+
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct AgentIndex(u8);
 
