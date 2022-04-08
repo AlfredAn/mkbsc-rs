@@ -3,7 +3,6 @@ use crate::game::dgame::DGame;
 use std::borrow::*;
 use std::hash::Hash;
 
-use itertools::Itertools;
 use petgraph::graph::IndexType;
 
 use crate::util::{Itr};

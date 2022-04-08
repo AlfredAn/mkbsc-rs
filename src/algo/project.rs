@@ -1,7 +1,6 @@
 use std::borrow::Borrow;
 use crate::game::Game1;
 
-use itertools::Itertools;
 use petgraph::graph::IndexType;
 
 use crate::{game::Game, util::Itr};
