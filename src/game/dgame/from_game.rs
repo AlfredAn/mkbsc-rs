@@ -1,54 +1,104 @@
-use std::iter;
+use arrayvec::ArrayVec;
+use std::cell::RefCell;
+use std::collections::*;
 use super::*;
+use smart_default::SmartDefault;
+
+#[derive(Debug, SmartDefault, Clone)]
+pub struct FromGameResult<G: Game<N> + ?Sized, const N: usize> {
+    pub dg: DGame<N>,
+
+    pub dl_map: Vec<G::Loc>,
+    pub l_map: HashMap<G::Loc, NodeIndex>,
+
+    #[default(array_init(|_| Vec::new()))]
+    pub do_map: [Vec<G::Obs>; N],
+
+    #[default(array_init(|_| HashMap::new()))]
+    pub o_map: [HashMap<G::Obs, ObsIndex>; N],
+
+    #[default(array_init(|_| Vec::new()))]
+    pub da_map: [Vec<G::Act>; N],
+
+    #[default(array_init(|_| HashMap::new()))]
+    pub a_map: [HashMap<G::Act, ActionIndex>; N]
+}
 
 impl<const N: usize> DGame<N> {
-    pub fn from_game<'a, G>(g: &G, stop_on_win: bool) -> anyhow::Result<DGame<N>>
-    where
-        G: Game<N> + ?Sized
-    {
-        Self::from_game_labels(g, stop_on_win, |g, l| g.debug_string(l))
-    }
-
-    pub fn from_game_labels<'a, G, F>(g: &G, stop_on_win: bool, mut f: F) -> anyhow::Result<DGame<N>>
-    where
-        G: Game<N> + ?Sized,
-        F: FnMut(&G, &G::Loc) -> Option<String>
-    {
-        let mut b = GenericBuilder::default();
-        b.l0(g.l0().clone())?;
-
-        //println!("start");
-
-        let mut stack = vec![g.l0().clone()];
-        while let Some(l) = stack.pop() {
-            if b.has_node(&l) {
-                //println!("skipping");
-                continue;
-            }
-
-            //println!("\n{:?}", l);
-
-            let is_winning = g.is_winning(&l);
-            
-            b.node_dbg(l.clone(), is_winning, f(&g, &l))?;
-            //println!("{:?}", g.debug_string(&l));
-            let obs = g.observe(&l);
-            for (i, o) in obs.into_iter().enumerate() {
-                b.obs(o, i, iter::once(l.clone()));
-            }
-
-            for a in g.actions() {
-                //println!("{:?}", a);
-                for n in g.post(&l, a) {
-                    //println!("post: {:?}", n);
-                    if !(stop_on_win && is_winning) {
-                        b.edge(l.clone(), n.clone(), iter::once((0..N).map(|i| a[i])))?;
-                    }
-                    stack.push(n);
+    pub fn from_game<G: Game<N> + ?Sized>(g: &G) -> FromGameResult<G, N> {
+        let c = RefCell::new(FromGameResult::<G, N>::default());
+        {
+            let mut c = c.borrow_mut();
+            for (i, agt) in (0..N).map(|i| (i, G::agent(i))) {
+                for a in g.actions_i(agt) {
+                    let da = action_index(c.da_map.len());
+                    c.da_map[i].push(a);
+                    let old = c.a_map[i].insert(a, da);
+                    assert!(old.is_none());
                 }
             }
+            c.dg.n_actions = c.da_map.iter()
+                .map(|m| m.len())
+                .max()
+                .unwrap();
         }
 
-        b.build()
+        explore(
+            g,
+            |l| {
+                let mut c = c.borrow_mut();
+
+                let dl = node_index(c.dl_map.len());
+
+                let obs = g.observe(l);
+                let mut dobs = ArrayVec::<_, N>::new();
+                for i in 0..N {
+                    let o;
+                    if let Some(&_o) = c.o_map[i].get(&obs[i]) {
+                        o = _o;
+                    } else {
+                        o = obs_index(c.do_map[i].len());
+
+                        c.do_map[i].push(obs[i].clone());
+                        c.o_map[i].insert(obs[i].clone(), o);
+
+                        c.dg.obs[i].push(DObs::default());
+
+                        assert_eq!(c.do_map[i].len(), c.dg.obs[i].len());
+                    };
+
+                    c.dg.obs[i][o.index()].set.push(dl);
+                    dobs.push(o);
+                }
+                assert_eq!(dobs.len(), N);
+
+                let dl2 = c.dg.graph.add_node(DNode::new(
+                    g.is_winning(l),
+                    (*dobs).try_into().unwrap()
+                ));
+                assert_eq!(dl, dl2);
+
+                c.dl_map.push(l.clone());
+
+                let old = c.l_map.insert(l.clone(), dl);
+                assert!(old.is_none());
+            },
+            |l, a, l2| {
+                let mut c = c.borrow_mut();
+
+                let (dl, dl2) = (c.l_map[l], c.l_map[l2]);
+                let da = array_init(|i| c.a_map[i][&a[i]]);
+
+                c.dg.graph.add_edge(dl, dl2, DEdge::new(da));
+            }
+        );
+
+        {
+            let mut c = c.borrow_mut();
+            assert!(c.dg.node_count() > 0);
+            c.dg.l0 = node_index(0);
+        }
+
+        c.into_inner()
     }
 }

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
 use itertools::__std_iter::once;
@@ -46,6 +47,7 @@ pub trait Game<const N: usize> {
     fn actions_i(&self, agt: Self::Agt) -> Itr<Self::Act> {
         Box::new(self.actions()
             .map(move |a| a[agt.index()])
+            .unique()
         )
     }
     
@@ -65,7 +67,7 @@ pub trait Game<const N: usize> {
     }
 
     fn dgame<'b>(&'b self) -> Cow<'b, DGame<N>> {
-        Cow::Owned(DGame::from_game(self, false).unwrap())
+        Cow::Owned(DGame::from_game(self).dg)
     }
 
     fn into_dgame(self) -> DGame<N>

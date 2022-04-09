@@ -1,28 +1,24 @@
-use lazycell::LazyCell;
-use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::borrow::Borrow;
 use itertools::Itertools;
 
-use crate::{game::*, dgame::*, util::{Itr, into_cloneable}};
+use crate::{game::*, util::{Itr, into_cloneable}};
 
 #[derive(Clone, Debug)]
-pub struct KBSC<G: Game<1>, R: Borrow<G>> {
+pub struct KBSC<G: Game1, R: Borrow<G>> {
     pub g: R,
-    dg: LazyCell<DGame<1>>,
     l0: BTreeSet<G::Loc>
 }
 
 impl<G, R> KBSC<G, R>
 where
-    G: Game<1>,
+    G: Game1,
     G::Loc: Ord,
     R: Borrow<G>,
 {
     pub fn new(g: R) -> Self {
         Self {
             l0: BTreeSet::from([g.borrow().l0().clone()]),
-            dg: LazyCell::new(),
             g: g
         }
     }
@@ -30,7 +26,7 @@ where
 
 impl<G, R> Game<1> for KBSC<G, R>
 where
-    G: Game<1>,
+    G: Game1,
     G::Loc: Ord,
     R: Borrow<G>
 {
@@ -61,17 +57,6 @@ where
         self.g.borrow().actions()
     }
 
-    fn dgame(&self) -> Cow<DGame<1>> {
-        Cow::Borrowed(
-            self.dg.borrow_with(|| DGame::from_game(self, false).unwrap())
-        )
-    }
-
-    fn into_dgame(self) -> DGame<1> {
-        self.dgame();
-        self.dg.into_inner().unwrap()
-    }
-
     fn debug_string(&self, s: &Self::Loc) -> Option<String> {
         Some(format!("{{{}}}",
             s.iter()
@@ -93,9 +78,7 @@ where
 
 impl<G, R> Game1 for KBSC<G, R>
 where
-    G: Game<1>,
+    G: Game1,
     G::Loc: Ord,
     R: Borrow<G>
 {}
-
-//impl_ref!(KBSC<G, R>, ('a, G: Game<1> + 'a), (where G::Loc: Ord), 1, {});

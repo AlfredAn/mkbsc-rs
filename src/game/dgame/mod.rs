@@ -129,6 +129,10 @@ impl<const N: usize> DGame<N> {
     fn node(&self, l: NodeIndex) -> &DNode<N> {
         self.graph.node_weight(l).unwrap()
     }
+
+    pub fn node_count(&self) -> usize {
+        self.graph.node_count()
+    }
 }
 
 impl<const N: usize> Default for DGame<N> {
