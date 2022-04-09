@@ -1,4 +1,4 @@
-use std::cmp::max;
+/*use std::cmp::max;
 
 use petgraph::graph::IndexType;
 
@@ -104,3 +104,4 @@ impl Builder<1> {
         self.add_edge(i, j, a.into_iter().map(|x| [x]))
     }
 }
+*/

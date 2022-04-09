@@ -24,7 +24,9 @@ fn strategy_synthesis_test() {
 
     let mut s = g.all_strategies();
     loop {
-        println!("\n\n{:?}", s.get());
+        println!("\n\n{:?}", s.get_raw());
+        //println!("{:?}", verify_memoryless_strategy());
+
         if !s.advance() { break; }
     }
 }

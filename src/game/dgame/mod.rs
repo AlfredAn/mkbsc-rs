@@ -55,7 +55,7 @@ impl<const N: usize> Game<N> for DGame<N> {
     }
 
     fn post(&self, n: &Self::Loc, a: [Self::Act; N]) -> Itr<Self::Loc> {
-        Box::new(self.graph.edges(*n).filter(move |e| e.weight().act.contains(&a)).map(|e| e.target()))
+        Box::new(self.graph.edges(*n).filter(move |e| e.weight().act == a).map(|e| e.target()))
     }
 
     type Obs = ObsIndex;
@@ -70,8 +70,8 @@ impl<const N: usize> Game<N> for DGame<N> {
         Box::new((0..self.n_actions).map(|a| action_index(a)))
     }
 
-    fn debug_string(&self, l: &Self::Loc) -> Option<String> {
-        self.node(*l).debug.clone()
+    fn debug_string(&self, _: &Self::Loc) -> Option<String> {
+        None//self.node(*l).debug.clone()
     }
 
     fn dgame(&self) -> Cow<Self> {
@@ -98,7 +98,7 @@ impl<const N: usize> HasVisitSet<N> for DGame<N> {
 }
 
 impl VisitSet<NodeIndex> for FixedBitSet {
-    fn insert(&mut self, l: impl Borrow<NodeIndex>) -> bool {
+    fn insert(&mut self, l: NodeIndex) -> bool {
         !self.put(l.borrow().index())
     }
     
@@ -115,7 +115,7 @@ impl DGame<1> {
     pub fn pre<'b>(&'b self, s: impl IntoIterator<Item=NodeIndex> + 'b, a: ActionIndex) -> impl Iterator<Item=NodeIndex> + 'b {
         s.into_iter()
             .map(move |n| self.graph.edges_directed(n, Incoming)
-                .filter(move |e| e.weight().act.contains(&[a]))
+                .filter(move |e| e.weight().act == [a])
                 .map(|e| e.source())
             ).flatten()
     }
@@ -175,11 +175,11 @@ impl<const N: usize> Default for DGame<N> {
 impl<const N: usize> fmt::Debug for DGame<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ns = self.graph.node_references().format_with(", ", |(i, n), f| {
-            if let Some(debug) = &n.debug {
+            /*if let Some(debug) = &n.debug {
                 f(&format_args!("{}:{}:{}", i.index(), debug, if n.is_winning {"W"} else {"-"}))
-            } else {
+            } else {*/
                 f(&format_args!("{}:{}", i.index(), if n.is_winning {"W"} else {"-"}))
-            }
+            //}
         });
 
         let os = self.obs.iter().enumerate().format_with("\n    ", |(i, o), f|

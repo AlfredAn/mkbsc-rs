@@ -1,9 +1,8 @@
-
+use crate::algo::*;
 use crate::game::index::node_index;
 use crate::game::dgame::DGame;
 use std::cmp::*;
 use std::ops::*;
-use std::iter;
 use Outcome::*;
 use crate::game::*;
 
@@ -180,7 +179,13 @@ impl AllStrategies1 {
         false
     }
 
-    pub fn get(&self) -> &Vec<Option<ActionIndex>> {
+    pub fn get(&self) -> impl MemorylessStrategy1<DGame<1>> + '_ {
+        memoryless_strategy1(|obs: &ObsIndex|
+            self.get_raw()[obs.index()]
+        )
+    }
+
+    pub fn get_raw(&self) -> &Vec<Option<ActionIndex>> {
         &self.strat
     }
 
@@ -188,24 +193,6 @@ impl AllStrategies1 {
         for (_, _, i) in &mut self.variables {
             *i = 0;
         }
-    }
-
-    pub fn iter<'b>(&'b mut self) -> impl Iterator<Item=Vec<Option<ActionIndex>>> + 'b {
-        let mut finished = false;
-        let mut first = true;
-        iter::from_fn(move || {
-            if finished {
-                return None;
-            } else if !first {
-                if !self.advance() {
-                    finished = true;
-                    return None;
-                }
-            } else {
-                first = false;
-            }
-            Some(self.get().clone())
-        })
     }
 
     pub(crate) fn new(w: &Vec<StratEntry>, n: usize) -> Self {

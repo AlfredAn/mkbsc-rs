@@ -66,5 +66,3 @@ where
     G: Game<N>,
     R: Borrow<G>
 {}
-
-//impl_ref!(Project<'a, G, N>, ('a, G: Game<N>, const N: usize), (), 1, {});

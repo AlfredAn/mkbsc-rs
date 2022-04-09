@@ -1,3 +1,6 @@
+use std::collections::BTreeSet;
+use std::collections::HashSet;
+use itertools::__std_iter::once;
 use crate::algo::*;
 use crate::game::dgame::DGame;
 use std::borrow::*;
@@ -76,12 +79,47 @@ pub trait Game<const N: usize> {
 pub trait HasVisitSet<const N: usize>: Game<N> {
     type VisitSet: VisitSet<Self::Loc>;
     fn visit_set(&self) -> Self::VisitSet;
+    fn visit_set_from_iterator<I: IntoIterator<Item=Self::Loc>>(&self, itr: I) -> Self::VisitSet {
+        let mut s = self.visit_set();
+        for l in itr.into_iter() {
+            s.insert(l);
+        }
+        s
+    }
+    fn visit_set_singleton(&self, l: Self::Loc) -> Self::VisitSet {
+        self.visit_set_from_iterator(once(l))
+    }
 }
 
 pub trait VisitSet<Loc> {
-    fn insert(&mut self, l: impl Borrow<Loc> + ToOwned<Owned=Loc>) -> bool;
+    fn insert(&mut self, l: Loc) -> bool;
     fn clear(&mut self);
     fn contains(&self, l: &Loc) -> bool;
+    //fn iter(&self) -> Itr<&Loc>;
+}
+
+impl<T: Eq + Hash> VisitSet<T> for HashSet<T> {
+    fn insert(&mut self, l: T) -> bool {
+        HashSet::insert(self, l)
+    }
+    fn clear(&mut self) { HashSet::clear(self) }
+    fn contains(&self, l: &T) -> bool { HashSet::contains(self, l) }
+
+    /*fn iter(&self) -> Itr<&T> {
+        Box::new(HashSet::iter(self))
+    }*/
+}
+
+impl<T: Ord> VisitSet<T> for BTreeSet<T> {
+    fn insert(&mut self, l: T) -> bool {
+        BTreeSet::insert(self, l)
+    }
+    fn clear(&mut self) { BTreeSet::clear(self) }
+    fn contains(&self, l: &T) -> bool { BTreeSet::contains(self, l) }
+
+    /*fn iter(&self) -> Itr<&T> {
+        Box::new(BTreeSet::iter(self))
+    }*/
 }
 
 pub trait Pre<'a, const N: usize>: Game<N> {

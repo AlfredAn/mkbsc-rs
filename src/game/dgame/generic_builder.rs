@@ -169,7 +169,7 @@ where
             let n2 = g.graph.add_node(DNode::new(
                 is_winning,
                 [Default::default(); N],
-                {
+                /*{
                     if let Some(lb) = &self.labels {
                         Some(lb(self.nodes.get_by_right(&n).unwrap()))
                     } else if let Some(debug) = &self.graph[n].1 {
@@ -177,7 +177,7 @@ where
                     } else {
                         None
                     }
-                }
+                }*/
             ));
             if l0 == n {
                 g.l0 = n2;
@@ -196,7 +196,7 @@ where
                 node_index(e.source().index()),
                 node_index(e.target().index()),
                 DEdge::new(
-                    vec![e.weight().map(|a| action_index(a.index()))]
+                    e.weight().map(|a| action_index(a.index()))
                 )
             );
             assert_eq!(e.id().index(), e2.index());

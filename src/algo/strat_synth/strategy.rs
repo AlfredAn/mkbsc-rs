@@ -1,10 +1,10 @@
+use std::collections::BTreeSet;
 use std::borrow::Borrow;
 use crate::algo::KBSC;
 use crate::algo::MKBSC;
 use crate::game::dgame::DGame;
 use crate::game::*;
 use array_init::array_init;
-use std::iter;
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -25,8 +25,14 @@ impl<const N: usize> AllStrategies<N> {
         false
     }
 
-    pub fn get(&self) -> [&Vec<Option<ActionIndex>>; N] {
-        array_init(|i| self.parts[i].get())
+    pub fn get(&self) -> impl MemorylessStrategy<DGame<N>, N> + '_ {
+        memoryless_strategy(|obs, agt: AgtIndex|
+            self.parts[agt.index()].get().call_ml1(obs)
+        )
+    }
+
+    pub fn get_raw(&self) -> [&Vec<Option<ActionIndex>>; N] {
+        array_init(|i| self.parts[i].get_raw())
     }
 
     pub fn reset(&mut self) {
@@ -38,24 +44,6 @@ impl<const N: usize> AllStrategies<N> {
     fn new(parts: [AllStrategies1; N]) -> Self {
         Self { parts }
     }
-
-    pub fn iter<'b>(&'b mut self) -> impl Iterator<Item=[Vec<Option<ActionIndex>>; N]> + 'b {
-        let mut finished = false;
-        let mut first = true;
-        iter::from_fn(move || {
-            if finished {
-                return None;
-            } else if !first {
-                if !self.advance() {
-                    finished = true;
-                    return None;
-                }
-            } else {
-                first = false;
-            }
-            Some(self.get().map(|x| x.clone()))
-        })
-    }
 }
 
 pub fn all_strategies<const N: usize>(g: [&DGame<1>; N]) -> AllStrategies<N> {
@@ -66,22 +54,28 @@ pub fn all_strategies<const N: usize>(g: [&DGame<1>; N]) -> AllStrategies<N> {
 
 impl<G, R> KBSC<G, R>
 where
-    G: Game1 + HasVisitSet<1>,
-    G::Loc: Ord,
+    G: Game1,
     R: Borrow<G>
 {
-    /*pub fn translate_strategy(
+    /*pub fn translate_strategy<'b>(
         &self,
-        strat: impl MemorylessStrategy1<<Self as Game<1>>::Obs, G::Act>
-    ) -> impl Strategy1<G::Obs, G::Act, ()> {
+        strat: impl MemorylessStrategy1<DGame<1>> + 'b
+    ) -> impl Strategy1<G> + 'b
+    where G: 'b {
         let g = self.g.borrow();
+        let dg = g.dgame();
+        
+        strategy1(
+            move |obs, mem| {
+                if let Some((prev, s)) = mem {
 
-
-
-        let mut possible_states = g.visit_set();
-        move |l| {
-            todo!()
-        }
+                } else {
+                    return strat.call_ml1(obs)
+                        .map(|a| (a, (a, Some(obs.clone()))));
+                }
+                todo!()
+            }
+        )
     }*/
 }
 
@@ -140,18 +134,19 @@ where T: Strategy<G, 1> {}
 impl<T, G: Game1> MemorylessStrategy1<G> for T
 where T: MemorylessStrategy<G, 1> + Strategy1<G, M=()> {}
 
-pub struct Strat<'a, F, Obs, Act, Agt, M>(F, PhantomData<&'a (Obs, Act, Agt, M)>)
-where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a;
+struct Strat<'a, F, G: Game<N>, M: Clone, const N: usize>(F, PhantomData<&'a (G, M)>)
+where F: Fn(&G::Obs, &M, G::Agt) -> Option<(G::Act, M)> + 'a;
 
-impl<'a, F, Obs, Act, Agt, M> Strat<'a, F, Obs, Act, Agt, M>
-where F: Fn(&Obs, &M, Agt) -> Option<(Act, M)> + 'a {
+impl<'a, F, G: Game<N>, M: Clone, const N: usize> Strat<'a, F, G, M, N>
+where F: Fn(&G::Obs, &M, G::Agt) -> Option<(G::Act, M)> + 'a {
     fn new(f: F) -> Self { Self(f, Default::default()) }
 }
 
-impl<'a, F, G, M, const N: usize> Strategy<G, N> for Strat<'a, F, G::Obs, G::Act, G::Agt, M>
+impl<'a, F, G, M, const N: usize> Strategy<G, N> for Strat<'a, F, G, M, N>
 where
     F: Fn(&G::Obs, &M, G::Agt) -> Option<(G::Act, M)>,
-    G: Game<N>
+    G: Game<N>,
+    M: Clone
 {
     type M = M;
     fn call(&self, obs: &G::Obs, mem: &M, agt: G::Agt) -> Option<(G::Act, M)> {
@@ -159,23 +154,35 @@ where
     }
 }
 
-pub fn strategy<'a, G: Game<N> + 'a, M: 'a, const N: usize>(f: impl Fn(&G::Obs, &M, G::Agt) -> Option<(G::Act, M)> + 'a) -> impl Strategy<G, N, M=M> + 'a {
-    Strat::new(f)
-}
+pub fn strategy<'a, G: Game<N> + 'a, M: Clone + 'a, const N: usize>(
+    f: impl Fn(&G::Obs, &Option<M>, G::Agt) -> Option<(G::Act, M)> + 'a
+) -> impl Strategy<G, N> + 'a {
+        Strat::new(move |obs, mem, agt|
+            f(obs, mem, agt).map(|(a, mem)|
+                (a, Some(mem))
+            )
+        )
+    }
 
-pub fn strategy1<'a, G: Game1 + 'a, M: 'a>(f: impl Fn(&G::Obs, &M) -> Option<(G::Act, M)> + 'a) -> impl Strategy1<G, M=M> + 'a {
+pub fn strategy1<'a, G: Game1 + 'a, M: Clone + 'a>(
+    f: impl Fn(&G::Obs, &Option<M>) -> Option<(G::Act, M)> + 'a
+) -> impl Strategy1<G> + 'a {
     strategy(move |obs, mem, _|
         f(obs, mem)
     )
 }
 
-pub fn memoryless_strategy<'a, G: Game<N> + 'a, const N: usize>(f: impl Fn(&G::Obs, G::Agt) -> Option<G::Act> + 'a) -> impl MemorylessStrategy<G, N, M=()> + 'a {
-    strategy(move |obs, _, agt|
+pub fn memoryless_strategy<'a, G: Game<N> + 'a, const N: usize>(
+    f: impl Fn(&G::Obs, G::Agt) -> Option<G::Act> + 'a
+) -> impl MemorylessStrategy<G, N> + 'a {
+    Strat::new(move |obs, _, agt|
         f(obs, agt).map(|a| (a, ()))
     )
 }
 
-pub fn memoryless_strategy1<'a, G: Game1 + 'a>(f: impl Fn(&G::Obs) -> Option<G::Act> + 'a) -> impl MemorylessStrategy1<G, M=()> + 'a {
+pub fn memoryless_strategy1<'a, G: Game1 + 'a>(
+    f: impl Fn(&G::Obs) -> Option<G::Act> + 'a
+) -> impl MemorylessStrategy1<G> + 'a {
     memoryless_strategy(move |obs, _|
         f(obs)
     )

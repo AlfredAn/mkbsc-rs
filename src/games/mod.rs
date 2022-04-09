@@ -1,10 +1,7 @@
-use crate::game::dgame::{DGame, builder::Builder};
-
 pub mod grid_pursuit;
 pub mod cup_game;
 
-#[allow(dead_code)]
-
+/*
 pub fn three_coin_game() -> DGame<1> {
     let mut g = Builder::default();
 
@@ -41,3 +38,4 @@ pub fn three_coin_game() -> DGame<1> {
 
     g.build()
 }
+*/
