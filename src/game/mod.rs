@@ -144,6 +144,14 @@ pub trait Game1: Game<1> {
         self.post(n, [a])
     }
 
+    fn post_set1<'b, I>(&'b self, ns: I, a: Self::Act) -> Itr<'b, Self::Loc>
+    where
+        I: IntoIterator<Item=&'b Self::Loc>,
+        I::IntoIter: 'b
+    {
+        self.post_set(ns, [a])
+    }
+
     fn all_strategies1(&self) -> AllStrategies1 {
         self.dgame().all_strategies1()
     }

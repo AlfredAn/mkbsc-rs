@@ -120,38 +120,8 @@ impl DGame<1> {
             ).flatten()
     }
 
-    pub fn pre_all<'b>(&'b self, i: impl IntoIterator<Item=NodeIndex> + Clone + 'b) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b {
-        self.actions1()
-            .flat_map(move |a|
-                self.pre(i.clone(), a)
-                    .map(move |l| (l, a))
-            )
-    }
-
-    pub fn cpre<'b>(
-        &'b self,
-        mut s: impl FnMut(usize) -> bool + 'b,
-        i: impl Iterator<Item=NodeIndex> + Clone + 'b
-    ) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b
-    {
-        self.pre_all(i)
-            .filter(move |(l, a)|
-                self.post1(l, *a)
-                    .all(|l2| s(l2.index()))
-            )
-    }
-
-    pub fn pre_winnable<'b>(
-        &'b self,
-        mut s: impl FnMut(usize) -> bool + 'b,
-        i: impl Iterator<Item=NodeIndex> + Clone + 'b
-    ) -> impl Iterator<Item=(NodeIndex, ActionIndex)> + 'b
-    {
-        self.pre_all(i)
-            .filter(move |(l, a)|
-                self.post1(l, *a)
-                    .any(|l2| s(l2.index()))
-            )
+    pub fn obs_set1(&self, obs: ObsIndex) -> &[NodeIndex] {
+        &*self.obs[0][obs.index()].set
     }
 }
 

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::borrow::Borrow;
 use crate::algo::KBSC;
@@ -52,31 +54,38 @@ pub fn all_strategies<const N: usize>(g: [&DGame<1>; N]) -> AllStrategies<N> {
     )
 }
 
-impl<G, R> KBSC<G, R>
+impl<R> KBSC<DGame<1>, R>
 where
-    G: Game1,
-    R: Borrow<G>
+    R: Borrow<DGame<1>>
 {
-    /*pub fn translate_strategy<'b>(
-        &self,
-        strat: impl MemorylessStrategy1<DGame<1>> + 'b
-    ) -> impl Strategy1<G> + 'b
-    where G: 'b {
+    pub fn translate_strategy<'b>(
+        &'b self,
+        strat: impl MemorylessStrategy1<Self> + 'b
+    ) -> impl Strategy1<DGame<1>> + 'b
+    {
         let g = self.g.borrow();
-        let dg = g.dgame();
         
         strategy1(
-            move |obs, mem| {
-                if let Some((prev, s)) = mem {
-
+            move |&obs, s: &Option<BTreeSet<_>>| {
+                let s = if let Some(s) = s {
+                    Cow::Borrowed(s)
                 } else {
-                    return strat.call_ml1(obs)
-                        .map(|a| (a, (a, Some(obs.clone()))));
+                    Cow::Owned(g.obs_set1(obs).iter().copied().collect())
+                };
+                let s = s.borrow();
+
+                if let Some(a) = strat.call_ml1(s) {
+                    let mut post = self.post1(s, a).dedup();
+                    let s2 = post.next();
+                    assert!(post.next().is_none()); // should be guaranteed by theory
+
+                    s2.map(|s2| (a, s2))
+                } else {
+                    None
                 }
-                todo!()
             }
         )
-    }*/
+    }
 }
 
 impl<G, const N: usize> MKBSC<G, N>
