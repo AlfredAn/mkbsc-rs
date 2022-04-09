@@ -97,13 +97,15 @@ impl StratEntry {
             outcome: if is_goal {Win(0)} else {Lose}
         }
     }
-    fn insert(&mut self, a: ActionIndex, outcome: Outcome) -> bool {
-        self.action[a.index()] |= outcome;
+    fn insert(&mut self, a: ActionIndex, outcome: Outcome) -> (bool, Outcome) {
+        let a = &mut self.action[a.index()];
+        let a_old = *a;
+        *a |= outcome;
 
-        let old_outcome = self.outcome;
+        let l_old = self.outcome;
         self.outcome |= outcome;
 
-        old_outcome != self.outcome
+        (*a != a_old || self.outcome != l_old, l_old)
     }
 }
 
@@ -140,15 +142,17 @@ pub fn find_memoryless_strategies(g: &DGame<1>) -> Vec<StratEntry> {
             }
         }
 
-        let mut inserted = false;
+        let mut updated = false;
         for (l, a, outcome) in buf.drain(..) {
-            if w[l.index()].insert(a, outcome) {
-                //println!("  push: {:?}", (l, a, outcome));
-                w_list.push(l);
-                inserted = true;
+            let (did_change, old) = w[l.index()].insert(a, outcome);
+            if did_change {
+                if outcome.can_win() && !old.can_win() {
+                    w_list.push(l);
+                }
+                updated = true;
             }
         }
-        if !inserted { break; }
+        if !updated { break; }
 
         //depth += 1;
     }
