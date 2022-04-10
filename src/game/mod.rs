@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
@@ -18,10 +19,10 @@ pub mod macros;
 
 pub use dgame::*;
 
-pub trait Game<const N: usize> {
-    type Loc: Clone + Eq + Hash;
-    type Act: Copy + Eq + Hash;
-    type Obs: Clone + Eq + Hash;
+pub trait Game<const N: usize>: Debug {
+    type Loc: Clone + Eq + Hash + Debug;
+    type Act: Copy + Eq + Hash + Debug;
+    type Obs: Clone + Eq + Hash + Debug;
     type Agt: IndexType;
 
     fn agent(i: usize) -> Self::Agt {

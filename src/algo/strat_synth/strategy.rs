@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::borrow::Cow;
 use itertools::Itertools;
 use std::collections::BTreeSet;
@@ -56,7 +57,7 @@ pub fn all_strategies<const N: usize>(g: [&DGame<1>; N]) -> AllStrategies<N> {
 
 impl<R> KBSC<DGame<1>, R>
 where
-    R: Borrow<DGame<1>>
+    R: Borrow<DGame<1>> + Debug
 {
     pub fn translate_strategy<'b>(
         &'b self,

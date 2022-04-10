@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use arrayvec::ArrayVec;
 use std::cell::RefCell;
 use std::collections::*;
@@ -31,7 +32,7 @@ impl<const N: usize> DGame<N> {
             let mut c = c.borrow_mut();
             for (i, agt) in (0..N).map(|i| (i, G::agent(i))) {
                 for a in g.actions_i(agt) {
-                    let da = action_index(c.da_map.len());
+                    let da = action_index(c.da_map[i].len());
                     c.da_map[i].push(a);
                     let old = c.a_map[i].insert(a, da);
                     assert!(old.is_none());
@@ -48,7 +49,7 @@ impl<const N: usize> DGame<N> {
             |l| {
                 let mut c = c.borrow_mut();
 
-                let dl = node_index(c.dl_map.len());
+                let dl = node_index(c.dg.node_count());
 
                 let obs = g.observe(l);
                 let mut dobs = ArrayVec::<_, N>::new();
@@ -89,7 +90,7 @@ impl<const N: usize> DGame<N> {
                 let (dl, dl2) = (c.l_map[l], c.l_map[l2]);
                 let da = array_init(|i| c.a_map[i][&a[i]]);
 
-                if !c.dg.graph.contains_edge(dl, dl2) {
+                if !c.dg.graph.edges_connecting(dl, dl2).any(|e| e.weight().act == da) {
                     c.dg.graph.add_edge(dl, dl2, DEdge::new(da));
                 }
             }

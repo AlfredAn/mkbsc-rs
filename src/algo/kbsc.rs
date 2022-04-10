@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::collections::BTreeSet;
 use std::borrow::Borrow;
 use itertools::Itertools;
@@ -28,7 +29,7 @@ impl<G, R> Game<1> for KBSC<G, R>
 where
     G: Game1,
     G::Loc: Ord,
-    R: Borrow<G>
+    R: Borrow<G> + Debug
 {
     type Loc = BTreeSet<G::Loc>;
     type Act = G::Act;
@@ -80,5 +81,5 @@ impl<G, R> Game1 for KBSC<G, R>
 where
     G: Game1,
     G::Loc: Ord,
-    R: Borrow<G>
+    R: Borrow<G> + Debug
 {}

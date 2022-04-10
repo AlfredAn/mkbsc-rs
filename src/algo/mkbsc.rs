@@ -10,7 +10,7 @@ use petgraph::adj::IndexType;
 type K<G, const N: usize> = KBSC<Project<G, Rc<G>, N>, Project<G, Rc<G>, N>>;
 type KLoc<G, const N: usize> = <K<G, N> as Game<1>>::Loc;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MKBSC<G, const N: usize>
 where
     G: Game<N>,

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::borrow::Borrow;
 use crate::game::Game1;
 
@@ -11,7 +12,7 @@ pub struct Project<G: Game<N>, R: Borrow<G>, const N: usize>(pub R, pub G::Agt);
 impl<G, R, const N: usize> Game<1> for Project<G, R, N>
 where
     G: Game<N>,
-    R: Borrow<G>
+    R: Borrow<G> + Debug
 {
     type Loc = G::Loc;
     type Act = G::Act;
@@ -64,5 +65,5 @@ where
 impl<G, R, const N: usize> Game1 for Project<G, R, N>
 where
     G: Game<N>,
-    R: Borrow<G>
+    R: Borrow<G> + Debug
 {}
