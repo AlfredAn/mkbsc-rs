@@ -12,6 +12,14 @@ pub use kbsc::*;
 pub use mkbsc::*;
 pub use strat_synth::*;
 
+/// Perform depth first search on `g`, calling the function `node`
+/// for each location, and `edge` for each transition.
+/// 
+/// `node` is guaranteed to only be called once for each location,
+/// while `edge` can be called multiple times for one transition if `g.post()`
+/// returns it multiple times.
+/// 
+/// `node` will always be called on a location before it is used in a call to `edge`.
 pub fn explore<G: Game<N> + ?Sized, const N: usize>(
     g: &G,
     mut node: impl FnMut(&G::Loc),
@@ -45,7 +53,7 @@ pub fn explore<G: Game<N> + ?Sized, const N: usize>(
     }
 }
 
-pub fn explore1<G: Game<1>>(
+pub fn explore1<G: Game1>(
     g: &G,
     node: impl FnMut(&G::Loc),
     mut edge: impl FnMut(&G::Loc, G::Act, &G::Loc)

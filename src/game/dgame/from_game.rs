@@ -89,7 +89,9 @@ impl<const N: usize> DGame<N> {
                 let (dl, dl2) = (c.l_map[l], c.l_map[l2]);
                 let da = array_init(|i| c.a_map[i][&a[i]]);
 
-                c.dg.graph.add_edge(dl, dl2, DEdge::new(da));
+                if !c.dg.graph.contains_edge(dl, dl2) {
+                    c.dg.graph.add_edge(dl, dl2, DEdge::new(da));
+                }
             }
         );
 
