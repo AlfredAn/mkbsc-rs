@@ -55,41 +55,6 @@ pub fn all_strategies<T: Clone, const N: usize>(g: [&DGame<T, 1>; N]) -> AllStra
     )
 }
 
-impl<T, R> KBSC<DGame<T, 1>, R>
-where
-    T: Clone,
-    R: Borrow<DGame<T, 1>> + Debug
-{
-    pub fn translate_strategy<'b>(
-        &'b self,
-        strat: impl MemorylessStrategy1<Self> + 'b
-    ) -> impl Strategy1<DGame<T, 1>> + 'b
-    {
-        let g = self.g.borrow();
-        
-        strategy1(
-            move |&obs, s: &Option<BTreeSet<_>>| {
-                let s = if let Some(s) = s {
-                    Cow::Borrowed(s)
-                } else {
-                    Cow::Owned(g.obs_set1(obs).iter().copied().collect())
-                };
-                let s = s.borrow();
-
-                if let Some(a) = strat.call_ml1(s) {
-                    let mut post = self.post1(s, a).dedup();
-                    let s2 = post.next();
-                    assert!(post.next().is_none()); // should be guaranteed by theory
-
-                    s2.map(|s2| (a, s2))
-                } else {
-                    None
-                }
-            }
-        )
-    }
-}
-
 impl<G, const N: usize> MKBSC<G, N>
 where
     G: Game<N>,

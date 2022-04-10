@@ -73,11 +73,6 @@ impl<T: Clone, const N: usize> Game<N> for DGame<T, N> {
     fn debug_string(&self, _: &Self::Loc) -> Option<String> {
         None//self.node(*l).debug.clone()
     }
-
-    type DGameData = T;
-    fn dgame(&self) -> Cow<Self> {
-        Cow::Borrowed(self)
-    }
 }
 
 impl<T: Clone> Game1 for DGame<T, 1> {
@@ -118,17 +113,32 @@ impl<T: Clone> DGame<T, 1> {
     }
 
     pub fn obs_set1(&self, obs: ObsIndex) -> &[NodeIndex] {
-        &*self.obs[0][obs.index()].set
+        self.obs_set(obs, agent_index(0))
+    }
+
+    pub fn to_unique_loc1(&self, obs: ObsIndex) -> Option<NodeIndex> {
+        self.to_unique_loc(obs, agent_index(0))
     }
 }
 
 impl<T: Clone, const N: usize> DGame<T, N> {
-    fn node(&self, l: NodeIndex) -> &DNode<T, N> {
+    pub fn node(&self, l: NodeIndex) -> &DNode<T, N> {
         self.graph.node_weight(l).unwrap()
     }
 
     pub fn node_count(&self) -> usize {
         self.graph.node_count()
+    }
+
+    pub fn obs_set(&self, obs: ObsIndex, agt: AgtIndex) -> &[NodeIndex] {
+        &*self.obs[agt.index()][obs.index()].set
+    }
+
+    pub fn to_unique_loc(&self, obs: ObsIndex, agt: AgtIndex) -> Option<NodeIndex> {
+        match self.obs_set(obs, agt) {
+            [l] => Some(*l),
+            _ => None
+        }
     }
 }
 

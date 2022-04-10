@@ -1,9 +1,8 @@
-use std::rc::Rc;
+use crate::game::into_dgame::into_dgame;
 use std::fmt::Debug;
 use itertools::Itertools;
-use std::collections::BTreeSet;
-use std::collections::HashSet;
-use itertools::__std_iter::once;
+use std::collections::*;
+use std::iter::once;
 use crate::algo::*;
 use crate::game::dgame::DGame;
 use std::borrow::*;
@@ -68,8 +67,9 @@ pub trait Game<const N: usize>: Debug {
         None
     }
 
-    type DGameData: Clone;
-    fn dgame(&self) -> Cow<DGame<Self::DGameData, N>>;
+    fn dgame(&self) -> DGame<Self::Loc, N> {
+        into_dgame(self).dg
+    }
 }
 
 pub trait HasVisitSet<const N: usize>: Game<N> {
