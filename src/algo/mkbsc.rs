@@ -109,6 +109,8 @@ where
             .format(", ")
         ))
     }
+
+    derive_dgame!(N);
 }
 
 impl<G> Game1 for MKBSC<G, 1>

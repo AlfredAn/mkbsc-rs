@@ -151,14 +151,14 @@ where
         self.labels = Some(labels)
     }
 
-    pub fn build(&self) -> anyhow::Result<DGame<N>> {
+    pub fn build(&self) -> anyhow::Result<DGame<(), N>> {
         if self.l0.is_none() {
             bail!("l0 is not set");
         }
         let l0 = self.l0.unwrap();
         let mut l0_valid = false;
 
-        let mut g = DGame::<N>::default();
+        let mut g = DGame::<(), N>::default();
 
         for n in self.graph.node_indices() {
             let is_winning = if let Some(w) = self.graph[n].0 {
@@ -169,15 +169,7 @@ where
             let n2 = g.graph.add_node(DNode::new(
                 is_winning,
                 [Default::default(); N],
-                /*{
-                    if let Some(lb) = &self.labels {
-                        Some(lb(self.nodes.get_by_right(&n).unwrap()))
-                    } else if let Some(debug) = &self.graph[n].1 {
-                        Some(debug.clone())
-                    } else {
-                        None
-                    }
-                }*/
+                ()
             ));
             if l0 == n {
                 g.l0 = n2;

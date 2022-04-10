@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::fmt::Debug;
 use itertools::Itertools;
 use std::collections::BTreeSet;
@@ -67,16 +68,8 @@ pub trait Game<const N: usize>: Debug {
         None
     }
 
-    fn dgame<'b>(&'b self) -> Cow<'b, DGame<N>> {
-        Cow::Owned(DGame::from_game(self).dg)
-    }
-
-    fn into_dgame(self) -> DGame<N>
-    where
-        Self: Sized
-    {
-        self.dgame().into_owned()
-    }
+    type DGameData: Clone;
+    fn dgame(&self) -> Cow<DGame<Self::DGameData, N>>;
 }
 
 pub trait HasVisitSet<const N: usize>: Game<N> {
@@ -155,7 +148,7 @@ pub trait Game1: Game<1> {
         self.post_set(ns, [a])
     }
 
-    fn all_strategies1(&self) -> AllStrategies1 {
+    fn all_strategies1(&self) -> AllStrategies1 where Self: Clone {
         self.dgame().all_strategies1()
     }
 }

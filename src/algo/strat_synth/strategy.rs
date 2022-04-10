@@ -28,9 +28,9 @@ impl<const N: usize> AllStrategies<N> {
         false
     }
 
-    pub fn get(&self) -> impl MemorylessStrategy<DGame<N>, N> + '_ {
+    pub fn get<'a, T: Clone + 'a>(&'a self) -> impl MemorylessStrategy<DGame<T, N>, N> + 'a {
         memoryless_strategy(|obs, agt: AgtIndex|
-            self.parts[agt.index()].get().call_ml1(obs)
+            self.parts[agt.index()].get::<()>().call_ml1(obs)
         )
     }
 
@@ -49,20 +49,21 @@ impl<const N: usize> AllStrategies<N> {
     }
 }
 
-pub fn all_strategies<const N: usize>(g: [&DGame<1>; N]) -> AllStrategies<N> {
+pub fn all_strategies<T: Clone, const N: usize>(g: [&DGame<T, 1>; N]) -> AllStrategies<N> {
     AllStrategies::new(
         g.map(|g| g.all_strategies1())
     )
 }
 
-impl<R> KBSC<DGame<1>, R>
+impl<T, R> KBSC<DGame<T, 1>, R>
 where
-    R: Borrow<DGame<1>> + Debug
+    T: Clone,
+    R: Borrow<DGame<T, 1>> + Debug
 {
     pub fn translate_strategy<'b>(
         &'b self,
         strat: impl MemorylessStrategy1<Self> + 'b
-    ) -> impl Strategy1<DGame<1>> + 'b
+    ) -> impl Strategy1<DGame<T, 1>> + 'b
     {
         let g = self.g.borrow();
         

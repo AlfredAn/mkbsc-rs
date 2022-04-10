@@ -196,6 +196,8 @@ impl<const X: i8, const Y: i8, const N: usize> Game<N> for GridPursuitGame<X, Y,
             todo!();
         }
     }
+
+    derive_dgame!(N);
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -75,6 +75,7 @@ where
     derive_ii!(1);
     derive_ma!();
     derive_magiian!();
+    derive_dgame!(1);
 }
 
 impl<G, R> Game1 for KBSC<G, R>

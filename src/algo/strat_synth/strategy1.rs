@@ -109,7 +109,7 @@ impl StratEntry {
     }
 }
 
-pub fn find_memoryless_strategies(g: &DGame<1>) -> Vec<StratEntry> {
+pub fn find_memoryless_strategies<T: Clone>(g: &DGame<T, 1>) -> Vec<StratEntry> {
     let n = g.graph.node_count();
 
     let mut w = Vec::with_capacity(n);
@@ -183,7 +183,7 @@ impl AllStrategies1 {
         false
     }
 
-    pub fn get(&self) -> impl MemorylessStrategy1<DGame<1>> + '_ {
+    pub fn get<'a, T: Clone + 'a>(&'a self) -> impl MemorylessStrategy1<DGame<T, 1>> + 'a {
         memoryless_strategy1(|obs: &ObsIndex|
             self.get_raw()[obs.index()]
         )

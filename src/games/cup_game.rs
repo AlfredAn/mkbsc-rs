@@ -2,11 +2,11 @@ use crate::game::dgame::{DGame, generic_builder::GenericBuilder};
 
 #[allow(dead_code)]
 
-pub fn cup_game() -> DGame<2> {
+pub fn cup_game() -> DGame<(), 2> {
     _cup_game().unwrap()
 }
 
-fn _cup_game() -> anyhow::Result<DGame<2>> {
+fn _cup_game() -> anyhow::Result<DGame<(), 2>> {
     let mut gm = GenericBuilder::default();
 
     gm.node("start", false)?;

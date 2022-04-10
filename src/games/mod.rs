@@ -2,7 +2,7 @@ pub mod grid_pursuit;
 pub mod cup_game;
 
 /*
-pub fn three_coin_game() -> DGame<1> {
+pub fn three_coin_game() -> DGame<T, 1> {
     let mut g = Builder::default();
 
     g.l0(8);

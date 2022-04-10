@@ -6,8 +6,14 @@ use petgraph::graph::IndexType;
 
 use crate::{game::Game, util::Itr};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Project<G: Game<N>, R: Borrow<G>, const N: usize>(pub R, pub G::Agt);
+
+impl<G: Game<N>, R: Borrow<G> + Clone, const N: usize> Clone for Project<G, R, N> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1)
+    }
+}
 
 impl<G, R, const N: usize> Game<1> for Project<G, R, N>
 where
@@ -44,6 +50,7 @@ where
 
     derive_ma!();
     derive_magiian!();
+    derive_dgame!(1);
 
     fn debug_string(&self, l: &Self::Loc) -> Option<String> {
         self.0.borrow().debug_string(l)

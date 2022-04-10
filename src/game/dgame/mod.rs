@@ -17,7 +17,7 @@ pub mod index;
 pub mod node;
 pub mod edge;
 pub mod obs;
-pub mod from_game;
+pub mod into_dgame;
 pub mod builder;
 pub mod generic_builder;
 
@@ -27,18 +27,18 @@ pub use edge::*;
 pub use obs::*;
 pub use generic_builder::*;
 
-type GraphType<const N: usize>
-    = Graph<DNode<N>, DEdge<N>, Directed>;
+type GraphType<T, const N: usize>
+    = Graph<DNode<T, N>, DEdge<N>, Directed>;
 
 #[derive(Clone)]
-pub struct DGame<const N: usize> {
-    pub graph: GraphType<N>,
+pub struct DGame<T: Clone, const N: usize> {
+    pub graph: GraphType<T, N>,
     pub l0: NodeIndex,
     pub n_actions: usize,
     pub obs: [Vec<DObs>; N]
 }
 
-impl<const N: usize> Game<N> for DGame<N> {
+impl<T: Clone, const N: usize> Game<N> for DGame<T, N> {
     type Loc = NodeIndex;
     type Act = ActionIndex;
 
@@ -74,23 +74,20 @@ impl<const N: usize> Game<N> for DGame<N> {
         None//self.node(*l).debug.clone()
     }
 
+    type DGameData = T;
     fn dgame(&self) -> Cow<Self> {
         Cow::Borrowed(self)
     }
-
-    fn into_dgame(self) -> Self {
-        self
-    }
 }
 
-impl<'a> Game1 for DGame<1> {
+impl<T: Clone> Game1 for DGame<T, 1> {
     fn all_strategies1(&self) -> AllStrategies1 {
         let w = find_memoryless_strategies(self);
         AllStrategies1::new(&w, self.n_actions)
     }
 }
 
-impl<const N: usize> HasVisitSet<N> for DGame<N> {
+impl<T: Clone, const N: usize> HasVisitSet<N> for DGame<T, N> {
     type VisitSet = FixedBitSet;
     fn visit_set(&self) -> FixedBitSet {
         FixedBitSet::with_capacity(self.graph.node_count())
@@ -111,7 +108,7 @@ impl VisitSet<NodeIndex> for FixedBitSet {
     }
 }
 
-impl DGame<1> {
+impl<T: Clone> DGame<T, 1> {
     pub fn pre<'b>(&'b self, s: impl IntoIterator<Item=NodeIndex> + 'b, a: ActionIndex) -> impl Iterator<Item=NodeIndex> + 'b {
         s.into_iter()
             .map(move |n| self.graph.edges_directed(n, Incoming)
@@ -125,8 +122,8 @@ impl DGame<1> {
     }
 }
 
-impl<const N: usize> DGame<N> {
-    fn node(&self, l: NodeIndex) -> &DNode<N> {
+impl<T: Clone, const N: usize> DGame<T, N> {
+    fn node(&self, l: NodeIndex) -> &DNode<T, N> {
         self.graph.node_weight(l).unwrap()
     }
 
@@ -135,7 +132,7 @@ impl<const N: usize> DGame<N> {
     }
 }
 
-impl<const N: usize> Default for DGame<N> {
+impl<T: Clone, const N: usize> Default for DGame<T, N> {
     fn default() -> Self {
         Self {
             graph: Graph::default(),
@@ -146,7 +143,7 @@ impl<const N: usize> Default for DGame<N> {
     }
 }
 
-impl<const N: usize> fmt::Debug for DGame<N> {
+impl<T: Clone, const N: usize> fmt::Debug for DGame<T, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ns = self.graph.node_references().format_with(", ", |(i, n), f| {
             /*if let Some(debug) = &n.debug {
