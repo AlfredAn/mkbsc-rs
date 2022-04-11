@@ -166,12 +166,8 @@ pub trait GameRef<G: Game<N>, const N: usize>: Borrow<G> + Sized {
         KBSC::new(self)
     }
 
-    fn mkbsc(self) -> MKBSC<G, N>
-    where
-        Self: ToOwned<Owned=G>,
-        G::Loc: Ord
-    {
-        MKBSC::new(self.to_owned())
+    fn mkbsc(self) -> MKBSC<G::Loc, N> {
+        MKBSC::new(self.borrow().dgame().into())
     }
 }
 

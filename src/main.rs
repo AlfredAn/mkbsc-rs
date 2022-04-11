@@ -12,6 +12,7 @@ mod util;
 #[macro_use]
 mod macros;
 mod test;
+mod game2;
 
 fn main() {
     strategy_synthesis_test();

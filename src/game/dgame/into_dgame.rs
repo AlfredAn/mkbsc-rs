@@ -43,9 +43,13 @@ pub fn into_dgame<G: Game<N> + ?Sized, const N: usize>(g: &G) -> FromGameResult<
             .unwrap();
     }
 
+    println!("\n{:?}", g);
+
     explore(
         g,
         |l| {
+            println!("{:?}", &l);
+
             let mut c = c.borrow_mut();
 
             let dl = node_index(c.dg.node_count());
@@ -85,6 +89,8 @@ pub fn into_dgame<G: Game<N> + ?Sized, const N: usize>(g: &G) -> FromGameResult<
             assert!(old.is_none());
         },
         |l, a, l2| {
+            println!("{:?}", (&l, a, &l2));
+
             let mut c = c.borrow_mut();
 
             let (dl, dl2) = (c.l_map[l], c.l_map[l2]);

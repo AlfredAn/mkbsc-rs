@@ -55,14 +55,10 @@ pub fn all_strategies<T: Clone, const N: usize>(g: [&DGame<T, 1>; N]) -> AllStra
     )
 }
 
-impl<G, const N: usize> MKBSC<G, N>
-where
-    G: Game<N>,
-    G::Loc: Ord
-{
+impl<T: Clone, const N: usize> MKBSC<T, N> {
     pub fn all_strategies(&self) -> AllStrategies<N> {
         AllStrategies::new(
-            array_init(|i| self.kbsc[i].all_strategies1())
+            array_init(|i| self.gki(i).all_strategies1())
         )
     }
 

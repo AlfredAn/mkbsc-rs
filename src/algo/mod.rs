@@ -1,7 +1,7 @@
 pub mod project;
 pub mod kbsc;
-pub mod dkbsc;
 pub mod mkbsc;
+pub mod dkbsc;
 pub mod strat_synth;
 
 use std::collections::HashSet;

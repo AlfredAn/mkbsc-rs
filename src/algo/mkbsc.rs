@@ -1,85 +1,96 @@
+use std::fmt::Debug;
+use array_init::from_iter;
 use std::collections::BTreeSet;
-use std::{rc::Rc};
+use array_init::array_init;
+use crate::algo::*;
+use crate::algo::dkbsc::DKBSC;
+use std::rc::Rc;
+use crate::dgame::DGame;
+use crate::game::*;
+use crate::util::*;
+use itertools::*;
 
-use array_init::*;
-use itertools::{izip, Itertools};
-use super::*;
-use crate::{game::*, util::*};
-use petgraph::adj::IndexType;
+type L<G, const N: usize> = <G as Game<N>>::Loc;
+type D<G, const N: usize> = DGame<L<G, N>, N>;
 
-type K<G, const N: usize> = KBSC<Project<G, Rc<G>, N>, Project<G, Rc<G>, N>>;
-type KLoc<G, const N: usize> = <K<G, N> as Game<1>>::Loc;
+type G<T, const N: usize> = DGame<T, N>;
+
+type GI_<T, const N: usize> = Project<G<T, N>, Rc<G<T, N>>, N>;
+type GILoc<T, const N: usize> = L<GI_<T, N>, 1>;
+type GI<T, const N: usize> = D<GI_<T, N>, 1>;
+
+type GKI_<T, const N: usize> = KBSC<GI<T, N>, Rc<GI<T, N>>>;
+type GKILoc<T, const N: usize> = L<GKI_<T, N>, 1>;
+type GKI<T, const N: usize> = D<GKI_<T, N>, 1>;
 
 #[derive(Debug, Clone)]
-pub struct MKBSC<G, const N: usize>
-where
-    G: Game<N>,
-    G::Loc: Ord
-{
-    pub g: Rc<G>,
-    pub kbsc: [K<G, N>; N],
-    l0: [KLoc<G, N>; N],
+pub struct MKBSC<T: Clone, const N: usize> {
+    pub g: Rc<G<T, N>>,
+    pub gi: [Rc<GI<T, N>>; N],
+    pub gki: [DKBSC<GILoc<T, N>>; N],
+
+    pub l0: [NodeIndex; N]
 }
 
-impl<G, const N: usize> MKBSC<G, N>
-where
-    G: Game<N>,
-    G::Loc: Ord
-{
-    pub fn new(g: G) -> Self {
-        let g = Rc::new(g);
-        let kbsc = array_init(|i|
-            K::new(
-                Project(g.clone(), G::Agt::new(i))
+impl<T: Clone, const N: usize> MKBSC<T, N> {
+    pub fn new(g: Rc<G<T, N>>) -> Self {
+        let gi = array_init(|i|
+            Rc::new(
+                Project::<G<T, N>, _, N>(g.clone(), agent_index(i)).dgame()
             )
         );
+        let gki = array_init(|i|
+            DKBSC::new(gi[i].clone())
+        );
         let l0 = array_init(|i|
-            kbsc[i].l0().clone()
+            gki[i].gk.l0
         );
 
         Self {
-            g: g,
-            kbsc: kbsc,
-            l0: l0
+            g, gi, gki, l0
         }
+    }
+
+    pub fn gki(&self, agt: usize) -> &GKI<T, N> {
+        &self.gki[agt].gk
     }
 }
 
-impl<G, const N: usize> Game<N> for MKBSC<G, N>
-where
-    G: Game<N>,
-    G::Loc: Ord
-{
-    type Loc = [KLoc<G, N>; N];
-    type Act = G::Act;
-    type Obs = KLoc<G, N>;
-    type Agt = G::Agt;
+impl<T: Clone + Debug, const N: usize> Game<N> for MKBSC<T, N> {
+    type Loc = [NodeIndex; N];
+    type Act = ActionIndex;
+    type Obs = NodeIndex;
+    type Agt = AgtIndex;
 
     fn l0(&self) -> &Self::Loc {
         &self.l0
     }
 
     fn is_winning(&self, n: &Self::Loc) -> bool {
-        izip!(n, &self.kbsc).any(|(s, g)|
-            g.is_winning(s)
+        izip!(n, &self.gki).any(|(s, gki)|
+            gki.gk.is_winning(s)
         )
     }
 
     fn post<'b>(&'b self, n: &'b Self::Loc, a: [Self::Act; N]) -> Itr<'b, Self::Loc> {
-        let mut itr = n.iter();
+        let mut itr = n.iter()
+            .enumerate()
+            .map(|(i, &s)| &self.gki(i).node(s).data);
         let intersection = itr.next()
-            .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & s2)).unwrap();
+            .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & &s2)).unwrap();
         let filter_set: BTreeSet<_> = self.g.post_set(intersection.iter(), a).collect();
         
         Box::new(iterator_product!(
             from_iter(
-                izip!(n, a, &self.kbsc)
-                    .map(|(n, a, k)| k.post(n, [a]))
+                izip!(n, a, &self.gki)
+                    .map(|(n, a, k)| k.gk.post(n, [a]))
             ).unwrap()
         ).filter(move |s| {
-            let mut itr = s.iter();
+            let mut itr = s.iter()
+                .enumerate()
+                .map(|(i, &s)| &self.gki(i).node(s).data);
             let intersection = itr.next()
-                .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & s2)).unwrap();
+                .map(|set| itr.fold(set.clone(), |s1, s2| &s1 & &s2)).unwrap();
             !filter_set.is_disjoint(&intersection)
         }))
     }
@@ -93,28 +104,10 @@ where
     }
     
     fn observe_i(&self, l: &Self::Loc, agt: Self::Agt) -> Self::Obs {
-        l[agt.index()].clone()
+        l[agt.index()]
     }
 
     fn observe(&self, l: &Self::Loc) -> [Self::Obs; N] {
-        l.clone()
+        *l
     }
-
-    fn debug_string(&self, s: &Self::Loc) -> Option<String> {
-        Some(format!("{}",
-            (0..N).map(|i| {
-                let (si, k) = (&s[i], &self.kbsc[i]);
-                k.debug_string(si).unwrap()
-            })
-            .format(", ")
-        ))
-    }
-
-    derive_dgame!(N);
 }
-
-impl<G> Game1 for MKBSC<G, 1>
-where
-    G: Game<1>,
-    G::Loc: Ord
-{}
