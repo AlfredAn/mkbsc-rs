@@ -5,6 +5,26 @@ use std::{ops::{Index, Range}, rc::Rc};
 use array_init::array_init;
 use std::{cell::RefCell};
 
+/// panics if any of the slices are empty
+pub fn cartesian_product<T, const N: usize>(x: [&[T]; N], mut f: impl FnMut([&T; N])) {
+    let mut i = [0; N];
+    'outer: loop {
+        f(array_init(|j|
+            &x[j][i[j]]
+        ));
+
+        for j in 0..N {
+            i[j] += 1;
+            if i[j] < x[j].len() {
+                continue 'outer;
+            } else {
+                i[j] = 0;
+            }
+        }
+        break;
+    }
+}
+
 pub type Itr<'a, T> = Box<dyn Iterator<Item=T> + 'a>;
 
 pub fn unique_fbs<T: Into<usize> + Copy>(itr: impl IntoIterator<Item=T>, cap: usize) -> impl Iterator<Item=T> {

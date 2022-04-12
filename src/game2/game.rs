@@ -1,26 +1,11 @@
-use itertools::Itertools;
-use petgraph::visit::IntoNodeReferences;
-use std::collections::hash_map::Entry::*;
-use petgraph::visit::EdgeRef;
-use petgraph::graph::{NodeIndex, node_index};
-use arrayvec::ArrayVec;
-use std::collections::*;
-use petgraph::{Graph, Directed};
 use super::*;
-use smart_default::SmartDefault;
-use array_init::array_init;
-use std::fmt;
 
 pub type Loc = u32;
 pub type Obs = u32;
-pub type ObsOffset = u32;
-
-type GraphType<T, const N: usize>
-    = Graph<LocData<T, N>, [Act; N], Directed>;
 
 #[derive(Clone, SmartDefault)]
 pub struct Game<T, const N: usize> {
-    pub graph: GraphType<T, N>,
+    pub loc: Vec<LocData<T, N>>,
 
     #[default([0; N])]
     pub n_actions: [usize; N],
@@ -29,57 +14,62 @@ pub struct Game<T, const N: usize> {
     pub obs: [Vec<Vec<Loc>>; N]
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct LocData<T, const N: usize> {
+    pub succ: Vec<([Act; N], Loc)>,
     pub is_winning: bool,
     pub obs: [Obs; N],
-    pub obs_offset: [ObsOffset; N],
+    pub obs_offset: [usize; N],
     pub data: T
-}
-
-fn ni(l: Loc) -> NodeIndex<Loc> {
-    node_index(l as usize)
-}
-fn li(ni: NodeIndex<Loc>) -> Loc {
-    ni.index() as Loc
 }
 
 impl<T, const N: usize> Game<T, N> {
     pub fn n_loc(&self) -> usize {
-        self.graph.node_count()
-    }
-    pub fn n_edges(&self) -> usize {
-        self.graph.edge_count()
+        self.loc.len()
     }
     pub fn n_obs(&self, agt: Agt) -> usize {
         self.obs[agt as usize].len()
     }
 
-    pub fn loc_data(&self, l: Loc) -> &LocData<T, N> {
-        &self.graph[ni(l)]
-    }
-
     pub fn observe(&self, l: Loc) -> [Obs; N] {
-        self.loc_data(l).obs
+        self[l].obs
     }
-    pub fn obs_offset(&self, l: Loc) -> [ObsOffset; N] {
-        self.loc_data(l).obs_offset
+    pub fn obs_offset(&self, l: Loc) -> [usize; N] {
+        self[l].obs_offset
     }
     pub fn is_winning(&self, l: Loc) -> bool {
-        self.loc_data(l).is_winning
+        self[l].is_winning
     }
     pub fn data(&self, l: Loc) -> &T {
-        &self.loc_data(l).data
+        &self[l].data
     }
 
     pub fn obs_set(&self, agt: Agt, obs: Obs) -> &[Loc] {
-        &*self.obs[agt][obs as usize]
+        &self.obs[agt][obs as usize]
     }
 
-    pub fn succ<'a>(&'a self, l: Loc) -> impl Iterator<Item=([Act; N], Loc)> + 'a {
-        self.graph.edges(ni(l))
-            .map(|e| (*e.weight(), li(e.target())))
+    pub fn iter(&self) -> impl Iterator<Item=(Loc, &LocData<T, N>)> {
+        self.loc.iter().enumerate().map(|(i, x)| (i as Loc, x))
     }
+    pub fn edges<'a>(&'a self) -> impl Iterator<Item=(Loc, [Act; N], Loc)> + 'a {
+        self.iter()
+            .flat_map(|(l, d)|
+                d.succ.iter()
+                    .map(move |&(a, l2)| (l, a, l2))
+            )
+    }
+
+    pub fn succ(&self, l: Loc) -> &[([Act; N], Loc)] {
+        &self[l].succ
+    }
+}
+
+impl<T, const N: usize> Index<Loc> for Game<T, N> {
+    type Output = LocData<T, N>;
+    fn index(&self, l: Loc) -> &LocData<T, N> { &self.loc[l as usize] }
+}
+impl<T, const N: usize> IndexMut<Loc> for Game<T, N> {
+    fn index_mut(&mut self, l: Loc) -> &mut LocData<T, N> { &mut self.loc[l as usize] }
 }
 
 impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> {
@@ -117,23 +107,23 @@ impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> 
                         let obs_set = &mut r.obs[agt][obs_i as usize];
 
                         obs.push(obs_i);
-                        obs_offset.push(obs_set.len() as ObsOffset);
+                        obs_offset.push(obs_set.len());
 
                         obs_set.push(n);
                     }
 
-                    let n_ = r.graph.add_node(LocData {
+                    r.loc.push(LocData {
+                        succ: Vec::new(),
                         is_winning: g.is_winning(&l),
                         obs: (*obs).try_into().unwrap(),
                         obs_offset: (*obs_offset).try_into().unwrap(),
                         data: g.data(&l)
                     });
 
-                    assert_eq!(ni(n), n_);
                     queue.push_back(l.clone());
-                    visited.insert(l, ni(n));
+                    visited.insert(l, n);
 
-                    n_
+                    n
                 }
             }
         }
@@ -142,7 +132,7 @@ impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> 
 
         let mut i = 0;
         while let Some(l) = queue.pop_front() {
-            let n = ni(i as Loc);
+            let n = i as Loc;
 
             g.succ(&l, |a, l2| {
                 let n2 = if let Some(&n2) = visited.get(&l2) {
@@ -150,8 +140,8 @@ impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> 
                 } else {
                     visit!(l2)
                 };
-                if !r.graph.edges_connecting(n, n2).any(|e| *e.weight() == a) {
-                    r.graph.add_edge(n, n2, a);
+                if !r.succ(n).iter().any(|&(a_, n_)| (a, n2) == (a_, n_)) {
+                    r[n].succ.push((a, n2));
                 }
             });
 
@@ -166,7 +156,7 @@ macro_rules! impl_format {
     ($trait:path, $fmt:literal, $fmt2:literal, $fmt3:literal) => {
         impl<T: $trait, const N: usize> $trait for Game<T, N> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                let ns = self.graph.node_references().format_with(", ", |(_, n), f| {
+                let ns = self.iter().format_with(", ", |(_, n), f| {
                     f(&format_args!($fmt2, n.data, if n.is_winning {":W"} else {""}))
                 });
         
@@ -183,18 +173,18 @@ macro_rules! impl_format {
                     ))
                 );
                 
-                let es = self.graph.edge_references()
-                    .format_with(", ", |e, f| {
+                let es = self.edges()
+                    .format_with(", ", |(l, a, l2), f| {
                         f(&format_args!($fmt3,
-                            self.data(li(e.source())),
-                            self.data(li(e.target())),
-                            e.weight().iter().format(".")
+                            self.data(l),
+                            self.data(l2),
+                            a.iter().format(".")
                         ))
                     });
         
                 write!(f, "Game {{\n")?;
                 write!(f, "    n_agents: {}, n_actions: {:?}\n", N, self.n_actions)?;
-                write!(f, "    Nodes: [{}]\n    {}\n    Edges: [{}]\n", ns, os, es)?;
+                write!(f, "    Loc: [{}]\n    {}\n    Delta: [{}]\n", ns, os, es)?;
                 write!(f, "}}")
             }
         }
