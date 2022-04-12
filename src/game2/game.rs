@@ -82,7 +82,7 @@ impl<T, const N: usize> Game<T, N> {
     }
 }
 
-impl<G: AbstractGame<N>, const N: usize> From<&G> for Game<G::Loc, N> {
+impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> {
     fn from(g: &G) -> Self {
         let mut r = Game::default();
         r.n_actions = g.n_actions();
@@ -126,7 +126,7 @@ impl<G: AbstractGame<N>, const N: usize> From<&G> for Game<G::Loc, N> {
                         is_winning: g.is_winning(&l),
                         obs: (*obs).try_into().unwrap(),
                         obs_offset: (*obs_offset).try_into().unwrap(),
-                        data: l.clone()
+                        data: g.data(&l)
                     });
 
                     assert_eq!(ni(n), n_);
@@ -193,7 +193,7 @@ macro_rules! impl_format {
                     });
         
                 write!(f, "Game {{\n")?;
-                write!(f, "    l0: {}, n_agents: {}, n_actions: {:?}\n", 0, N, self.n_actions)?;
+                write!(f, "    n_agents: {}, n_actions: {:?}\n", N, self.n_actions)?;
                 write!(f, "    Nodes: [{}]\n    {}\n    Edges: [{}]\n", ns, os, es)?;
                 write!(f, "}}")
             }

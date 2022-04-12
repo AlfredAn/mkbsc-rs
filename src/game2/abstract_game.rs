@@ -1,57 +1,62 @@
+use std::rc::Rc;
 use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::cell::RefCell;
 use fixedbitset::FixedBitSet;
-use std::marker::PhantomData;
-use std::borrow::Borrow;
 use std::hash::Hash;
-use std::fmt::Debug;
+use std::fmt::{Debug, self};
 use derive_new::new;
 use super::*;
 
 pub trait AbstractGame<const N: usize>: Debug {
     type Loc: Clone + Eq + Hash + Debug;
     type Obs: Clone + Eq + Hash + Debug;
+    type Data;
 
     fn l0(&self) -> Self::Loc;
     fn n_actions(&self) -> [usize; N];
     fn obs(&self, loc: &Self::Loc) -> [Self::Obs; N];
     fn is_winning(&self, loc: &Self::Loc) -> bool;
+    fn data(&self, loc: &Self::Loc) -> Self::Data;
 
     fn succ(
         &self,
         loc: &Self::Loc,
         f: impl FnMut([Act; N], Self::Loc)
     );
+
+    fn build(&self) -> Game<Self::Data, N> {
+        self.into()
+    }
 }
 
-#[derive(new, Debug, Clone, Copy)]
-pub struct Project<T, R: Borrow<Game<T, N>>, const N: usize> {
-    g: R,
-    agt: Agt,
-    _t: PhantomData<T>
+#[derive(new, Debug, Clone)]
+pub struct Project<T, const N: usize> {
+    g: Rc<Game<T, N>>,
+    agt: Agt
 }
 
-impl<T: Debug, R: Borrow<Game<T, N>> + Debug, const N: usize> AbstractGame<1> for Project<T, R, N> {
+impl<T: Debug + Clone, const N: usize> AbstractGame<1> for Project<T, N> {
     type Loc = game::Loc;
     type Obs = game::Obs;
+    type Data = T;
 
     fn l0(&self) -> Self::Loc { 0 }
-    fn n_actions(&self) -> [usize; 1] { [self.g.borrow().n_actions[self.agt]] }
-    fn obs(&self, &l: &Self::Loc) -> [Self::Obs; 1] { [self.g.borrow().observe(l)[self.agt]] }
-    fn is_winning(&self, &l: &Self::Loc) -> bool { self.g.borrow().is_winning(l) }
+    fn n_actions(&self) -> [usize; 1] { [self.g.n_actions[self.agt]] }
+    fn obs(&self, &l: &Self::Loc) -> [Self::Obs; 1] { [self.g.observe(l)[self.agt]] }
+    fn is_winning(&self, &l: &Self::Loc) -> bool { self.g.is_winning(l) }
+    fn data(&self, &l: &Self::Loc) -> T { self.g.data(l).clone() }
 
     fn succ(&self, &l: &Self::Loc, mut f: impl FnMut([Act; 1], Self::Loc)) {
-        for (a, l2) in self.g.borrow().succ(l) {
+        for (a, l2) in self.g.succ(l) {
             f([a[self.agt]], l2)
         }
     }
 }
 
-#[derive(new, Debug, Clone, Copy)]
-pub struct KBSC<T, R: Borrow<Game<T, 1>>> {
-    g: R,
-    _t: PhantomData<T>
+#[derive(new, Debug, Clone)]
+pub struct KBSC<T> {
+    g: Rc<Game<T, 1>>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -86,24 +91,53 @@ impl ObsSubset {
     }
 }
 
+#[derive(new, Clone)]
+pub struct KBSCData<T> {
+    g: Rc<Game<T, 1>>,
+    s: ObsSubset
+}
+
+impl<T: fmt::Debug> fmt::Debug for KBSCData<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{{}}}", self.s.iter(&self.g)
+            .map(|l| self.g.data(l))
+            .format_with("|", |x, f|
+                f(&format_args!("{:?}", x))
+            )
+        )
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for KBSCData<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.s.iter(&self.g)
+            .map(|l| self.g.data(l))
+            .format("|")
+        )
+    }
+}
+
 thread_local!(
     static TEMP: RefCell<BTreeSet<(Act, Obs, Loc)>> = Default::default();
 );
 
-impl<T: Debug, R: Borrow<Game<T, 1>> + Debug> AbstractGame<1> for KBSC<T, R> {
+impl<T: Debug> AbstractGame<1> for KBSC<T> {
     type Loc = ObsSubset;
     type Obs = Self::Loc;
+    type Data = KBSCData<T>;
 
-    fn l0(&self) -> Self::Loc { ObsSubset::s0(self.g.borrow()) }
-    fn n_actions(&self) -> [usize; 1] { self.g.borrow().n_actions }
+    fn l0(&self) -> Self::Loc { ObsSubset::s0(&self.g) }
+    fn n_actions(&self) -> [usize; 1] { self.g.n_actions }
     fn obs(&self, s: &Self::Loc) -> [Self::Obs; 1] { [s.clone()] }
     fn is_winning(&self, s: &Self::Loc) -> bool {
-        let g = self.g.borrow();
-        s.iter(g).all(|l| g.is_winning(l))
+        s.iter(&self.g).all(|l| self.g.is_winning(l))
+    }
+    fn data(&self, l: &Self::Loc) -> Self::Data {
+        KBSCData::new(self.g.clone(), l.clone())
     }
 
     fn succ(&self, s: &Self::Loc, mut f: impl FnMut([Act; 1], Self::Loc)) {
-        let g = self.g.borrow();
+        let g = &self.g;
         
         TEMP.with(|r| {
             let mut succ = r.borrow_mut();

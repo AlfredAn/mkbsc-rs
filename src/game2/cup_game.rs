@@ -14,6 +14,7 @@ pub enum Loc {
 impl AbstractGame<2> for CupGame {
     type Loc = Loc;
     type Obs = EnumSet<Loc>;
+    type Data = Loc;
 
     fn l0(&self) -> Self::Loc { Start }
     fn n_actions(&self) -> [usize; 2] { [3, 3] }
@@ -25,6 +26,7 @@ impl AbstractGame<2> for CupGame {
         }
     ]}
     fn is_winning(&self, &loc: &Self::Loc) -> bool { loc == Win }
+    fn data(&self, &loc: &Self::Loc) -> Loc { loc }
 
     fn succ(
         &self,
