@@ -1,7 +1,7 @@
+use crate::algo::into_dgame::into_dgame;
 use itertools::Itertools;
-use crate::into_dgame::into_dgame;
 use std::rc::Rc;
-use crate::{game::*, algo::*, dgame::*};
+use crate::{game::*, algo::*};
 
 type G<T> = DGame<T, 1>;
 type GK<T> = KBSC<G<T>, Rc<G<T>>>;

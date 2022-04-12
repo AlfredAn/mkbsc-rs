@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use crate::game::*;
-use crate::games::cup_game::cup_game;
+use crate::game2::Game;
+use crate::game2::cup_game::CupGame;
 
 #[macro_use]
 mod game;
@@ -15,19 +15,9 @@ mod test;
 mod game2;
 
 fn main() {
-    strategy_synthesis_test();
-}
+    let g = CupGame();
+    println!("{:?}", g);
 
-fn strategy_synthesis_test() {
-    let g = cup_game().mkbsc();
-    
-    println!("{:?}\n", g.dgame());
-
-    let mut s = g.all_strategies();
-    loop {
-        println!("\n\n{:?}", s.get_raw());
-        //println!("{:?}", verify_memoryless_strategy());
-
-        if !s.advance() { break; }
-    }
+    let g: Game<_, 2> = (&g).into();
+    println!("{:?}", g);
 }

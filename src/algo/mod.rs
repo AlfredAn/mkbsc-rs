@@ -4,9 +4,9 @@ pub mod mkbsc;
 pub mod dkbsc;
 pub mod strat_synth;
 
+pub use crate::game::*;
 use std::collections::HashSet;
 use crate::game::VisitSet;
-use crate::*;
 pub use project::*;
 pub use kbsc::*;
 pub use mkbsc::*;

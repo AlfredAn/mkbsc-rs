@@ -1,11 +1,11 @@
 pub mod strategy;
 pub mod strategy1;
 
+use crate::algo::*;
 use std::marker::PhantomData;
 use crate::algo::SimAction;
 use crate::algo::simulate;
 use array_init::*;
-use crate::*;
 
 use thiserror::Error;
 
