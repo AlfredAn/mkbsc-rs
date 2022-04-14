@@ -4,18 +4,61 @@ use fixedbitset::FixedBitSet;
 use std::{ops::{Index, Range}, rc::Rc};
 use array_init::array_init;
 use std::{cell::RefCell};
+use itertools::*;
 
-/// panics if any of the slices are empty
-pub fn cartesian_product<T, const N: usize>(x: [&[T]; N], mut f: impl FnMut([&T; N])) {
+pub fn fbs_intersection_check_empty(s: &mut FixedBitSet, s2: &FixedBitSet) -> bool {
+    assert_eq!(s.len(), s2.len());
+
+    let mut empty = true;
+    for (b, b2) in izip!(s.as_mut_slice(), s2.as_slice()) {
+        *b &= b2;
+        empty &= *b == 0;
+    }
+    empty
+}
+
+pub fn fbs_filter(s: &mut FixedBitSet, mut f: impl FnMut(usize) -> bool) -> usize {
+    let mut count = 0;
+
+    for (i, block) in s.as_mut_slice().iter_mut().enumerate() {
+        let i = i * 32;
+        let mut temp = *block;
+
+        while temp != 0 {
+            // borrowed from FixedBitSet source code
+            let t = temp & 0_u32.wrapping_sub(temp);
+            let r = temp.trailing_zeros() as usize;
+            temp ^= t;
+
+            if f(i + r) {
+                count += 1;
+            } else {
+                *block ^= t;
+            }
+        }
+    }
+
+    count
+}
+
+pub fn cartesian_product_generic<T, const N: usize>(
+    x: impl Fn(usize, usize) -> T,
+    len: [usize; N],
+    mut f: impl FnMut([T; N])
+) {
+    if len.contains(&0) {
+        return;
+    }
+
     let mut i = [0; N];
     'outer: loop {
         f(array_init(|j|
-            &x[j][i[j]]
+            x(j, i[j])
         ));
 
         for j in 0..N {
             i[j] += 1;
-            if i[j] < x[j].len() {
+            if i[j] < len[j] {
                 continue 'outer;
             } else {
                 i[j] = 0;
@@ -23,6 +66,22 @@ pub fn cartesian_product<T, const N: usize>(x: [&[T]; N], mut f: impl FnMut([&T;
         }
         break;
     }
+}
+
+pub fn cartesian_product_ints<T, const N: usize>(max: [usize; N], f: impl FnMut([usize; N])) {
+    cartesian_product_generic(
+        |_, i| i,
+        max,
+        f
+    );
+}
+
+pub fn cartesian_product<T, const N: usize>(x: [&[T]; N], f: impl FnMut([&T; N])) {
+    cartesian_product_generic(
+        |j, i| &x[j][i],
+        x.map(|y| y.len()),
+        f
+    );
 }
 
 pub type Itr<'a, T> = Box<dyn Iterator<Item=T> + 'a>;
