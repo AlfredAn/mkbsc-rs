@@ -1,10 +1,7 @@
-use crate::algo::*;
-use crate::game::index::node_index;
-use crate::game::dgame::DGame;
 use std::cmp::*;
-use std::ops::*;
+
+use crate::algo::*;
 use Outcome::*;
-use crate::game::*;
 
 type Depth = u16;
 
@@ -97,8 +94,8 @@ impl StratEntry {
             outcome: if is_goal {Win(0)} else {Lose}
         }
     }
-    fn insert(&mut self, a: ActionIndex, outcome: Outcome) -> (bool, Outcome) {
-        let a = &mut self.action[a.index()];
+    fn insert(&mut self, a: Act, outcome: Outcome) -> (bool, Outcome) {
+        let a = &mut self.action[a as usize];
         let a_old = *a;
         *a |= outcome;
 
@@ -109,18 +106,20 @@ impl StratEntry {
     }
 }
 
-pub fn find_memoryless_strategies<T: Clone>(g: &DGame<T, 1>) -> Vec<StratEntry> {
-    let n = g.graph.node_count();
+pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
+    let n = g.n_loc();
 
     let mut w = Vec::with_capacity(n);
     let mut w_list = Vec::new();
 
-    for i in (0..n).map(|i| node_index(i)) {
-        if g.is_winning(&i) {
-            w.push(StratEntry::new(g.n_actions, true));
-            w_list.push(i);
+    let n_actions = g.n_actions[0];
+
+    for l in (0..n).map(|l| l as Loc) {
+        if g.is_winning(l) {
+            w.push(StratEntry::new(n_actions, true));
+            w_list.push(l);
         } else {
-            w.push(StratEntry::new(g.n_actions, false));
+            w.push(StratEntry::new(n_actions, false));
         }
     }
     
@@ -129,10 +128,10 @@ pub fn find_memoryless_strategies<T: Clone>(g: &DGame<T, 1>) -> Vec<StratEntry> 
     loop {
         //println!("depth={}", depth);
 
-        for a in g.actions1() {
-            for l in g.pre(w_list.iter().copied(), a) {
-                let outcome = g.post1(&l, a)
-                    .map(|l2| w[l2.index()].outcome)
+        for a in 0..n_actions {
+            for l in g.pre_set(w_list.iter().copied(), [a]) {
+                let outcome = g.post(l, [a])
+                    .map(|l2| w[l2 as usize].outcome)
                     //.inspect(|x| //println!("    {:?}", x))
                     .reduce(|x, y| x & y)
                     .unwrap();
@@ -144,7 +143,7 @@ pub fn find_memoryless_strategies<T: Clone>(g: &DGame<T, 1>) -> Vec<StratEntry> 
 
         let mut updated = false;
         for (l, a, outcome) in buf.drain(..) {
-            let (did_change, old) = w[l.index()].insert(a, outcome);
+            let (did_change, old) = w[l as usize].insert(a, outcome);
             if did_change {
                 if outcome.can_win() && !old.can_win() {
                     w_list.push(l);
@@ -162,8 +161,8 @@ pub fn find_memoryless_strategies<T: Clone>(g: &DGame<T, 1>) -> Vec<StratEntry> 
 
 #[derive(Debug, Clone)]
 pub struct AllStrategies1 {
-    strat: Vec<Option<ActionIndex>>,
-    variables: Vec<(NodeIndex, Vec<ActionIndex>, u32)>
+    strat: Vec<Option<Act>>,
+    variables: Vec<(Loc, Vec<Act>, u32)>
 }
 
 impl AllStrategies1 {
@@ -172,24 +171,18 @@ impl AllStrategies1 {
             *i += 1;
 
             if (*i as usize) < actions.len() {
-                self.strat[l.index()] = Some(actions[*i as usize]);
+                self.strat[*l as usize] = Some(actions[*i as usize]);
                 return true;
             } else {
                 *i = 0;
-                self.strat[l.index()] = Some(actions[0]);
+                self.strat[*l as usize] = Some(actions[0]);
             }
         }
 
         false
     }
 
-    pub fn get<'a, T: Clone + 'a>(&'a self) -> impl MemorylessStrategy1<DGame<T, 1>> + 'a {
-        memoryless_strategy1(|obs: &ObsIndex|
-            self.get_raw()[obs.index()]
-        )
-    }
-
-    pub fn get_raw(&self) -> &Vec<Option<ActionIndex>> {
+    pub fn get(&self) -> &Vec<Option<Act>> {
         &self.strat
     }
 
@@ -208,14 +201,14 @@ impl AllStrategies1 {
         for (l, entry) in w.iter().enumerate() {
             for (a, &outcome) in entry.action.iter().enumerate() {
                 if outcome.can_win() {
-                    buf.push((a.into(), outcome));
+                    buf.push((a, outcome));
                 }
             }
 
             if entry.outcome.is_win() {
                 let best = buf.iter()
                     .copied()
-                    .reduce(|(l1, o1), (l2, o2)| if o1 <= o2 {(l1, o1)} else {(l2, o2)})
+                    .reduce(|(a1, o1), (a2, o2)| if o1 <= o2 {(a1, o1)} else {(a2, o2)})
                     .unwrap();
                 buf.clear();
                 buf.push(best);
@@ -232,7 +225,7 @@ impl AllStrategies1 {
                     base.push(Some(buf[0].0));
                     
                     variables.push((
-                        node_index(l),
+                        l as Loc,
                         buf.drain(..)
                             .map(|(a, _)| a)
                             .collect(),

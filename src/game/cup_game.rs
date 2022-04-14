@@ -1,5 +1,5 @@
-use crate::game2::AbstractGame;
-use crate::game2::Act;
+use crate::game::AbstractGame;
+use crate::game::Act;
 use enumset::*;
 use self::Loc::*;
 

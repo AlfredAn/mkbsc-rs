@@ -24,6 +24,10 @@ impl LocSet {
         self.s.ones().map(|l| l as Loc)
     }
 
+    pub fn contains(&self, l: Loc) -> bool {
+        self.s.contains(l as usize)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.s.count_ones(..) == 0
     }

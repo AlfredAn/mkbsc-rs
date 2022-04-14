@@ -1,17 +1,13 @@
 #![allow(dead_code)]
 
-use crate::game2::*;
+pub use game::*;
+pub use algo::*;
 
 #[macro_use]
 mod game;
-mod games;
 mod algo;
 #[macro_use]
 mod util;
-#[macro_use]
-mod macros;
-mod test;
-mod game2;
 
 fn main() {
     let g = Rc::new(CupGame().build());

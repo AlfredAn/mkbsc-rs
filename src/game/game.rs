@@ -1,3 +1,5 @@
+use std::iter;
+
 use crate::util::range_product;
 use slice_group_by::GroupBy;
 use super::*;
@@ -93,6 +95,10 @@ impl<T, const N: usize> Game<T, N> {
         self.post_raw(l, a).iter().map(|&(_, l)| l)
     }
 
+    pub fn pre_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
+        iter::once_with(|| todo!())
+    }
+
     pub fn post_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + 'a
     where
         I: IntoIterator<Item=Loc>,
@@ -102,6 +108,10 @@ impl<T, const N: usize> Game<T, N> {
             .flat_map(move |l|
                 self.post(l, a)
             )
+    }
+
+    pub fn l0(&self) -> Loc {
+        0
     }
 }
 

@@ -2,11 +2,6 @@ pub mod strategy;
 pub mod strategy1;
 
 use crate::algo::*;
-use std::marker::PhantomData;
-use crate::algo::SimAction;
-use crate::algo::simulate;
-use array_init::*;
-
 use thiserror::Error;
 
 pub use strategy::*;
@@ -20,15 +15,11 @@ pub enum StrategyError {
     Incomplete
 }
 
-pub fn verify_strategy<G, M, const N: usize>(
-    g: &G,
+pub fn verify_strategy<T, M: Clone, const N: usize>(
+    g: &Game<T, N>,
     init: [M; N],
-    strat: impl Strategy<G, N, M=M>
-) -> Result<(), StrategyError>
-where
-    G: Game<N> + HasVisitSet<N>,
-    M: Clone
-{
+    strat: impl Strategy<N, M=M>
+) -> Result<(), StrategyError> {
     simulate(g, init, |l, mem, is_visited|
         if g.is_winning(l) {
             SimAction::Skip
@@ -38,7 +29,7 @@ where
             let obs = g.observe(l);
             if let Some(x) = from_iter(
                 (0..N).map_while(
-                    |i| strat.call(&obs[i], &mem[i], G::agent(i))
+                    |i| strat.call(obs[i], &mem[i], i)
                 )
             ) {
                 let a = array_init(|i| x[i].0);
@@ -51,12 +42,9 @@ where
     )
 }
 
-pub fn verify_memoryless_strategy<G, const N: usize>(
-    g: &G,
-    strat: impl MemorylessStrategy<G, N>
-) -> Result<(), StrategyError>
-where
-    G: Game<N> + HasVisitSet<N>
-{
+pub fn verify_memoryless_strategy<T, const N: usize>(
+    g: &Game<T, N>,
+    strat: impl MemorylessStrategy<N>
+) -> Result<(), StrategyError> {
     verify_strategy(g, [(); N], strat)
 }
