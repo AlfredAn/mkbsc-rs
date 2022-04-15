@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 
 #[derive(Debug, Clone)]
 pub struct MKBSC<T, const N: usize> {
@@ -21,7 +21,7 @@ impl<T: Clone, const N: usize> MKBSC<T, N> {
         }
     }
 
-    pub fn data_ref(&self, s: [game::Loc; N]) -> [&KBSCData<T>; N] {
+    pub fn data_ref(&self, s: [Loc; N]) -> [&KBSCData<T>; N] {
         array_init(|i|
             self.gki[i].data(s[i])
         )
@@ -29,8 +29,8 @@ impl<T: Clone, const N: usize> MKBSC<T, N> {
 }
 
 impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
-    type Loc = [game::Loc; N];
-    type Obs = game::Loc;
+    type Loc = [Loc; N];
+    type Obs = Loc;
     type Data = [KBSCData<T>; N];
 
     fn l0(&self) -> Self::Loc { [0; N] }

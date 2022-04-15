@@ -1,9 +1,20 @@
 use crate::*;
-use super::*;
 
 #[derive(Debug, Clone)]
 pub struct AllStrategies<const N: usize> {
     parts: [AllStrategies1; N]
+}
+
+#[derive(Debug, Clone)]
+pub struct MlessStrat<S: MemorylessStrategy1, const N: usize>([S; N]);
+
+impl<'a, S: MemorylessStrategy1, const N: usize> Strategy<N> for MlessStrat<S, N> {
+    type M = ();
+
+    fn call(&self, obs: Obs, _: &(), agt: Agt) -> Option<(Act, ())> {
+        self.0[agt as usize].call1(obs, &())
+    }
+    fn init(&self) -> [Self::M; N] { [(); N] }
 }
 
 impl<const N: usize> AllStrategies<N> {
@@ -18,9 +29,17 @@ impl<const N: usize> AllStrategies<N> {
 
         false
     }
+    
+    pub fn get(&self) -> MlessStrat<MlessStrat1<Vec<Option<Act>>>, N> {
+        MlessStrat(array_init(|i| self.parts[i].get()))
+    }
 
-    pub fn get(&self) -> [&Vec<Option<Act>>; N] {
-        array_init(|i| self.parts[i].get())
+    pub fn get_ref<'a>(&'a self) -> MlessStrat<MlessStrat1<&'a Vec<Option<Act>>>, N> {
+        MlessStrat(array_init(|i| self.parts[i].get_ref()))
+    }
+
+    pub fn get_raw(&self) -> [&Vec<Option<Act>>; N] {
+        array_init(|i| self.parts[i].get_raw())
     }
 
     pub fn reset(&mut self) {
@@ -34,9 +53,18 @@ impl<const N: usize> AllStrategies<N> {
     }
 }
 
+pub fn all_strategies<T, const N: usize>(mkbsc: &MKBSC<T, N>) -> AllStrategies<N> {
+    AllStrategies::new(
+        array_init(|i|
+            all_strategies1(&mkbsc.gki[i])
+        )
+    )
+}
+
 pub trait Strategy<const N: usize> {
-    type M;
+    type M: Clone + Eq + Hash;
     fn call(&self, obs: Obs, mem: &Self::M, agt: Agt) -> Option<(Act, Self::M)>;
+    fn init(&self) -> [Self::M; N];
 }
 
 pub trait MemorylessStrategy<const N: usize>: Strategy<N, M=()> {

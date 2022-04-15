@@ -1,43 +1,25 @@
 #[allow(dead_code)]
 
-use fixedbitset::FixedBitSet;
-use std::ops::Range;
-use array_init::array_init;
-use itertools::*;
+use crate::*;
 
-pub fn fbs_intersection_check_empty(s: &mut FixedBitSet, s2: &FixedBitSet) -> bool {
-    assert_eq!(s.len(), s2.len());
+pub fn format_list<T>(
+    f: &mut fmt::Formatter,
+    iter: impl IntoIterator<Item=T>,
+    mut x: impl FnMut(&mut fmt::Formatter, T) -> fmt::Result
+) -> fmt::Result {
+    write!(f, "[")?;
 
-    let mut empty = true;
-    for (b, b2) in izip!(s.as_mut_slice(), s2.as_slice()) {
-        *b &= b2;
-        empty &= *b == 0;
-    }
-    empty
-}
-
-pub fn fbs_filter(s: &mut FixedBitSet, mut f: impl FnMut(usize) -> bool) -> usize {
-    let mut count = 0;
-
-    for (i, block) in s.as_mut_slice().iter_mut().enumerate() {
-        let i = i * 32;
-        let mut temp = *block;
-
-        while temp != 0 {
-            // borrowed from FixedBitSet source code
-            let t = temp & 0_u32.wrapping_sub(temp);
-            let r = temp.trailing_zeros() as usize;
-            temp ^= t;
-
-            if f(i + r) {
-                count += 1;
-            } else {
-                *block ^= t;
-            }
+    let mut first = true;
+    for a in iter.into_iter() {
+        if !first {
+            write!(f, ", ")?;
         }
+        first = false;
+        
+        x(f, a)?;
     }
 
-    count
+    write!(f, "]")
 }
 
 pub fn cartesian_product_generic<T, const N: usize>(

@@ -1,6 +1,4 @@
-use std::cmp::*;
-
-use crate::algo::*;
+use crate::*;
 use Outcome::*;
 
 type Depth = u16;
@@ -8,16 +6,16 @@ type Depth = u16;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
 pub enum Outcome {
     Win(Depth), // guaranteed to win in at most x steps
-    Either(Depth, Depth), // possible to win after x steps; possible to reach Win(_) state in y steps
+    Maybe(Depth, Depth), // possible to win after x steps; possible to reach Win(_) state in y steps
     Lose
 }
 
 impl Outcome {
     pub fn is_win(self) -> bool { if let Win(_) = self {true} else {false} }
-    pub fn is_either(self) -> bool { if let Either(_, _) = self {true} else {false} }
+    pub fn is_maybe(self) -> bool { if let Maybe(_, _) = self {true} else {false} }
     pub fn is_lose(self) -> bool { self == Lose }
     pub fn can_win(self) -> bool { self != Lose }
-    pub fn increment(self) -> Self { match self { Win(x) => Win(x+1), Either(x, y) => Either(x+1, y+1), Lose => Lose } }
+    pub fn increment(self) -> Self { match self { Win(x) => Win(x+1), Maybe(x, y) => Maybe(x+1, y+1), Lose => Lose } }
 }
 
 impl Ord for Outcome {
@@ -26,9 +24,9 @@ impl Ord for Outcome {
             (Win(a), Win(b)) => a.cmp(b),
             (Win(_), _) => Ordering::Less,
             (_, Win(_)) => Ordering::Greater,
-            (Either(a, b), Either(c, d)) => b.cmp(d).then(a.cmp(c)),
-            (Either(_, _), Lose) => Ordering::Less,
-            (Lose, Either(_, _)) => Ordering::Greater,
+            (Maybe(a, b), Maybe(c, d)) => b.cmp(d).then(a.cmp(c)),
+            (Maybe(_, _), Lose) => Ordering::Less,
+            (Lose, Maybe(_, _)) => Ordering::Greater,
             (Lose, Lose) => Ordering::Equal
         }
     }
@@ -39,13 +37,13 @@ impl BitAnd for Outcome {
     fn bitand(self, rhs: Self) -> Self {
         match (self, rhs) {
             (Win(a), Win(b)) => Win(max(a, b)),
-            (Win(a), Either(b, _)) => Either(min(a, b), 0),
-            (Win(a), Lose) => Either(a, 0),
-            (Either(a, _), Win(b)) => Either(min(a, b), 0),
-            (Either(a, b), Either(c, d)) => Either(min(a, c), min(b, d)),
-            (Either(a, b), Lose) => Either(a, b),
-            (Lose, Win(a)) => Either(a, 0),
-            (Lose, Either(a, b)) => Either(a, b),
+            (Win(a), Maybe(b, _)) => Maybe(min(a, b), 0),
+            (Win(a), Lose) => Maybe(a, 0),
+            (Maybe(a, _), Win(b)) => Maybe(min(a, b), 0),
+            (Maybe(a, b), Maybe(c, d)) => Maybe(min(a, c), min(b, d)),
+            (Maybe(a, b), Lose) => Maybe(a, b),
+            (Lose, Win(a)) => Maybe(a, 0),
+            (Lose, Maybe(a, b)) => Maybe(a, b),
             (Lose, Lose) => Lose
         }
     }
@@ -56,9 +54,9 @@ impl BitOr for Outcome {
     fn bitor(self, rhs: Self) -> Self {
         match (self, rhs) {
             (Win(a), Win(b)) => Win(min(a, b)),
-            (Win(a), Either(_, _)) => Win(a),
-            (Either(_, _), Win(a)) => Win(a),
-            (Either(a, b), Either(c, d)) => Either(min(a, c), min(b, d)),
+            (Win(a), Maybe(_, _)) => Win(a),
+            (Maybe(_, _), Win(a)) => Win(a),
+            (Maybe(a, b), Maybe(c, d)) => Maybe(min(a, c), min(b, d)),
             (Lose, x) => x,
             (x, Lose) => x
         }
@@ -132,7 +130,7 @@ pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
             for l in g.pre_set(w_list.iter().copied(), [a]) {
                 let outcome = g.post(l, [a])
                     .map(|l2| w[l2 as usize].outcome)
-                    //.inspect(|x| //println!("    {:?}", x))
+                    //.inspect(|x| println!("    {:?}", x))
                     .reduce(|x, y| x & y)
                     .unwrap();
                 
@@ -165,6 +163,34 @@ pub struct AllStrategies1 {
     variables: Vec<(Loc, Vec<Act>, u32)>
 }
 
+#[derive(Clone)]
+pub struct MlessStrat1<R: Borrow<Vec<Option<Act>>>>(R);
+
+impl<R: Borrow<Vec<Option<Act>>>> Strategy<1> for MlessStrat1<R> {
+    type M = ();
+
+    fn call(&self, obs: Obs, _: &(), _: Agt) -> Option<(Act, ())> {
+        self.0.borrow()[obs as usize].map(|a| (a, ()))
+    }
+
+    fn init(&self) -> [Self::M; 1] { [()] }
+}
+
+impl<R> Debug for MlessStrat1<R>
+where
+    R: Borrow<Vec<Option<Act>>>
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        format_list(f, self.0.borrow(), |f, x|
+            if let Some(a) = x {
+                write!(f, "{}", a)
+            } else {
+                write!(f, "-")
+            }
+        )
+    }
+}
+
 impl AllStrategies1 {
     pub fn advance(&mut self) -> bool {
         for (l, actions, i) in &mut self.variables {
@@ -182,7 +208,15 @@ impl AllStrategies1 {
         false
     }
 
-    pub fn get(&self) -> &Vec<Option<Act>> {
+    pub fn get(&self) -> MlessStrat1<Vec<Option<Act>>> {
+        MlessStrat1(self.get_raw().clone())
+    }
+
+    pub fn get_ref<'a>(&'a self) -> MlessStrat1<&'a Vec<Option<Act>>> {
+        MlessStrat1(self.get_raw())
+    }
+
+    pub fn get_raw(&self) -> &Vec<Option<Act>> {
         &self.strat
     }
 
@@ -240,4 +274,14 @@ impl AllStrategies1 {
             variables: variables
         }
     }
+}
+
+pub fn all_strategies1<T>(g: &Game<T, 1>) -> AllStrategies1 {
+    let fms = find_memoryless_strategies(g);
+    //println!("{:#?}", fms);
+
+    AllStrategies1::new(
+        &fms,
+        g.n_obs(0)
+    )
 }

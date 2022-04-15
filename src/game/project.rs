@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 
 #[derive(new, Debug, Clone)]
 pub struct Project<T, const N: usize> {
@@ -18,7 +18,7 @@ impl<T: Clone, const N: usize> AbstractGame<1> for Project<T, N> {
     fn data(&self, &l: &Self::Loc) -> Self::Data { self.g.data(l).clone() }
 
     fn succ(&self, &l: &Self::Loc, mut f: impl FnMut([Act; 1], Self::Loc)) {
-        for &(a, l2) in self.g.succ(l) {
+        for &(a, l2) in self.g.successors(l) {
             f([a[self.agt]], l2)
         }
     }

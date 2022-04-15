@@ -1,5 +1,7 @@
 use crate::*;
 
+pub use strat_synth::*;
+
 pub mod strat_synth;
 
 /// Perform depth first search on `g`, calling the function `node`

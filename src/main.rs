@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-pub use game::*;
-pub use algo::*;
+pub use prelude::*;
 
 #[macro_use]
+mod prelude;
+
 mod game;
 mod algo;
-#[macro_use]
 mod util;
 
 fn main() {
@@ -25,6 +25,17 @@ fn main() {
 
     println!("G^K: {:?}", gk);
 
-    let g2k = MKBSC::new(gk).build();
-    println!("G^(2K): {:?}", g2k);
+    let mkbsc2 = MKBSC::new(gk);
+    let g2k = mkbsc2.build();
+    println!("G^(2K): {:?}", &g2k);
+
+    let mut strategies = all_strategies(&mkbsc2);
+    loop {
+        println!("{:?}", strategies.get_ref());
+
+        let winning = verify_strategy(&g2k, strategies.get_ref());
+        println!("{:?}", winning);
+
+        if !strategies.advance() { break; }
+    }
 }

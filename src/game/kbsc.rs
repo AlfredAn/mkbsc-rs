@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 
 #[derive(new, Debug, Clone)]
 pub struct KBSC<T> {
@@ -38,7 +38,7 @@ impl<T> AbstractGame<1> for KBSC<T> {
             succ.clear();
 
             for l in s.iter(g) {
-                for &([a], l2) in g.succ(l) {
+                for &([a], l2) in g.successors(l) {
                     let [obs] = g.observe(l2);
                     succ.insert((a, obs, l2));
                 }

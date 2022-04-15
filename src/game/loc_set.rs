@@ -1,4 +1,6 @@
-use super::*;
+use derive_more::*;
+
+use crate::*;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, From, Into)]
 pub struct LocSet {

@@ -1,8 +1,6 @@
-use std::iter;
-
-use crate::util::range_product;
 use slice_group_by::GroupBy;
-use super::*;
+use crate::hash_map::Entry::*;
+use crate::*;
 
 pub type Loc = u32;
 pub type Obs = u32;
@@ -20,7 +18,9 @@ pub struct Game<T, const N: usize> {
 
 #[derive(Debug, Clone)]
 pub struct LocData<T, const N: usize> {
-    pub succ: Vec<([Act; N], Loc)>, // sorted by action
+    // sorted by action
+    pub successors: Vec<([Act; N], Loc)>, 
+    pub predecessors: Vec<([Act; N], Loc)>,
     
     pub is_winning: bool,
     pub obs: [Obs; N],
@@ -75,30 +75,23 @@ impl<T, const N: usize> Game<T, N> {
     pub fn edges(&self) -> impl Iterator<Item=(Loc, [Act; N], Loc)> + '_ {
         self.iter()
             .flat_map(|(l, d)|
-                d.succ.iter()
+                d.successors.iter()
                     .map(move |&(a, l2)| (l, a, l2))
             )
     }
 
-    pub fn succ(&self, l: Loc) -> &[([Act; N], Loc)] {
-        &self[l].succ
+    pub fn successors(&self, l: Loc) -> &[([Act; N], Loc)] {
+        &self[l].successors
     }
-
     pub fn post_raw(&self, l: Loc, a: [Act; N]) -> &[([Act; N], Loc)] {
-        self.succ(l)
+        self.successors(l)
             .linear_group_by(|(a1, _), (a2, _)| a1 == a2)
             .find(|slice| slice[0].0 == a)
             .unwrap_or(&[])
     }
-
     pub fn post(&self, l: Loc, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
         self.post_raw(l, a).iter().map(|&(_, l)| l)
     }
-
-    pub fn pre_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
-        iter::once_with(|| todo!())
-    }
-
     pub fn post_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + 'a
     where
         I: IntoIterator<Item=Loc>,
@@ -107,6 +100,29 @@ impl<T, const N: usize> Game<T, N> {
         s.into_iter()
             .flat_map(move |l|
                 self.post(l, a)
+            )
+    }
+
+    pub fn predecessors(&self, l: Loc) -> &[([Act; N], Loc)] {
+        &self[l].predecessors
+    }
+    pub fn pre_raw(&self, l: Loc, a: [Act; N]) -> &[([Act; N], Loc)] {
+        self.predecessors(l)
+            .linear_group_by(|(a1, _), (a2, _)| a1 == a2)
+            .find(|slice| slice[0].0 == a)
+            .unwrap_or(&[])
+    }
+    pub fn pre(&self, l: Loc, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
+        self.pre_raw(l, a).iter().map(|&(_, l)| l)
+    }
+    pub fn pre_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + 'a
+    where
+        I: IntoIterator<Item=Loc>,
+        I::IntoIter: 'a
+    {
+        s.into_iter()
+            .flat_map(move |l|
+                self.pre(l, a)
             )
     }
 
@@ -164,7 +180,8 @@ impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> 
                     }
 
                     r.loc.push(LocData {
-                        succ: Vec::new(),
+                        successors: Vec::new(),
+                        predecessors: Vec::new(),
                         is_winning: g.is_winning(&l),
                         obs: (*obs).try_into().unwrap(),
                         obs_offset: (*obs_offset).try_into().unwrap(),
@@ -191,17 +208,19 @@ impl<G: AbstractGame<N> + ?Sized, const N: usize> From<&G> for Game<G::Data, N> 
                 } else {
                     visit!(l2)
                 };
-                if !r.succ(n).iter().any(|&(a_, n_)| (a, n2) == (a_, n_)) {
-                    r[n].succ.push((a, n2));
+                if !r.successors(n).iter().any(|&(a_, n_)| (a, n2) == (a_, n_)) {
+                    r[n].successors.push((a, n2));
+                    r[n2].predecessors.push((a, n));
                 }
             });
 
             i += 1;
         }
 
-        // sort successors by action
-        for n in &mut r.loc {
-            n.succ.sort_unstable();
+        // sort by action
+        for l in 0..r.n_loc() {
+            r.loc[l].successors.sort_unstable();
+            r.loc[l].predecessors.sort_unstable();
         }
 
         r
@@ -212,14 +231,14 @@ macro_rules! impl_format {
     ($trait:path, $fmt:literal, $fmt2:literal, $fmt3:literal) => {
         impl<T: $trait, const N: usize> $trait for Game<T, N> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                let ns = self.iter().format_with(", ", |(_, n), f| {
+                let ns = self.iter().format_with(",\n           ", |(_, n), f| {
                     f(&format_args!($fmt2, n.data, if n.is_winning {":W"} else {""}))
                 });
         
                 let os = self.obs.iter().enumerate().format_with("\n    ", |(i, oi), f|
-                    f(&format_args!("Obs[{}]: [{}]",
+                    f(&format_args!("Obs[{}]: {{ {} }}",
                         i,
-                        oi.iter().format_with(", ", |o, f|
+                        oi.iter().format_with(",\n              ", |o, f|
                             f(&format_args!("{}",
                                 o.iter().format_with("|", |&l, f|
                                     f(&format_args!($fmt, self.data(l)))
@@ -230,7 +249,7 @@ macro_rules! impl_format {
                 );
                 
                 let es = self.edges()
-                    .format_with(", ", |(l, a, l2), f| {
+                    .format_with(",\n             ", |(l, a, l2), f| {
                         f(&format_args!($fmt3,
                             self.data(l),
                             self.data(l2),
@@ -240,7 +259,7 @@ macro_rules! impl_format {
         
                 write!(f, "Game {{\n")?;
                 write!(f, "    n_agents: {}, n_actions: {:?}\n", N, self.n_actions)?;
-                write!(f, "    Loc: [{}]\n    {}\n    Delta: [{}]\n", ns, os, es)?;
+                write!(f, "    Loc: {{ {} }}\n    {}\n    Delta: {{ {} }}\n", ns, os, es)?;
                 write!(f, "}}")
             }
         }
