@@ -18,7 +18,7 @@ pub trait AbstractGame<const N: usize> {
         f: impl FnMut([Act; N], Self::Loc)
     );
 
-    fn build(&self) -> Game<Self::Data, N> {
-        self.into()
+    fn build(self) -> ConstructedGame<Self, N> where Self: Sized {
+        build_game(Rc::new(self))
     }
 }

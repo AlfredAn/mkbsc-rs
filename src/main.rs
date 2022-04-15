@@ -10,26 +10,24 @@ mod algo;
 mod util;
 
 fn main() {
-    let g = Rc::new(CupGame().build());
+    let g = CupGame().build();
 
-    let mkbsc = MKBSC::new(g.clone());
-    let gk = Rc::new(mkbsc.build());
+    let gk = MKBSC::new(&g).build();
 
     println!("G: {:?}", g);
 
-    println!("G|0: {:?}", mkbsc.gi[0]);
-    println!("G|1: {:?}", mkbsc.gi[1]);
+    println!("G|0: {:?}", gk.origin.gi[0]);
+    println!("G|1: {:?}", gk.origin.gi[1]);
 
-    println!("(G|0)^K: {:?}", mkbsc.gki[0]);
-    println!("(G|1)^K: {:?}", mkbsc.gki[1]);
+    println!("(G|0)^K: {:?}", gk.origin.gki[0]);
+    println!("(G|1)^K: {:?}", gk.origin.gki[1]);
 
     println!("G^K: {:?}", gk);
 
-    let mkbsc2 = MKBSC::new(gk);
-    let g2k = mkbsc2.build();
+    let g2k = MKBSC::new(&gk).build();
     println!("G^(2K): {:?}", &g2k);
 
-    let mut strategies = all_strategies(&mkbsc2);
+    let mut strategies = all_strategies(&g2k.origin);
     loop {
         println!("{:?}", strategies.get_ref());
 

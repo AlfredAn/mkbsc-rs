@@ -8,12 +8,13 @@ pub struct MKBSC<T, const N: usize> {
 }
 
 impl<T: Clone, const N: usize> MKBSC<T, N> {
-    pub fn new(g: Rc<Game<T, N>>) -> Self {
-        let gi = array_init(|i|
-            Rc::new(Project::new(g.clone(), i).build())
+    pub fn new(g: impl Into<Rc<Game<T, N>>>) -> Self {
+        let g = g.into();
+        let gi: [Rc<Game<T, 1>>; N] = array_init(|i|
+            (&Project::new(g.clone(), i).build()).into()
         );
-        let gki = array_init(|i|
-            Rc::new(KBSC::new(gi[i].clone()).build())
+        let gki: [_; N] = array_init(|i|
+            (&KBSC::new(gi[i].clone()).build()).into()
         );
 
         Self {
