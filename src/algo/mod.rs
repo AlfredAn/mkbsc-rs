@@ -14,8 +14,8 @@ pub mod strat_synth;
 /// `node` will always be called on a location before it is used in a call to `edge`.
 pub fn explore<T, const N: usize>(
     g: &Game<T, N>,
-    mut node: impl FnMut(Loc),
-    mut edge: impl FnMut(Loc, [Act; N], Loc)
+    mut node: impl FnMut(Loc<T>),
+    mut edge: impl FnMut(Loc<T>, [Act; N], Loc<T>)
 ) {
     let mut stack = Vec::new();
     let mut visited = LocSet::new(g);
@@ -47,42 +47,8 @@ pub fn explore<T, const N: usize>(
 
 pub fn explore1<T>(
     g: &Game<T, 1>,
-    node: impl FnMut(Loc),
-    mut edge: impl FnMut(Loc, Act, Loc)
+    node: impl FnMut(Loc<T>),
+    mut edge: impl FnMut(Loc<T>, Act, Loc<T>)
 ) {
     explore(g, node, |l, [a], l2| edge(l, a, l2))
-}
-
-pub enum SimAction<A, M, E> {
-    Visit(A, M),
-    Skip,
-    Stop(E)
-}
-
-pub fn simulate<'a, T, M: Clone, E, const N: usize>(
-    g: &Game<T, N>,
-    init: M,
-    mut f: impl FnMut(Loc, &M, bool)
-        -> SimAction<[Act; N], M, E>
-) -> Result<(), E> {
-    let mut stack = vec![(g.l0(), init)];
-    let mut visited = LocSet::new(g);
-
-    while let Some((l, mem)) = stack.pop() {
-        let is_visited = visited.contains(l);
-        match f(l, &mem, is_visited) {
-            SimAction::Visit(a, mem) => {
-                for l2 in g.post(l, a) {
-                    stack.push((l2, mem.clone()));
-                }
-            },
-            SimAction::Skip => (),
-            SimAction::Stop(result) => {
-                return Err(result);
-            }
-        }
-        visited.insert(l);
-    }
-
-    Ok(())
 }

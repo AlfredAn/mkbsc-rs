@@ -1,20 +1,20 @@
 use crate::*;
 
 #[derive(Debug, Clone)]
-pub struct MKBSC<T, const N: usize> {
+pub struct MKBSC<T: Clone, const N: usize> {
     pub g: Rc<Game<T, N>>,
-    pub gi: [Rc<Game<T, 1>>; N],
-    pub gki: [Rc<Game<KBSCData<T>, 1>>; N]
+    pub gi: [ConstructedGame<Project<T, N>, 1>; N],
+    pub gki: [ConstructedGame<KBSC<T>, 1>; N]
 }
 
 impl<T: Clone, const N: usize> MKBSC<T, N> {
     pub fn new(g: impl Into<Rc<Game<T, N>>>) -> Self {
         let g = g.into();
-        let gi: [Rc<Game<T, 1>>; N] = array_init(|i|
-            (&Project::new(g.clone(), i).build()).into()
+        let gi: [_; N] = array_init(|i|
+            Project::new(g.clone(), i).build()
         );
         let gki: [_; N] = array_init(|i|
-            (&KBSC::new(gi[i].clone()).build()).into()
+            KBSC::new(gi[i].game.clone()).build()
         );
 
         Self {
@@ -22,19 +22,33 @@ impl<T: Clone, const N: usize> MKBSC<T, N> {
         }
     }
 
-    pub fn data_ref(&self, s: [Loc; N]) -> [&KBSCData<T>; N] {
+    pub fn data_ref(&self, s: [KLoc<T>; N]) -> [&KBSCData<T>; N] {
         array_init(|i|
             self.gki[i].data(s[i])
         )
     }
 }
 
-impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
-    type Loc = [Loc; N];
-    type Obs = Loc;
-    type Data = [KBSCData<T>; N];
+pub type KLoc<T> = Loc<KBSCData<T>>;
 
-    fn l0(&self) -> Self::Loc { [0; N] }
+#[derive(Clone)]
+pub struct MKBSCData<T, const N: usize>(pub [(KLoc<T>, KBSCData<T>); N]);
+
+impl<T, const N: usize> Debug for MKBSCData<T, N>
+where T: Debug {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", array_init::<_, _, N>(|i|
+            &self.0[i].1
+        ))
+    }
+}
+
+impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
+    type Loc = [KLoc<T>; N];
+    type Obs = KLoc<T>;
+    type Data = MKBSCData<T, N>;
+
+    fn l0(&self) -> Self::Loc { [loc(0); N] }
     fn n_actions(&self) -> [usize; N] { self.g.n_actions }
     fn obs(&self, &s: &Self::Loc) -> [Self::Obs; N] { s }
 
@@ -45,7 +59,12 @@ impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
     }
 
     fn data(&self, &s: &Self::Loc) -> Self::Data {
-        self.data_ref(s).map(|si| si.clone())
+        let d = self.data_ref(s);
+        MKBSCData(
+            array_init(|i|
+                (s[i], d[i].clone())
+            )
+        )
     }
 
     fn succ(&self, &s: &Self::Loc, mut f: impl FnMut([Act; N], Self::Loc)) {

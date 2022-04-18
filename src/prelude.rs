@@ -7,7 +7,8 @@ pub use std::{
     cell::RefCell,
     mem,
     cmp::{Ordering, min, max},
-    borrow::Borrow
+    borrow::Borrow,
+    marker::PhantomData
 };
 pub use fixedbitset::FixedBitSet;
 pub use array_init::{array_init, from_iter};

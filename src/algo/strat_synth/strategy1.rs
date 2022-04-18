@@ -112,7 +112,7 @@ pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
 
     let n_actions = g.n_actions[0];
 
-    for l in (0..n).map(|l| l as Loc) {
+    for l in (0..n).map(|l| loc(l)) {
         if g.is_winning(l) {
             w.push(StratEntry::new(n_actions, true));
             w_list.push(l);
@@ -129,7 +129,7 @@ pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
         for a in 0..n_actions {
             for l in g.pre_set(w_list.iter().copied(), [a]) {
                 let outcome = g.post(l, [a])
-                    .map(|l2| w[l2 as usize].outcome)
+                    .map(|l2| w[l2.index()].outcome)
                     //.inspect(|x| println!("    {:?}", x))
                     .reduce(|x, y| x & y)
                     .unwrap();
@@ -141,7 +141,7 @@ pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
 
         let mut updated = false;
         for (l, a, outcome) in buf.drain(..) {
-            let (did_change, old) = w[l as usize].insert(a, outcome);
+            let (did_change, old) = w[l.index()].insert(a, outcome);
             if did_change {
                 if outcome.can_win() && !old.can_win() {
                     w_list.push(l);
@@ -158,25 +158,25 @@ pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AllStrategies1 {
+pub struct AllStrategies1<T> {
     strat: Vec<Option<Act>>,
-    variables: Vec<(Loc, Vec<Act>, u32)>
+    variables: Vec<(Loc<T>, Vec<Act>, u32)>
 }
 
-#[derive(Clone)]
-pub struct MlessStrat1<R: Borrow<Vec<Option<Act>>>>(R);
+#[derive(new, Clone)]
+pub struct MlessStrat<T, R: Borrow<Vec<Option<Act>>>>(R, PhantomData<T>);
 
-impl<R: Borrow<Vec<Option<Act>>>> Strategy<1> for MlessStrat1<R> {
+impl<T, R: Borrow<Vec<Option<Act>>>> Strategy<T> for MlessStrat<T, R> {
     type M = ();
 
-    fn call(&self, obs: Obs, _: &(), _: Agt) -> Option<(Act, ())> {
-        self.0.borrow()[obs as usize].map(|a| (a, ()))
+    fn call(&self, obs: Obs<T>, _: &()) -> Option<(Act, ())> {
+        self.0.borrow()[obs.index()].map(|a| (a, ()))
     }
 
-    fn init(&self) -> [Self::M; 1] { [()] }
+    fn init(&self) -> Self::M { () }
 }
 
-impl<R> Debug for MlessStrat1<R>
+impl<T, R> Debug for MlessStrat<T, R>
 where
     R: Borrow<Vec<Option<Act>>>
 {
@@ -191,29 +191,29 @@ where
     }
 }
 
-impl AllStrategies1 {
+impl<T> AllStrategies1<T> {
     pub fn advance(&mut self) -> bool {
         for (l, actions, i) in &mut self.variables {
             *i += 1;
 
             if (*i as usize) < actions.len() {
-                self.strat[*l as usize] = Some(actions[*i as usize]);
+                self.strat[l.index()] = Some(actions[*i as usize]);
                 return true;
             } else {
                 *i = 0;
-                self.strat[*l as usize] = Some(actions[0]);
+                self.strat[l.index()] = Some(actions[0]);
             }
         }
 
         false
     }
 
-    pub fn get(&self) -> MlessStrat1<Vec<Option<Act>>> {
-        MlessStrat1(self.get_raw().clone())
+    pub fn get(&self) -> MlessStrat<T, Vec<Option<Act>>> {
+        MlessStrat::new(self.get_raw().clone())
     }
 
-    pub fn get_ref<'a>(&'a self) -> MlessStrat1<&'a Vec<Option<Act>>> {
-        MlessStrat1(self.get_raw())
+    pub fn get_ref<'a>(&'a self) -> MlessStrat<T, &'a Vec<Option<Act>>> {
+        MlessStrat::new(self.get_raw())
     }
 
     pub fn get_raw(&self) -> &Vec<Option<Act>> {
@@ -259,7 +259,7 @@ impl AllStrategies1 {
                     base.push(Some(buf[0].0));
                     
                     variables.push((
-                        l as Loc,
+                        loc(l),
                         buf.drain(..)
                             .map(|(a, _)| a)
                             .collect(),
@@ -276,7 +276,7 @@ impl AllStrategies1 {
     }
 }
 
-pub fn all_strategies1<T>(g: &Game<T, 1>) -> AllStrategies1 {
+pub fn all_strategies1<T>(g: &Game<T, 1>) -> AllStrategies1<T> {
     let fms = find_memoryless_strategies(g);
     //println!("{:#?}", fms);
 

@@ -7,11 +7,11 @@ pub struct Project<T, const N: usize> {
 }
 
 impl<T: Clone, const N: usize> AbstractGame<1> for Project<T, N> {
-    type Loc = game::Loc;
-    type Obs = game::Obs;
+    type Loc = Loc<T>;
+    type Obs = Obs<T>;
     type Data = T;
 
-    fn l0(&self) -> Self::Loc { 0 }
+    fn l0(&self) -> Self::Loc { loc(0) }
     fn n_actions(&self) -> [usize; 1] { [self.g.n_actions[self.agt]] }
     fn obs(&self, &l: &Self::Loc) -> [Self::Obs; 1] { [self.g.observe(l)[self.agt]] }
     fn is_winning(&self, &l: &Self::Loc) -> bool { self.g.is_winning(l) }

@@ -77,16 +77,16 @@ where
             {
                 let l = $l;
 
-                let n = r.n_loc() as Loc;
+                let n = loc(r.n_loc());
 
                 let o = g.obs(&l);
 
-                let mut obs = ArrayVec::<_, N>::new();
+                let mut obs_ = ArrayVec::<_, N>::new();
                 let mut obs_offset = ArrayVec::<_, N>::new();
                 for (agt, oi) in o.into_iter().enumerate() {
                     let obs_i = match obs_map.entry((agt, oi)) {
                         Vacant(e) => {
-                            let obs_i = r.obs[agt].len() as Obs;
+                            let obs_i = obs(r.obs[agt].len());
                             r.obs[agt].push(Vec::new());
                             e.insert(obs_i);
                             obs_i
@@ -95,9 +95,9 @@ where
                             *e.get()
                         }
                     };
-                    let obs_set = &mut r.obs[agt][obs_i as usize];
+                    let obs_set = &mut r.obs[agt][obs_i.index()];
 
-                    obs.push(obs_i);
+                    obs_.push(obs_i);
                     obs_offset.push(obs_set.len());
 
                     obs_set.push(n);
@@ -107,7 +107,7 @@ where
                     successors: Vec::new(),
                     predecessors: Vec::new(),
                     is_winning: g.is_winning(&l),
-                    obs: (*obs).try_into().unwrap(),
+                    obs: (*obs_).try_into().unwrap(),
                     obs_offset: (*obs_offset).try_into().unwrap(),
                     data: g.data(&l)
                 });
@@ -122,9 +122,9 @@ where
 
     visit!(g.l0());
 
-    let mut i = 0;
+    let mut i: u32 = 0;
     while let Some(l) = queue.pop_front() {
-        let n = i as Loc;
+        let n = loc(i);
 
         g.succ(&l, |a, l2| {
             let n2 = if let Some(&n2) = visited.get(&l2) {

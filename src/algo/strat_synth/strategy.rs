@@ -1,23 +1,49 @@
 use crate::*;
 
-#[derive(Debug, Clone)]
-pub struct AllStrategies<const N: usize> {
-    parts: [AllStrategies1; N]
+#[derive(Debug, new, Clone)]
+pub struct AllStrategies<T: Clone, const N: usize> {
+    parts: [AllStrategies1<KBSCData<T>>; N],
+    gk: ConstructedGame<MKBSC<T, N>, N>
 }
 
-#[derive(Debug, Clone)]
-pub struct MlessStrat<S: MemorylessStrategy1, const N: usize>([S; N]);
+#[derive(new, Clone)]
+pub struct MKBSCStratProfile<T: Clone, S: Strategy<KBSCData<T>>, const N: usize> {
+    s: [S; N],
+    gk: ConstructedGame<MKBSC<T, N>, N>
+}
 
-impl<'a, S: MemorylessStrategy1, const N: usize> Strategy<N> for MlessStrat<S, N> {
-    type M = ();
-
-    fn call(&self, obs: Obs, _: &(), agt: Agt) -> Option<(Act, ())> {
-        self.0[agt as usize].call1(obs, &())
+impl<T: Clone, S: Strategy<KBSCData<T>>, const N: usize> Debug for MKBSCStratProfile<T, S, N>
+where S: Debug {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        format_list(f, 0..N, |f, agt|
+            write!(f, "{:?}", self.s[agt])
+        )
     }
-    fn init(&self) -> [Self::M; N] { [(); N] }
 }
 
-impl<const N: usize> AllStrategies<N> {
+// implement inverse of this
+impl<T: Clone, S: Strategy<KBSCData<T>>, const N: usize> StrategyProfile<MKBSCData<T, N>, N> for MKBSCStratProfile<T, S, N> {
+    type M = S::M;
+
+    fn call(&self, agt: Agt, o_gk: Obs<MKBSCData<T, N>>, mem: &Self::M) -> Option<(Act, Self::M)> {
+        let (gk, gki) = (&self.gk.game, &self.gk.origin.gki[agt]);
+        let l_gk = gk.obs_set(agt, o_gk)[0];
+        let l_gki = gk.data(l_gk).0[agt].0;
+        let [o_gki] = gki.observe(l_gki);
+
+        //println!("        (o_gk, l_gk, l_gki, o_gki)={:?}", (o_gk, l_gk, l_gki, o_gki));
+
+        self.s[agt].call(o_gki, mem)
+    }
+
+    fn init(&self) -> [Self::M; N] {
+        array_init(|i|
+            self.s[i].init()
+        )
+    }
+}
+
+impl<T: Clone, const N: usize> AllStrategies<T, N> {
     pub fn advance(&mut self) -> bool {
         for p in &mut self.parts {
             if p.advance() {
@@ -29,13 +55,26 @@ impl<const N: usize> AllStrategies<N> {
 
         false
     }
+
+    pub fn transducers(&self)
+    -> [AbstractTransducer<T, MlessStrat<KBSCData<T>, Vec<Option<Act>>>>; N] {
+        array_init(|i|
+            transducer(self.gk.origin.gki[i].clone(), self.parts[i].get())
+        )
+    }
     
-    pub fn get(&self) -> MlessStrat<MlessStrat1<Vec<Option<Act>>>, N> {
-        MlessStrat(array_init(|i| self.parts[i].get()))
+    pub fn get(&self) -> MKBSCStratProfile<T, MlessStrat<KBSCData<T>, Vec<Option<Act>>>, N> {
+        MKBSCStratProfile::new(
+            array_init(|i| self.parts[i].get()),
+            self.gk.clone()
+        )
     }
 
-    pub fn get_ref<'a>(&'a self) -> MlessStrat<MlessStrat1<&'a Vec<Option<Act>>>, N> {
-        MlessStrat(array_init(|i| self.parts[i].get_ref()))
+    pub fn get_ref(&self) -> MKBSCStratProfile<T, MlessStrat<KBSCData<T>, &Vec<Option<Act>>>, N> {
+        MKBSCStratProfile::new(
+            array_init(|i| self.parts[i].get_ref()),
+            self.gk.clone()
+        )
     }
 
     pub fn get_raw(&self) -> [&Vec<Option<Act>>; N] {
@@ -47,52 +86,73 @@ impl<const N: usize> AllStrategies<N> {
             p.reset();
         }
     }
-
-    fn new(parts: [AllStrategies1; N]) -> Self {
-        Self { parts }
-    }
 }
 
-pub fn all_strategies<T, const N: usize>(mkbsc: &MKBSC<T, N>) -> AllStrategies<N> {
+pub fn all_strategies<T: Clone, const N: usize>(mkbsc: &ConstructedGame<MKBSC<T, N>, N>) -> AllStrategies<T, N> {
     AllStrategies::new(
         array_init(|i|
-            all_strategies1(&mkbsc.gki[i])
-        )
+            all_strategies1(&mkbsc.origin.gki[i])
+        ),
+        mkbsc.clone()
     )
 }
 
-pub trait Strategy<const N: usize> {
+pub trait Strategy<T> {
     type M: Clone + Eq + Hash;
-    fn call(&self, obs: Obs, mem: &Self::M, agt: Agt) -> Option<(Act, Self::M)>;
+    fn call(&self, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)>;
+    fn init(&self) -> Self::M;
+}
+
+pub trait MemorylessStrategy<T>: Strategy<T, M=()> {
+    fn call_ml(&self, obs: Obs<T>) -> Option<Act> {
+        self.call(obs, &()).map(|(a, _)| a)
+    }
+}
+
+impl<T, S> MemorylessStrategy<T> for S
+where S: Strategy<T, M=()> {}
+
+pub trait StrategyProfile<T, const N: usize> {
+    type M: Clone + Eq + Hash;
+    fn call(&self, agt: Agt, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)>;
     fn init(&self) -> [Self::M; N];
-}
 
-pub trait MemorylessStrategy<const N: usize>: Strategy<N, M=()> {
-    fn call_ml(&self, obs: Obs, agt: Agt) -> Option<Act> {
-        self.call(obs, &(), agt).map(|(a, _)| a)
+    fn get(&self, index: Agt) -> StratProfileProject<T, Self, N> where Self: Sized {
+        StratProfileProject::new(self, index)
     }
 }
 
-pub trait Strategy1: Strategy<1> {
-    fn call1(&self, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)> {
-        self.call(obs, mem, 0)
+impl<T, S: Strategy<T>, const N: usize> StrategyProfile<T, N> for [S; N] {
+    type M = S::M;
+
+    fn call(&self, agt: Agt, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)> {
+        self[agt].call(obs, mem)
+    }
+
+    fn init(&self) -> [Self::M; N] {
+        array_init(|i|
+            self[i].init()
+        )
     }
 }
 
-pub trait MemorylessStrategy1:
-    MemorylessStrategy<1>
-     + Strategy1<M=()>
-{
-    fn call_ml1(&self, obs: Obs) -> Option<Act> {
-        self.call_ml(obs, 0)
+#[derive(new, Debug, Clone)]
+pub struct StratProfileProject<'a, T, S: StrategyProfile<T, N>, const N: usize>(&'a S, Agt, PhantomData<T>);
+
+impl<'a, T, S: StrategyProfile<T, N>, const N: usize> Strategy<T> for StratProfileProject<'a, T, S, N> {
+    type M = S::M;
+
+    fn call(&self, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)> {
+        self.0.call(self.1, obs, mem)
+    }
+
+    fn init(&self) -> Self::M {
+        self.0.init()[self.1].clone()
     }
 }
 
-impl<T, const N: usize> MemorylessStrategy<N> for T
-where T: Strategy<N, M=()> {}
-
-impl<T> Strategy1 for T
-where T: Strategy<1> {}
-
-impl<T> MemorylessStrategy1 for T
-where T: MemorylessStrategy<1> + Strategy1<M=()> {}
+/*pub trait MemorylessStrategyProfile<T, const N: usize>: StrategyProfile<T, N, M=()> {
+    fn call_ml(&self, agt: Agt, obs: Obs<T>) -> Option<Act> {
+        self.call(agt, obs, &())
+    }
+}*/

@@ -1,0 +1,789 @@
+G: ConstructedGame { origin: "grid_pursuit::game::cup_game::CupGame", game: Game {
+    n_agents: 2, n_actions: [3, 3]
+    Loc: { Start,
+           Bad,
+           Good,
+           Lose,
+           Win:W }
+    Obs[0]: { Start,
+              Bad,
+              Good,
+              Lose,
+              Win }
+    Obs[1]: { Start,
+              Bad|Good,
+              Lose,
+              Win }
+    Delta: { (Start->Bad, 0.0),
+             (Start->Good, 0.0),
+             (Bad->Lose, 1.1),
+             (Bad->Lose, 1.2),
+             (Bad->Lose, 2.1),
+             (Bad->Good, 2.2),
+             (Good->Win, 1.1),
+             (Good->Lose, 1.2),
+             (Good->Lose, 2.1),
+             (Good->Good, 2.2),
+             (Lose->Lose, 2.2),
+             (Win->Win, 1.1) }
+} }
+(G|0)^K: ConstructedGame { origin: "grid_pursuit::game::kbsc::KBSC<grid_pursuit::game::cup_game::Loc>", game: Game {
+    n_agents: 1, n_actions: [3]
+    Loc: { Start,
+           Bad,
+           Good,
+           Lose,
+           Win:W }
+    Obs[0]: { Start,
+              Bad,
+              Good,
+              Lose,
+              Win }
+    Delta: { (Start->Bad, 0),
+             (Start->Good, 0),
+             (Bad->Lose, 1),
+             (Bad->Good, 2),
+             (Bad->Lose, 2),
+             (Good->Lose, 1),
+             (Good->Win, 1),
+             (Good->Good, 2),
+             (Good->Lose, 2),
+             (Lose->Lose, 2),
+             (Win->Win, 1) }
+} }
+(G|1)^K: ConstructedGame { origin: "grid_pursuit::game::kbsc::KBSC<grid_pursuit::game::cup_game::Loc>", game: Game {
+    n_agents: 1, n_actions: [3]
+    Loc: { Start,
+           Bad|Good,
+           Lose,
+           Win:W,
+           Good }
+    Obs[0]: { Start,
+              Bad|Good,
+              Lose,
+              Win,
+              Good }
+    Delta: { (Start->Bad|Good, 0),
+             (Bad|Good->Lose, 1),
+             (Bad|Good->Win, 1),
+             (Bad|Good->Lose, 2),
+             (Bad|Good->Good, 2),
+             (Lose->Lose, 2),
+             (Win->Win, 1),
+             (Good->Lose, 1),
+             (Good->Win, 1),
+             (Good->Lose, 2),
+             (Good->Good, 2) }
+} }
+G^K: ConstructedGame { origin: "grid_pursuit::game::mkbsc::MKBSC<grid_pursuit::game::cup_game::Loc, 2>", game: Game {
+    n_agents: 2, n_actions: [3, 3]
+    Loc: { [Start, Start],
+           [Bad, Bad|Good],
+           [Good, Bad|Good],
+           [Lose, Lose],
+           [Good, Good],
+           [Win, Win]:W }
+    Obs[0]: { [Start, Start],
+              [Bad, Bad|Good],
+              [Good, Bad|Good]|[Good, Good],
+              [Lose, Lose],
+              [Win, Win] }
+    Obs[1]: { [Start, Start],
+              [Bad, Bad|Good]|[Good, Bad|Good],
+              [Lose, Lose],
+              [Good, Good],
+              [Win, Win] }
+    Delta: { ([Start, Start]->[Bad, Bad|Good], 0.0),
+             ([Start, Start]->[Good, Bad|Good], 0.0),
+             ([Bad, Bad|Good]->[Lose, Lose], 1.1),
+             ([Bad, Bad|Good]->[Lose, Lose], 1.2),
+             ([Bad, Bad|Good]->[Lose, Lose], 2.1),
+             ([Bad, Bad|Good]->[Good, Good], 2.2),
+             ([Good, Bad|Good]->[Win, Win], 1.1),
+             ([Good, Bad|Good]->[Lose, Lose], 1.2),
+             ([Good, Bad|Good]->[Lose, Lose], 2.1),
+             ([Good, Bad|Good]->[Good, Good], 2.2),
+             ([Lose, Lose]->[Lose, Lose], 2.2),
+             ([Good, Good]->[Win, Win], 1.1),
+             ([Good, Good]->[Lose, Lose], 1.2),
+             ([Good, Good]->[Lose, Lose], 2.1),
+             ([Good, Good]->[Good, Good], 2.2),
+             ([Win, Win]->[Win, Win], 1.1) }
+} }
+(G^K|0)^K: ConstructedGame { origin: "grid_pursuit::game::kbsc::KBSC<grid_pursuit::game::mkbsc::MKBSCData<grid_pursuit::game::cup_game::Loc, 2>>", game: Game {
+    n_agents: 1, n_actions: [3]
+    Loc: { [Start, Start],
+           [Bad, Bad|Good],
+           [Good, Bad|Good],
+           [Lose, Lose],
+           [Good, Good],
+           [Win, Win]:W }
+    Obs[0]: { [Start, Start],
+              [Bad, Bad|Good],
+              [Good, Bad|Good],
+              [Lose, Lose],
+              [Good, Good],
+              [Win, Win] }
+    Delta: { ([Start, Start]->[Bad, Bad|Good], 0),
+             ([Start, Start]->[Good, Bad|Good], 0),
+             ([Bad, Bad|Good]->[Lose, Lose], 1),
+             ([Bad, Bad|Good]->[Lose, Lose], 2),
+             ([Bad, Bad|Good]->[Good, Good], 2),
+             ([Good, Bad|Good]->[Lose, Lose], 1),
+             ([Good, Bad|Good]->[Win, Win], 1),
+             ([Good, Bad|Good]->[Lose, Lose], 2),
+             ([Good, Bad|Good]->[Good, Good], 2),
+             ([Lose, Lose]->[Lose, Lose], 2),
+             ([Good, Good]->[Lose, Lose], 1),
+             ([Good, Good]->[Win, Win], 1),
+             ([Good, Good]->[Lose, Lose], 2),
+             ([Good, Good]->[Good, Good], 2),
+             ([Win, Win]->[Win, Win], 1) }
+} }
+(G^K|1)^K: ConstructedGame { origin: "grid_pursuit::game::kbsc::KBSC<grid_pursuit::game::mkbsc::MKBSCData<grid_pursuit::game::cup_game::Loc, 2>>", game: Game {
+    n_agents: 1, n_actions: [3]
+    Loc: { [Start, Start],
+           [Bad, Bad|Good]|[Good, Bad|Good],
+           [Lose, Lose],
+           [Win, Win]:W,
+           [Good, Good] }
+    Obs[0]: { [Start, Start],
+              [Bad, Bad|Good]|[Good, Bad|Good],
+              [Lose, Lose],
+              [Win, Win],
+              [Good, Good] }
+    Delta: { ([Start, Start]->[Bad, Bad|Good]|[Good, Bad|Good], 0),
+             ([Bad, Bad|Good]|[Good, Bad|Good]->[Lose, Lose], 1),
+             ([Bad, Bad|Good]|[Good, Bad|Good]->[Win, Win], 1),
+             ([Bad, Bad|Good]|[Good, Bad|Good]->[Lose, Lose], 2),
+             ([Bad, Bad|Good]|[Good, Bad|Good]->[Good, Good], 2),
+             ([Lose, Lose]->[Lose, Lose], 2),
+             ([Win, Win]->[Win, Win], 1),
+             ([Good, Good]->[Lose, Lose], 1),
+             ([Good, Good]->[Win, Win], 1),
+             ([Good, Good]->[Lose, Lose], 2),
+             ([Good, Good]->[Good, Good], 2) }
+} }
+G^(2K): ConstructedGame { origin: "grid_pursuit::game::mkbsc::MKBSC<grid_pursuit::game::mkbsc::MKBSCData<grid_pursuit::game::cup_game::Loc, 2>, 2>", game: Game {
+    n_agents: 2, n_actions: [3, 3]
+    Loc: { [[Start, Start], [Start, Start]],
+           [[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]],
+           [[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]],
+           [[Lose, Lose], [Lose, Lose]],
+           [[Good, Good], [Good, Good]],
+           [[Win, Win], [Win, Win]]:W }
+    Obs[0]: { [[Start, Start], [Start, Start]],
+              [[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]],
+              [[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]],
+              [[Lose, Lose], [Lose, Lose]],
+              [[Good, Good], [Good, Good]],
+              [[Win, Win], [Win, Win]] }
+    Obs[1]: { [[Start, Start], [Start, Start]],
+              [[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]|[[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]],
+              [[Lose, Lose], [Lose, Lose]],
+              [[Good, Good], [Good, Good]],
+              [[Win, Win], [Win, Win]] }
+    Delta: { ([[Start, Start], [Start, Start]]->[[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]], 0.0),
+             ([[Start, Start], [Start, Start]]->[[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]], 0.0),
+             ([[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Lose, Lose], [Lose, Lose]], 1.1),
+             ([[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Lose, Lose], [Lose, Lose]], 1.2),
+             ([[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Lose, Lose], [Lose, Lose]], 2.1),
+             ([[Bad, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Good, Good], [Good, Good]], 2.2),
+             ([[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Win, Win], [Win, Win]], 1.1),
+             ([[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Lose, Lose], [Lose, Lose]], 1.2),
+             ([[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Lose, Lose], [Lose, Lose]], 2.1),
+             ([[Good, Bad|Good], [Bad, Bad|Good]|[Good, Bad|Good]]->[[Good, Good], [Good, Good]], 2.2),
+             ([[Lose, Lose], [Lose, Lose]]->[[Lose, Lose], [Lose, Lose]], 2.2),
+             ([[Good, Good], [Good, Good]]->[[Win, Win], [Win, Win]], 1.1),
+             ([[Good, Good], [Good, Good]]->[[Lose, Lose], [Lose, Lose]], 1.2),
+             ([[Good, Good], [Good, Good]]->[[Lose, Lose], [Lose, Lose]], 2.1),
+             ([[Good, Good], [Good, Good]]->[[Good, Good], [Good, Good]], 2.2),
+             ([[Win, Win], [Win, Win]]->[[Win, Win], [Win, Win]], 1.1) }
+} }
+
+[[0, 2, 1, -, 1, 1], [0, 1, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 5
+  visit: (5, [(), ()])
+    0: [(), ()]
+      strat(5, ())
+        (o_gk, l_gk, l_gki, o_gki)=(5, 5, 5, 5)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 5, 3, 3)
+      (a, m2)=Some((1, ()))
+    pushing 5
+      post: 5
+  visit: (5, [(), ()])
+Err(Losing)
+
+[[0, 2, 2, -, 1, 1], [0, 1, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 1, -, 2, 1], [0, 1, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 5
+  visit: (5, [(), ()])
+    0: [(), ()]
+      strat(5, ())
+        (o_gk, l_gk, l_gki, o_gki)=(5, 5, 5, 5)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 5, 3, 3)
+      (a, m2)=Some((1, ()))
+    pushing 5
+      post: 5
+  visit: (5, [(), ()])
+Err(Losing)
+
+[[0, 2, 2, -, 2, 1], [0, 1, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 1, -, 1, 1], [0, 2, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 2, -, 1, 1], [0, 2, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 4
+  visit: (4, [(), ()])
+    0: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 4, 4, 4)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 4, 4, 4)
+      (a, m2)=Some((1, ()))
+    pushing 4
+      post: 5
+  visit: (5, [(), ()])
+    0: [(), ()]
+      strat(5, ())
+        (o_gk, l_gk, l_gki, o_gki)=(5, 5, 5, 5)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 5, 3, 3)
+      (a, m2)=Some((1, ()))
+    pushing 5
+      post: 5
+  visit: (5, [(), ()])
+Err(Losing)
+
+[[0, 2, 1, -, 2, 1], [0, 2, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 2, -, 2, 1], [0, 2, -, 1, 1]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 4
+  visit: (4, [(), ()])
+    0: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 4, 4, 4)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 4, 4, 4)
+      (a, m2)=Some((1, ()))
+    pushing 4
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 1, -, 1, 1], [0, 1, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 5
+  visit: (5, [(), ()])
+    0: [(), ()]
+      strat(5, ())
+        (o_gk, l_gk, l_gki, o_gki)=(5, 5, 5, 5)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 5, 3, 3)
+      (a, m2)=Some((1, ()))
+    pushing 5
+      post: 5
+  visit: (5, [(), ()])
+Err(Losing)
+
+[[0, 2, 2, -, 1, 1], [0, 1, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 1, -, 2, 1], [0, 1, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 5
+  visit: (5, [(), ()])
+    0: [(), ()]
+      strat(5, ())
+        (o_gk, l_gk, l_gki, o_gki)=(5, 5, 5, 5)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 5, 3, 3)
+      (a, m2)=Some((1, ()))
+    pushing 5
+      post: 5
+  visit: (5, [(), ()])
+Err(Losing)
+
+[[0, 2, 2, -, 2, 1], [0, 1, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((1, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 1, -, 1, 1], [0, 2, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 2, -, 1, 1], [0, 2, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 4
+  visit: (4, [(), ()])
+    0: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 4, 4, 4)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 4, 4, 4)
+      (a, m2)=Some((2, ()))
+    pushing 4
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 1, -, 2, 1], [0, 2, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((1, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 3
+  visit: (3, [(), ()])
+    0: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 3, 3, 3)
+      (a, m2)=None
+Err(Incomplete(3, [(), ()]))
+
+[[0, 2, 2, -, 2, 1], [0, 2, -, 1, 2]]
+G^(2K):
+  visit: (0, [(), ()])
+    0: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    1: [(), ()]
+      strat(0, ())
+        (o_gk, l_gk, l_gki, o_gki)=(0, 0, 0, 0)
+      (a, m2)=Some((0, ()))
+    pushing 0
+      post: 1
+      post: 2
+  visit: (2, [(), ()])
+    0: [(), ()]
+      strat(2, ())
+        (o_gk, l_gk, l_gki, o_gki)=(2, 2, 2, 2)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(1, ())
+        (o_gk, l_gk, l_gki, o_gki)=(1, 1, 1, 1)
+      (a, m2)=Some((2, ()))
+    pushing 2
+      post: 4
+  visit: (4, [(), ()])
+    0: [(), ()]
+      strat(4, ())
+        (o_gk, l_gk, l_gki, o_gki)=(4, 4, 4, 4)
+      (a, m2)=Some((2, ()))
+    1: [(), ()]
+      strat(3, ())
+        (o_gk, l_gk, l_gki, o_gki)=(3, 4, 4, 4)
+      (a, m2)=Some((2, ()))
+    pushing 4
+      post: 4
+  visit: (4, [(), ()])
+Err(Losing)
