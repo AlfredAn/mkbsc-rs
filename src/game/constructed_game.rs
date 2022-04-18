@@ -7,7 +7,9 @@ where
     G: AbstractGame<N> + ?Sized
 {
     pub origin: Rc<G>,
-    pub game: Rc<Game<G::Data, N>>
+    pub game: Rc<Game<G::Data, N>>,
+    pub loc_map: Rc<HashMap<G::Loc, Loc<G::Data>>>,
+    pub obs_map: Rc<HashMap<(Agt, G::Obs), Obs<G::Data>>>
 }
 
 impl<G, const N: usize> Debug for ConstructedGame<G, N>
@@ -147,5 +149,5 @@ where
         r.loc[l].predecessors.sort_unstable();
     }
 
-    ConstructedGame::new(g, Rc::new(r))
+    ConstructedGame::new(g, Rc::new(r), Rc::new(visited), Rc::new(obs_map))
 }

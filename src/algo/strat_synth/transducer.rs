@@ -3,18 +3,6 @@ use crate::*;
 pub use strategy::*;
 pub use strategy1::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Node {
-    Gray,
-    Black
-}
-
-#[derive(Debug, Clone)]
-enum StackEntry<T, M> {
-    Visit(Loc<T>, M),
-    Finish(Loc<T>, M)
-}
-
 pub fn transducer<'a, T: Clone, S: Strategy<KBSCData<T>>>
     (g: ConstructedGame<KBSC<T>, 1>, s: S)
     -> AbstractTransducer<T, S> {

@@ -6,43 +6,6 @@ pub struct AllStrategies<T: Clone, const N: usize> {
     gk: ConstructedGame<MKBSC<T, N>, N>
 }
 
-#[derive(new, Clone)]
-pub struct MKBSCStratProfile<T: Clone, S: Strategy<KBSCData<T>>, const N: usize> {
-    s: [S; N],
-    gk: ConstructedGame<MKBSC<T, N>, N>
-}
-
-impl<T: Clone, S: Strategy<KBSCData<T>>, const N: usize> Debug for MKBSCStratProfile<T, S, N>
-where S: Debug {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        format_list(f, 0..N, |f, agt|
-            write!(f, "{:?}", self.s[agt])
-        )
-    }
-}
-
-// implement inverse of this
-impl<T: Clone, S: Strategy<KBSCData<T>>, const N: usize> StrategyProfile<MKBSCData<T, N>, N> for MKBSCStratProfile<T, S, N> {
-    type M = S::M;
-
-    fn call(&self, agt: Agt, o_gk: Obs<MKBSCData<T, N>>, mem: &Self::M) -> Option<(Act, Self::M)> {
-        let (gk, gki) = (&self.gk.game, &self.gk.origin.gki[agt]);
-        let l_gk = gk.obs_set(agt, o_gk)[0];
-        let l_gki = gk.data(l_gk).0[agt].0;
-        let [o_gki] = gki.observe(l_gki);
-
-        //println!("        (o_gk, l_gk, l_gki, o_gki)={:?}", (o_gk, l_gk, l_gki, o_gki));
-
-        self.s[agt].call(o_gki, mem)
-    }
-
-    fn init(&self) -> [Self::M; N] {
-        array_init(|i|
-            self.s[i].init()
-        )
-    }
-}
-
 impl<T: Clone, const N: usize> AllStrategies<T, N> {
     pub fn advance(&mut self) -> bool {
         for p in &mut self.parts {
@@ -63,14 +26,14 @@ impl<T: Clone, const N: usize> AllStrategies<T, N> {
         )
     }
     
-    pub fn get(&self) -> MKBSCStratProfile<T, MlessStrat<KBSCData<T>, Vec<Option<Act>>>, N> {
+    pub fn get(&self) -> MKBSCStratProfile<T, [MlessStrat<KBSCData<T>, Vec<Option<Act>>>; N], N> {
         MKBSCStratProfile::new(
             array_init(|i| self.parts[i].get()),
             self.gk.clone()
         )
     }
 
-    pub fn get_ref(&self) -> MKBSCStratProfile<T, MlessStrat<KBSCData<T>, &Vec<Option<Act>>>, N> {
+    pub fn get_ref(&self) -> MKBSCStratProfile<T, [MlessStrat<KBSCData<T>, &Vec<Option<Act>>>; N], N> {
         MKBSCStratProfile::new(
             array_init(|i| self.parts[i].get_ref()),
             self.gk.clone()
@@ -151,8 +114,61 @@ impl<'a, T, S: StrategyProfile<T, N>, const N: usize> Strategy<T> for StratProfi
     }
 }
 
-/*pub trait MemorylessStrategyProfile<T, const N: usize>: StrategyProfile<T, N, M=()> {
-    fn call_ml(&self, agt: Agt, obs: Obs<T>) -> Option<Act> {
-        self.call(agt, obs, &())
+#[derive(new, Clone)]
+pub struct MKBSCStratProfile<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> {
+    s: S,
+    gk: ConstructedGame<MKBSC<T, N>, N>
+}
+
+impl<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> Debug for MKBSCStratProfile<T, S, N>
+where S: Debug {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.s)
     }
-}*/
+}
+
+impl<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> StrategyProfile<MKBSCData<T, N>, N> for MKBSCStratProfile<T, S, N> {
+    type M = S::M;
+
+    fn call(&self, agt: Agt, o_gk: Obs<MKBSCData<T, N>>, mem: &Self::M) -> Option<(Act, Self::M)> {
+        let (gk, gki) = (&self.gk.game, &self.gk.origin.gki[agt]);
+        let l_gk = gk.obs_set(agt, o_gk)[0];
+        let l_gki = gk.data(l_gk).0[agt].0;
+        let [o_gki] = gki.observe(l_gki);
+
+        self.s.call(agt, o_gki, mem)
+    }
+
+    fn init(&self) -> [Self::M; N] {
+        self.s.init()
+    }
+}
+
+#[derive(new, Clone)]
+pub struct KBSCStratProfile<T: Clone, S: StrategyProfile<MKBSCData<T, N>, N>, const N: usize> {
+    s: S,
+    gk: ConstructedGame<MKBSC<T, N>, N>
+}
+
+impl<T: Clone, S: StrategyProfile<MKBSCData<T, N>, N>, const N: usize> Debug for KBSCStratProfile<T, S, N>
+where S: Debug {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.s)
+    }
+}
+
+impl<T: Clone, S: StrategyProfile<MKBSCData<T, N>, N>, const N: usize> StrategyProfile<KBSCData<T>, N> for KBSCStratProfile<T, S, N> {
+    type M = S::M;
+
+    fn call(&self, agt: Agt, o_gki: Obs<KBSCData<T>>, mem: &Self::M) -> Option<(Act, Self::M)> {
+        let (gk, gki) = (&self.gk, &self.gk.origin.gki[agt]);
+        let l_gki: Loc<KBSCData<T>> = gki.to_unique_loc(o_gki, 0).unwrap();
+        let o_gk = gk.obs_map[&(agt, l_gki)];
+
+        self.s.call(agt, o_gk, mem)
+    }
+
+    fn init(&self) -> [Self::M; N] {
+        self.s.init()
+    }
+}

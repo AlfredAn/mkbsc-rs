@@ -57,14 +57,17 @@ fn main() {
             let result = verify_strategy(&gk, &sk);
             println!("{:?}", result);
 
-            let s: [_; 2] = array_init(|i| {
-                let ski = sk[i].clone();
-                let gki = gk.origin.gki[i].clone();
-                print_type(ski);
-                print_type(gki);
-                transducer(gki, ski)
-                //todo!()
-            });
+            println!("G:");
+
+            let s = KBSCStratProfile::new(sk, gk.clone());
+            let s: [_; 2] = array_init(|i|
+                transducer(
+                    gk.origin.gki[i].clone(),
+                    StratProfileProject::new(&s, i)
+                )
+            );
+            let result = verify_strategy(&g, &s);
+            println!("{:?}", result);
         }
 
         if !strategies.advance() { break; }
