@@ -50,12 +50,17 @@ fn main() {
         let result = verify_strategy(&g2k, &s2k);
         println!("{:?}", result);
 
-        if result.is_ok() {
+        if true {
             println!("G^K:");
 
             let sk = strategies.transducers();
             let result = verify_strategy(&gk, &sk);
             println!("{:?}", result);
+
+            for i in 0..2 {
+                let transducer = Transducer::build(&g2k.origin.gi[i], &sk.project(i));
+                println!("{}: {:?}", i, transducer);
+            }
 
             println!("G:");
 
@@ -63,17 +68,22 @@ fn main() {
             let s: [_; 2] = array_init(|i|
                 transducer(
                     gk.origin.gki[i].clone(),
-                    StratProfileProject::new(&s, i)
+                    s.project(i)
                 )
             );
             let result = verify_strategy(&g, &s);
             println!("{:?}", result);
+
+            for i in 0..2 {
+                let transducer = Transducer::build(&gk.origin.gi[i], &s.project(i));
+                println!("{}: {:?}", i, transducer);
+            }
         }
 
         if !strategies.advance() { break; }
     }
 }
 
-fn print_type<T>(x: T) {
+/*fn print_type<T>(x: T) {
     println!("{}\n", std::any::type_name::<T>());
-}
+}*/

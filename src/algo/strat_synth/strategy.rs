@@ -80,7 +80,7 @@ pub trait StrategyProfile<T, const N: usize> {
     fn call(&self, agt: Agt, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)>;
     fn init(&self) -> [Self::M; N];
 
-    fn get(&self, index: Agt) -> StratProfileProject<T, Self, N> where Self: Sized {
+    fn project(&self, index: Agt) -> StratProfileProject<T, Self, N> where Self: Sized {
         StratProfileProject::new(self, index)
     }
 }

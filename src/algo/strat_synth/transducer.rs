@@ -82,3 +82,58 @@ where
         (None, self.strat.borrow().init())
     }
 }
+
+// (obs, mem) -> option(act, mem)
+
+#[derive(Debug, Clone, new)]
+pub struct Transducer<T> {
+    pub tr: BTreeMap<(TransducerState<T>, Obs<T>), (TransducerState<T>, Act)>
+}
+
+impl<T> Transducer<T> {
+    pub fn build<S: Strategy<T>>(g: &Game<T, 1>, strat: &S) -> Self {
+        let mut tr = BTreeMap::new();
+        let mut state_map = HashMap::new();
+        let mut empty = HashSet::new();
+        let mut states = Vec::new();
+
+        macro_rules! state {
+            ($mem:expr) => {{
+                let mem = $mem;
+                match state_map.get(&mem) {
+                    Some(&s) => s,
+                    None => {
+                        let s = transducer_state(states.len());
+                        state_map.insert(mem.clone(), s);
+                        states.push(mem);
+                        s
+                    }
+                }
+            }}
+        }
+
+        let mut stack = vec![(state!(strat.init()), g.l0())];
+
+        while let Some((s, l)) = stack.pop() {
+            let [o] = g.observe(l);
+
+            if tr.contains_key(&(s, o)) || empty.contains(&(s, o)) {
+                continue;
+            }
+
+            let m = &states[s.index()];
+            if let Some((a, m2)) = strat.call(o, m) {
+                let s2 = state!(m2);
+                tr.insert((s, o), (s2, a));
+
+                for l2 in g.post(l, [a]) {
+                    stack.push((s2, l2));
+                }
+            } else {
+                empty.insert((s, o));
+            }
+        }
+
+        Transducer::new(tr)
+    }
+}

@@ -47,12 +47,19 @@ impl<T> Debug for $name<T> {
         std::fmt::Debug::fmt(&self.0, f)
     }
 }
+
+impl<T> From<$name<T>> for usize {
+    fn from(t: $name<T>) -> usize {
+        t.index()
+    }
+}
     };
 }
 
 
 newtype!(Loc, u32);
 newtype!(Obs, u32);
+newtype!(TransducerState, u32);
 
 pub fn loc<T>(l: impl ToPrimitive) -> Loc<T> {
     Loc::new(l.to_u32().unwrap())
@@ -60,4 +67,8 @@ pub fn loc<T>(l: impl ToPrimitive) -> Loc<T> {
 
 pub fn obs<T>(o: impl ToPrimitive) -> Obs<T> {
     Obs::new(o.to_u32().unwrap())
+}
+
+pub fn transducer_state<T>(s: impl ToPrimitive) -> TransducerState<T> {
+    TransducerState::new(s.to_u32().unwrap())
 }
