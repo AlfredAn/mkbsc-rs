@@ -2,24 +2,68 @@
 
 use crate::*;
 
-pub fn format_list<T>(
+pub struct SequenceFormat<'a> {
+    start: &'a str,
+    end: &'a str,
+    sep: &'a str
+}
+
+pub const LIST: SequenceFormat = SequenceFormat {
+    start: "[",
+    end: "]",
+    sep: ", ",
+};
+
+pub const SET: SequenceFormat = SequenceFormat {
+    start: "{",
+    end: "}",
+    sep: ", ",
+};
+
+pub fn format_sequence<T>(
     f: &mut fmt::Formatter,
+    fmt: SequenceFormat,
     iter: impl IntoIterator<Item=T>,
     mut x: impl FnMut(&mut fmt::Formatter, T) -> fmt::Result
 ) -> fmt::Result {
-    write!(f, "[")?;
+    write!(f, "{}", fmt.start)?;
 
     let mut first = true;
     for a in iter.into_iter() {
         if !first {
-            write!(f, ", ")?;
+            write!(f, "{}", fmt.sep)?;
         }
         first = false;
         
         x(f, a)?;
     }
 
-    write!(f, "]")
+    write!(f, "{}", fmt.end)
+}
+
+pub fn format_sep<T>(
+    f: &mut fmt::Formatter,
+    sep: &str,
+    iter: impl IntoIterator<Item=T>,
+    x: impl FnMut(&mut fmt::Formatter, T) -> fmt::Result
+) -> fmt::Result {
+    format_sequence(f, SequenceFormat { start: "", end: "", sep }, iter, x)
+}
+
+pub fn format_list<T>(
+    f: &mut fmt::Formatter,
+    iter: impl IntoIterator<Item=T>,
+    x: impl FnMut(&mut fmt::Formatter, T) -> fmt::Result
+) -> fmt::Result {
+    format_sequence(f, LIST, iter, x)
+}
+
+pub fn format_set<T>(
+    f: &mut fmt::Formatter,
+    iter: impl IntoIterator<Item=T>,
+    x: impl FnMut(&mut fmt::Formatter, T) -> fmt::Result
+) -> fmt::Result {
+    format_sequence(f, SET, iter, x)
 }
 
 pub fn cartesian_product_generic<T, const N: usize>(
@@ -49,7 +93,7 @@ pub fn cartesian_product_generic<T, const N: usize>(
     }
 }
 
-pub fn cartesian_product_ints<T, const N: usize>(max: [usize; N], f: impl FnMut([usize; N])) {
+pub fn cartesian_product_ints<const N: usize>(max: [usize; N], f: impl FnMut([usize; N])) {
     cartesian_product_generic(
         |_, i| i,
         max,

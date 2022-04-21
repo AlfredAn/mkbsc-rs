@@ -14,11 +14,11 @@ pub use strategy1::*;
 pub use transducer::*;
 
 #[derive(Error, Debug, Clone)]
-pub enum StrategyError<T, M> {
+pub enum StrategyError<M> {
     #[error("Strategy is not winning.")]
     Losing,
     #[error("Strategy is incomplete. ({0}, {1})")]
-    Incomplete(Loc<T>, M)
+    Incomplete(Loc, M)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,15 +28,15 @@ enum Node {
 }
 
 #[derive(Debug, Clone)]
-enum StackEntry<T, M> {
-    Visit(Loc<T>, M),
-    Finish(Loc<T>, M)
+enum StackEntry<M> {
+    Visit(Loc, M),
+    Finish(Loc, M)
 }
 
-pub fn verify_strategy<T, S: StrategyProfile<T, N>, const N: usize>(
-    g: &Game<T, N>,
+pub fn verify_strategy<S: StrategyProfile<N>, const N: usize>(
+    g: &Game<N>,
     strat: &S
-) -> Result<(), StrategyError<T, [S::M; N]>> where S::M: Debug {
+) -> Result<(), StrategyError<[S::M; N]>> where S::M: Debug {
     let mut stack = vec![Visit(g.l0(), strat.init())];
     let mut visit = HashMap::new();
 

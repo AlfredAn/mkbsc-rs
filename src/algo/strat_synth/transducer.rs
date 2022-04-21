@@ -3,9 +3,9 @@ use crate::*;
 pub use strategy::*;
 pub use strategy1::*;
 
-pub fn transducer<'a, T: Clone, S: Strategy<KBSCData<T>>>
-    (g: ConstructedGame<KBSC<T>, 1>, s: S)
-    -> AbstractTransducer<T, S> {
+pub fn transducer<'a, S: Strategy>
+    (g: ConstructedGame<KBSC, 1>, s: S)
+    -> AbstractTransducer<S> {
     AbstractTransducer::new(
         g,
         s
@@ -13,31 +13,28 @@ pub fn transducer<'a, T: Clone, S: Strategy<KBSCData<T>>>
 }
 
 #[derive(new, Debug, Clone)]
-pub struct AbstractTransducer<T, S: Strategy<KBSCData<T>>> {
-    gk: ConstructedGame<KBSC<T>, 1>,
+pub struct AbstractTransducer<S: Strategy> {
+    gk: ConstructedGame<KBSC, 1>,
     strat: S // strategy for G^K
 }
 
 // impl strategy for G
-impl<T, S: Strategy<KBSCData<T>>> Strategy<T> for AbstractTransducer<T, S>
+impl<S: Strategy> Strategy for AbstractTransducer<S>
 where
     S: Debug,
-    S::M: Debug,
-    T: Debug
+    S::M: Debug
 {
-    type M = (Option<(KLoc<T>, Act)>, S::M); // Loc in G^K
+    type M = (Option<(Loc, Act)>, S::M); // Loc in G^K
 
-    fn call(&self, o_g: Obs<T>, (la0, m): &Self::M) -> Option<(Act, Self::M)> {
-        let gk = &self.gk.game;
+    fn call(&self, o_g: Obs, (la0, m): &Self::M) -> Option<(Act, Self::M)> {
+        let g = &self.gk.origin().g;
+        let gk = &self.gk;
         let strat: &S = self.strat.borrow();
 
         // map location in gk to observation in g
         let map_to_obs = |l_gk| {
-            let d = gk.data(l_gk);
-            //println!("        data={:?}", d.g);
-
-            let o_g = d.obs;
-            //println!("        o_g: {:?}", o_g);
+            let l_g = self.gk.origin_loc(l_gk).first().unwrap();
+            let [o_g] = g.observe(l_g);
             o_g
         };
 
@@ -86,12 +83,12 @@ where
 // (obs, mem) -> option(act, mem)
 
 #[derive(Debug, Clone, new)]
-pub struct Transducer<T> {
-    pub tr: BTreeMap<(TransducerState<T>, Obs<T>), (TransducerState<T>, Act)>
+pub struct Transducer {
+    pub tr: BTreeMap<(TransducerState, Obs), (TransducerState, Act)>
 }
 
-impl<T> Transducer<T> {
-    pub fn build<S: Strategy<T>>(g: &Game<T, 1>, strat: &S) -> Self {
+impl Transducer {
+    pub fn build<S: Strategy>(g: &Game<1>, strat: &S) -> Self {
         let mut tr = BTreeMap::new();
         let mut state_map = HashMap::new();
         let mut empty = HashSet::new();

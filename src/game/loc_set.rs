@@ -1,35 +1,38 @@
-use std::marker::PhantomData;
-
 use derive_more::*;
 
 use crate::*;
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug, From, Into)]
-pub struct LocSet<T> {
-    s: FixedBitSet,
-    t_: PhantomData<T>
+#[derive(PartialEq, Eq, Hash, Debug, From, Into, Clone)]
+pub struct LocSet {
+    s: FixedBitSet
 }
 
-impl<T> LocSet<T> {
-    pub fn new<const N: usize>(g: &Game<T, N>) -> Self {
-        Self { s: FixedBitSet::with_capacity(g.n_loc()), t_: Default::default() }
+impl LocSet {
+    pub fn new<const N: usize>(g: &Game<N>) -> Self {
+        Self { s: FixedBitSet::with_capacity(g.n_loc()) }
     }
 
-    pub fn from_iter<const N: usize>(g: &Game<T, N>, iter: impl IntoIterator<Item=Loc<T>>) -> Self {
+    pub fn singleton<const N: usize>(g: &Game<N>, l: Loc) -> Self {
+        let mut result = Self::new(g);
+        result.insert(l);
+        result
+    }
+
+    pub fn from_iter<const N: usize>(g: &Game<N>, iter: impl IntoIterator<Item=Loc>) -> Self {
         let mut result = Self::new(g);
         result.extend(iter);
         result
     }
 
-    pub fn from_subset(g: &Game<T, 1>, s: &ObsSubset<T>) -> Self {
+    pub fn from_subset(g: &Game<1>, s: &ObsSubset) -> Self {
         Self::from_iter(g, s.iter(g))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=Loc<T>> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item=Loc> + '_ {
         self.s.ones().map(|l| loc(l))
     }
 
-    pub fn contains(&self, l: Loc<T>) -> bool {
+    pub fn contains(&self, l: Loc) -> bool {
         self.s.contains(l.index())
     }
 
@@ -37,42 +40,48 @@ impl<T> LocSet<T> {
         self.s.count_ones(..) == 0
     }
 
-    pub fn insert(&mut self, l: Loc<T>) {
+    pub fn insert(&mut self, l: Loc) {
         self.s.insert(l.index());
     }
 
-    pub fn put(&mut self, l: Loc<T>) -> bool {
+    pub fn put(&mut self, l: Loc) -> bool {
         self.s.put(l.index())
     }
+
+    pub fn first(&self) -> Option<Loc> {
+        self.iter().next()
+    }
     
-    pub fn fmt_debug(&self, g: &Game<T, 1>, f: &mut fmt::Formatter) -> fmt::Result
-    where T: Debug {
+    /*pub fn fmt_debug<T: Debug>
+        (&self, f: &mut fmt::Formatter, d: &impl GameDataT<T>)
+        -> fmt::Result {
         write!(f, "{}", self.iter()
-            .map(|l| g.data(l))
+            .map(|l| &d[l])
             .format_with("|", |x, f|
                 f(&format_args!("{:?}", x))
             )
         )
     }
 
-    pub fn fmt_display(&self, g: &Game<T, 1>, f: &mut fmt::Formatter) -> fmt::Result
-    where T: Display {
+    pub fn fmt_display<T: Display>
+        (&self, f: &mut fmt::Formatter, d: &impl GameDataT<T>)
+        -> fmt::Result {
         write!(f, "{}", self.iter()
-            .map(|l| g.data(l))
+            .map(|l| &d[l])
             .format("|")
         )
-    }
+    }*/
 }
 
-impl<T> BitAndAssign<&Self> for LocSet<T> {
+impl BitAndAssign<&Self> for LocSet {
     fn bitand_assign(&mut self, rhs: &Self) {
         assert_eq!(self.s.len(), rhs.s.len());
         self.s &= &rhs.s
     }
 }
 
-impl<T> Extend<Loc<T>> for LocSet<T> {
-    fn extend<I: IntoIterator<Item=Loc<T>>>(&mut self, iter: I) {
+impl Extend<Loc> for LocSet {
+    fn extend<I: IntoIterator<Item=Loc>>(&mut self, iter: I) {
         for l in iter {
             self.insert(l);
         }

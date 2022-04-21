@@ -1,8 +1,10 @@
 use crate::*;
 
 pub use strat_synth::*;
+pub use mkbsc_stack::*;
 
 pub mod strat_synth;
+pub mod mkbsc_stack;
 
 /// Perform depth first search on `g`, calling the function `node`
 /// for each location, and `edge` for each transition.
@@ -12,10 +14,10 @@ pub mod strat_synth;
 /// returns it multiple times.
 /// 
 /// `node` will always be called on a location before it is used in a call to `edge`.
-pub fn explore<T, const N: usize>(
-    g: &Game<T, N>,
-    mut node: impl FnMut(Loc<T>),
-    mut edge: impl FnMut(Loc<T>, [Act; N], Loc<T>)
+pub fn explore<const N: usize>(
+    g: &Game<N>,
+    mut node: impl FnMut(Loc),
+    mut edge: impl FnMut(Loc, [Act; N], Loc)
 ) {
     let mut stack = Vec::new();
     let mut visited = LocSet::new(g);
@@ -46,9 +48,9 @@ pub fn explore<T, const N: usize>(
 }
 
 pub fn explore1<T>(
-    g: &Game<T, 1>,
-    node: impl FnMut(Loc<T>),
-    mut edge: impl FnMut(Loc<T>, Act, Loc<T>)
+    g: &Game<1>,
+    node: impl FnMut(Loc),
+    mut edge: impl FnMut(Loc, Act, Loc)
 ) {
     explore(g, node, |l, [a], l2| edge(l, a, l2))
 }

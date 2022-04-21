@@ -2,29 +2,30 @@ use slice_group_by::GroupBy;
 use crate::*;
 
 #[derive(Clone, SmartDefault)]
-pub struct Game<T, const N: usize> {
-    pub loc: Vec<LocData<T, N>>,
+pub struct Game<const N: usize> {
+    pub loc: Vec<LocData<N>>,
 
     #[default([0; N])]
     pub n_actions: [usize; N],
 
     #[default(array_init(|_| Vec::new()))]
-    pub obs: [Vec<Vec<Loc<T>>>; N]
+    pub obs: [Vec<Vec<Loc>>; N],
+
+    pub origin: Option<Rc<dyn Origin>>
 }
 
 #[derive(Debug, Clone)]
-pub struct LocData<T, const N: usize> {
+pub struct LocData<const N: usize> {
     // sorted by action
-    pub successors: Vec<([Act; N], Loc<T>)>, 
-    pub predecessors: Vec<([Act; N], Loc<T>)>,
+    pub successors: Vec<([Act; N], Loc)>, 
+    pub predecessors: Vec<([Act; N], Loc)>,
     
     pub is_winning: bool,
-    pub obs: [Obs<T>; N],
-    pub obs_offset: [usize; N],
-    pub data: T
+    pub obs: [Obs; N],
+    pub obs_offset: [usize; N]
 }
 
-impl<T, const N: usize> Game<T, N> {
+impl<const N: usize> Game<N> {
     pub fn n_loc(&self) -> usize {
         self.loc.len()
     }
@@ -32,20 +33,17 @@ impl<T, const N: usize> Game<T, N> {
         self.obs[agt as usize].len()
     }
 
-    pub fn observe(&self, l: Loc<T>) -> [Obs<T>; N] {
+    pub fn observe(&self, l: Loc) -> [Obs; N] {
         self[l].obs
     }
-    pub fn obs_offset(&self, l: Loc<T>) -> [usize; N] {
+    pub fn obs_offset(&self, l: Loc) -> [usize; N] {
         self[l].obs_offset
     }
-    pub fn is_winning(&self, l: Loc<T>) -> bool {
+    pub fn is_winning(&self, l: Loc) -> bool {
         self[l].is_winning
     }
-    pub fn data(&self, l: Loc<T>) -> &T {
-        &self[l].data
-    }
 
-    pub fn obs_set(&self, agt: Agt, obs: Obs<T>) -> &[Loc<T>] {
+    pub fn obs_set(&self, agt: Agt, obs: Obs) -> &[Loc] {
         &self.obs[agt][obs.index()]
     }
 
@@ -65,10 +63,17 @@ impl<T, const N: usize> Game<T, N> {
         result
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=(Loc<T>, &LocData<T, N>)> {
+    pub fn iter(&self) -> impl Iterator<Item=(Loc, &LocData<N>)> {
         self.loc.iter().enumerate().map(|(i, x)| (loc(i), x))
     }
-    pub fn edges(&self) -> impl Iterator<Item=(Loc<T>, [Act; N], Loc<T>)> + '_ {
+    pub fn iter_obs(&self, agt: Agt) -> impl Iterator<Item=(Obs, &[Loc])> {
+        self.obs[agt].iter().enumerate().map(|(i, x)| (obs(i), &**x))
+    }
+    pub fn iter_agt(&self) -> impl Iterator<Item=Agt> {
+        0..N
+    }
+
+    pub fn edges(&self) -> impl Iterator<Item=(Loc, [Act; N], Loc)> + '_ {
         self.iter()
             .flat_map(|(l, d)|
                 d.successors.iter()
@@ -76,21 +81,21 @@ impl<T, const N: usize> Game<T, N> {
             )
     }
 
-    pub fn successors(&self, l: Loc<T>) -> &[([Act; N], Loc<T>)] {
+    pub fn successors(&self, l: Loc) -> &[([Act; N], Loc)] {
         &self[l].successors
     }
-    pub fn post_raw(&self, l: Loc<T>, a: [Act; N]) -> &[([Act; N], Loc<T>)] {
+    pub fn post_raw(&self, l: Loc, a: [Act; N]) -> &[([Act; N], Loc)] {
         self.successors(l)
             .linear_group_by(|(a1, _), (a2, _)| a1 == a2)
             .find(|slice| slice[0].0 == a)
             .unwrap_or(&[])
     }
-    pub fn post(&self, l: Loc<T>, a: [Act; N]) -> impl Iterator<Item=Loc<T>> + '_ {
+    pub fn post(&self, l: Loc, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
         self.post_raw(l, a).iter().map(|&(_, l)| l)
     }
-    pub fn post_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc<T>> + 'a
+    pub fn post_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + 'a
     where
-        I: IntoIterator<Item=Loc<T>>,
+        I: IntoIterator<Item=Loc>,
         I::IntoIter: 'a
     {
         s.into_iter()
@@ -99,21 +104,21 @@ impl<T, const N: usize> Game<T, N> {
             )
     }
 
-    pub fn predecessors(&self, l: Loc<T>) -> &[([Act; N], Loc<T>)] {
+    pub fn predecessors(&self, l: Loc) -> &[([Act; N], Loc)] {
         &self[l].predecessors
     }
-    pub fn pre_raw(&self, l: Loc<T>, a: [Act; N]) -> &[([Act; N], Loc<T>)] {
+    pub fn pre_raw(&self, l: Loc, a: [Act; N]) -> &[([Act; N], Loc)] {
         self.predecessors(l)
             .linear_group_by(|(a1, _), (a2, _)| a1 == a2)
             .find(|slice| slice[0].0 == a)
             .unwrap_or(&[])
     }
-    pub fn pre(&self, l: Loc<T>, a: [Act; N]) -> impl Iterator<Item=Loc<T>> + '_ {
+    pub fn pre(&self, l: Loc, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
         self.pre_raw(l, a).iter().map(|&(_, l)| l)
     }
-    pub fn pre_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc<T>> + 'a
+    pub fn pre_set<'a, I>(&'a self, s: I, a: [Act; N]) -> impl Iterator<Item=Loc> + 'a
     where
-        I: IntoIterator<Item=Loc<T>>,
+        I: IntoIterator<Item=Loc>,
         I::IntoIter: 'a
     {
         s.into_iter()
@@ -122,65 +127,69 @@ impl<T, const N: usize> Game<T, N> {
             )
     }
 
-    pub fn l0(&self) -> Loc<T> {
+    pub fn l0(&self) -> Loc {
         loc(0)
     }
 
-    pub fn to_unique_loc(&self, obs: Obs<T>, agt: Agt) -> Option<Loc<T>> {
+    pub fn to_unique_loc(&self, obs: Obs, agt: Agt) -> Option<Loc> {
         if self.obs[agt][obs.index()].len() == 1 {
             Some(self.obs[agt][obs.index()][0])
         } else {
             None
         }
     }
-}
 
-impl<T, const N: usize> Index<Loc<T>> for Game<T, N> {
-    type Output = LocData<T, N>;
-    fn index(&self, l: Loc<T>) -> &LocData<T, N> { &self.loc[l.index()] }
-}
-impl<T, const N: usize> IndexMut<Loc<T>> for Game<T, N> {
-    fn index_mut(&mut self, l: Loc<T>) -> &mut LocData<T, N> { &mut self.loc[l.index()] }
-}
-
-macro_rules! impl_format {
-    ($trait:path, $fmt:literal, $fmt2:literal, $fmt3:literal) => {
-        impl<T: $trait, const N: usize> $trait for Game<T, N> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                let ns = self.iter().format_with(",\n           ", |(_, n), f| {
-                    f(&format_args!($fmt2, n.data, if n.is_winning {":W"} else {""}))
-                });
-        
-                let os = self.obs.iter().enumerate().format_with("\n    ", |(i, oi), f|
-                    f(&format_args!("Obs[{}]: {{ {} }}",
-                        i,
-                        oi.iter().format_with(",\n              ", |o, f|
-                            f(&format_args!("{}",
-                                o.iter().format_with("|", |&l, f|
-                                    f(&format_args!($fmt, self.data(l)))
-                                )
-                            ))
-                        )
-                    ))
-                );
-                
-                let es = self.edges()
-                    .format_with(",\n             ", |(l, a, l2), f| {
-                        f(&format_args!($fmt3,
-                            self.data(l),
-                            self.data(l2),
-                            a.iter().format(".")
-                        ))
-                    });
-        
-                write!(f, "Game {{\n")?;
-                write!(f, "    n_agents: {}, n_actions: {:?}\n", N, self.n_actions)?;
-                write!(f, "    Loc: {{ {} }}\n    {}\n    Delta: {{ {} }}\n", ns, os, es)?;
-                write!(f, "}}")
-            }
+    pub fn fmt_loc(&self, f: &mut fmt::Formatter, l: Loc) -> fmt::Result {
+        if let Some(origin) = &self.origin {
+            origin.fmt_loc(f, l)
+        } else {
+            write!(f, "{}", l)
         }
-    };
+    }
+
+    pub fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, obs: Obs) -> fmt::Result {
+        format_sep(f, " | ", self.obs_set(agt, obs).iter(), |f, &l|
+            self.fmt_loc(f, l)
+        )
+    }
 }
 
-impl_format!(fmt::Debug, "{:?}", "{:?}{}", "({:?}->{:?}, {})");
-impl_format!(fmt::Display, "{}", "{}{}", "({}->{}, {})");
+impl<const N: usize> Index<Loc> for Game<N> {
+    type Output = LocData<N>;
+    fn index(&self, l: Loc) -> &LocData<N> { &self.loc[l.index()] }
+}
+impl<const N: usize> IndexMut<Loc> for Game<N> {
+    fn index_mut(&mut self, l: Loc) -> &mut LocData<N> { &mut self.loc[l.index()] }
+}
+
+
+impl<const N: usize> Debug for Game<N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Game {{\n")?;
+        write!(f, "    n_agents: {}, n_actions: {:?},\n", N, self.n_actions)?;
+        write!(f, "    Loc: {{ ")?;
+        format_sep(f, ",\n           ", self.iter(), |f, (l, _)|
+            self.fmt_loc(f, l)
+        )?;
+
+        for agt in self.iter_agt() {
+            write!(f, " }},\n    Obs[{}]: {{ ", agt)?;
+            format_sep(f, ",\n              ", self.iter_obs(agt), |f, (o, _)|
+                self.fmt_obs(f, agt, o)
+            )?;
+        }
+        
+        write!(f, " }},\n    Delta: {{ ")?;
+        format_sep(f, ",\n             ", self.edges(), |f, (l, a, l2)| {
+            format_sep(f, ".", a.iter(), |f, a|
+                write!(f, "{}", a)
+            )?;
+            write!(f, " : ")?;
+            self.fmt_loc(f, l)?;
+            write!(f, " -> ")?;
+            self.fmt_loc(f, l2)
+        })?;
+
+        write!(f, " }}\n}}")
+    }
+}

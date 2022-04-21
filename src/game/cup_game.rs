@@ -1,20 +1,18 @@
-use crate::game::AbstractGame;
-use crate::game::Act;
+use crate::*;
 use enumset::*;
-use self::Loc::*;
+use self::CupGameLoc::*;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CupGame();
 
 #[derive(EnumSetType, Debug, Hash)]
-pub enum Loc {
+pub enum CupGameLoc {
     Start, Bad, Good, Lose, Win
 }
 
 impl AbstractGame<2> for CupGame {
-    type Loc = Loc;
-    type Obs = EnumSet<Loc>;
-    type Data = Loc;
+    type Loc = CupGameLoc;
+    type Obs = EnumSet<CupGameLoc>;
 
     fn l0(&self) -> Self::Loc { Start }
     fn n_actions(&self) -> [usize; 2] { [3, 3] }
@@ -26,7 +24,6 @@ impl AbstractGame<2> for CupGame {
         }
     ]}
     fn is_winning(&self, &loc: &Self::Loc) -> bool { loc == Win }
-    fn data(&self, &loc: &Self::Loc) -> Loc { loc }
 
     fn succ(
         &self,
@@ -50,5 +47,9 @@ impl AbstractGame<2> for CupGame {
             Lose => e![(s, s, Lose)],
             Win => e![(l, l, Win)],
         };
+    }
+
+    fn fmt_loc(&self, f: &mut fmt::Formatter, &l: &Self::Loc) -> fmt::Result {
+        write!(f, "{:?}", l)
     }
 }

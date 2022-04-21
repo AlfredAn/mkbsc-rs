@@ -104,7 +104,7 @@ impl StratEntry {
     }
 }
 
-pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
+pub fn find_memoryless_strategies(g: &Game<1>) -> Vec<StratEntry> {
     let n = g.n_loc();
 
     let mut w = Vec::with_capacity(n);
@@ -158,25 +158,25 @@ pub fn find_memoryless_strategies<T>(g: &Game<T, 1>) -> Vec<StratEntry> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AllStrategies1<T> {
+pub struct AllStrategies1 {
     strat: Vec<Option<Act>>,
-    variables: Vec<(Loc<T>, Vec<Act>, u32)>
+    variables: Vec<(Loc, Vec<Act>, u32)>
 }
 
 #[derive(new, Clone)]
-pub struct MlessStrat<T, R: Borrow<Vec<Option<Act>>>>(R, PhantomData<T>);
+pub struct MlessStrat<R: Borrow<Vec<Option<Act>>>>(R);
 
-impl<T, R: Borrow<Vec<Option<Act>>>> Strategy<T> for MlessStrat<T, R> {
+impl<R: Borrow<Vec<Option<Act>>>> Strategy for MlessStrat<R> {
     type M = ();
 
-    fn call(&self, obs: Obs<T>, _: &()) -> Option<(Act, ())> {
+    fn call(&self, obs: Obs, _: &()) -> Option<(Act, ())> {
         self.0.borrow()[obs.index()].map(|a| (a, ()))
     }
 
     fn init(&self) -> Self::M { () }
 }
 
-impl<T, R> Debug for MlessStrat<T, R>
+impl<R> Debug for MlessStrat<R>
 where
     R: Borrow<Vec<Option<Act>>>
 {
@@ -191,7 +191,7 @@ where
     }
 }
 
-impl<T> AllStrategies1<T> {
+impl AllStrategies1 {
     pub fn advance(&mut self) -> bool {
         for (l, actions, i) in &mut self.variables {
             *i += 1;
@@ -208,11 +208,11 @@ impl<T> AllStrategies1<T> {
         false
     }
 
-    pub fn get(&self) -> MlessStrat<T, Vec<Option<Act>>> {
+    pub fn get(&self) -> MlessStrat<Vec<Option<Act>>> {
         MlessStrat::new(self.get_raw().clone())
     }
 
-    pub fn get_ref<'a>(&'a self) -> MlessStrat<T, &'a Vec<Option<Act>>> {
+    pub fn get_ref(&self) -> MlessStrat<&Vec<Option<Act>>> {
         MlessStrat::new(self.get_raw())
     }
 
@@ -276,7 +276,7 @@ impl<T> AllStrategies1<T> {
     }
 }
 
-pub fn all_strategies1<T>(g: &Game<T, 1>) -> AllStrategies1<T> {
+pub fn all_strategies1(g: &Game<1>) -> AllStrategies1 {
     let fms = find_memoryless_strategies(g);
     //println!("{:#?}", fms);
 

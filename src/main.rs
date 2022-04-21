@@ -12,23 +12,23 @@ mod util;
 fn main() {
     let g = CupGame().build();
 
-    let gk: ConstructedGame<MKBSC<_, 2>, 2> = MKBSC::new(&g).build();
+    let gk = MKBSC::new(g.game.clone()).build();
 
     println!("G: {:?}", g);
 
-    println!("(G|0)^K: {:?}", gk.origin.gki[0]);
-    println!("(G|1)^K: {:?}", gk.origin.gki[1]);
+    println!("(G|0)^K: {:?}", gk.origin().gki[0]);
+    println!("(G|1)^K: {:?}", gk.origin().gki[1]);
 
     println!("G^K: {:?}", gk);
 
-    let g2k = MKBSC::new(&gk).build();
+    let g2k = MKBSC::new(gk.game.clone()).build();
 
-    println!("(G^K|0)^K: {:?}", g2k.origin.gki[0]);
-    println!("(G^K|1)^K: {:?}", g2k.origin.gki[1]);
+    println!("(G^K|0)^K: {:?}", g2k.origin().gki[0]);
+    println!("(G^K|1)^K: {:?}", g2k.origin().gki[1]);
 
     println!("G^(2K): {:?}", &g2k);
 
-    let mut strategies = all_strategies(&g2k);
+    let mut strategies = all_strategies(g2k.clone());
     loop {
         /*if strategies.get_raw()
             .map::<_, Vec<_>>(|x|
@@ -58,7 +58,7 @@ fn main() {
             println!("{:?}", result);
 
             for i in 0..2 {
-                let transducer = Transducer::build(&g2k.origin.gi[i], &sk.project(i));
+                let transducer = Transducer::build(&g2k.origin().gi[i], &sk.project(i));
                 println!("{}: {:?}", i, transducer);
             }
 
@@ -67,7 +67,7 @@ fn main() {
             let s = KBSCStratProfile::new(sk, gk.clone());
             let s: [_; 2] = array_init(|i|
                 transducer(
-                    gk.origin.gki[i].clone(),
+                    gk.origin().gki[i].clone(),
                     s.project(i)
                 )
             );
@@ -75,7 +75,7 @@ fn main() {
             println!("{:?}", result);
 
             for i in 0..2 {
-                let transducer = Transducer::build(&gk.origin.gi[i], &s.project(i));
+                let transducer = Transducer::build(&gk.origin().gi[i], &s.project(i));
                 println!("{}: {:?}", i, transducer);
             }
         }

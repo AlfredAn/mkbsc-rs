@@ -1,15 +1,14 @@
 use crate::*;
 
 #[derive(Debug, Clone)]
-pub struct MKBSC<T: Clone, const N: usize> {
-    pub g: Rc<Game<T, N>>,
-    pub gi: [ConstructedGame<Project<T, N>, 1>; N],
-    pub gki: [ConstructedGame<KBSC<T>, 1>; N]
+pub struct MKBSC<const N: usize> {
+    pub g: Rc<Game<N>>,
+    pub gi: [ConstructedGame<Project<N>, 1>; N],
+    pub gki: [ConstructedGame<KBSC, 1>; N]
 }
 
-impl<T: Clone, const N: usize> MKBSC<T, N> {
-    pub fn new(g: impl Into<Rc<Game<T, N>>>) -> Self {
-        let g = g.into();
+impl<const N: usize> MKBSC<N> {
+    pub fn new(g: Rc<Game<N>>) -> Self {
         let gi: [_; N] = array_init(|i|
             Project::new(g.clone(), i).build()
         );
@@ -21,34 +20,13 @@ impl<T: Clone, const N: usize> MKBSC<T, N> {
             g, gi, gki
         }
     }
-
-    pub fn data_ref(&self, s: [KLoc<T>; N]) -> [&KBSCData<T>; N] {
-        array_init(|i|
-            self.gki[i].data(s[i])
-        )
-    }
 }
 
-pub type KLoc<T> = Loc<KBSCData<T>>;
+impl<const N: usize> AbstractGame<N> for MKBSC<N> {
+    type Loc = [Loc; N];
+    type Obs = Loc;
 
-#[derive(Clone)]
-pub struct MKBSCData<T, const N: usize>(pub [(KLoc<T>, KBSCData<T>); N]);
-
-impl<T, const N: usize> Debug for MKBSCData<T, N>
-where T: Debug {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", array_init::<_, _, N>(|i|
-            &self.0[i].1
-        ))
-    }
-}
-
-impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
-    type Loc = [KLoc<T>; N];
-    type Obs = KLoc<T>;
-    type Data = MKBSCData<T, N>;
-
-    fn l0(&self) -> Self::Loc { [loc(0); N] }
+    fn l0(&self) -> Self::Loc { array_init(|i| self.gki[i].l0()) }
     fn n_actions(&self) -> [usize; N] { self.g.n_actions }
     fn obs(&self, &s: &Self::Loc) -> [Self::Obs; N] { s }
 
@@ -58,24 +36,13 @@ impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
         )
     }
 
-    fn data(&self, &s: &Self::Loc) -> Self::Data {
-        let d = self.data_ref(s);
-        MKBSCData(
-            array_init(|i|
-                (s[i], d[i].clone())
-            )
-        )
-    }
-
     fn succ(&self, &s: &Self::Loc, mut f: impl FnMut([Act; N], Self::Loc)) {
-        let t = self.data_ref(s);
-        let mut pre_locs = t[0].s.clone();
-        for &ti in &t[1..] {
-            pre_locs &= &ti.s;
+        let mut pre_locs: LocSet = self.gki[0].origin_loc(s[0]).clone();
+        for i in 1..N {
+            pre_locs &= self.gki[i].origin_loc(s[i]);
         }
         assert!(!pre_locs.is_empty());
 
-        //println!("\n\nt: {:?}", t);
         for a in self.g.action_profiles() {
             let post_g = LocSet::from_iter(
                 &self.g,
@@ -87,16 +54,13 @@ impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
             let post_gki: [_; N] = array_init(|i|
                 self.gki[i].post_raw(s[i], [a[i]])
             );
-            //println!("  post_gki: {:?}", post_gki);
     
             cartesian_product(post_gki, |x| {
                 let s2 = x.map(|&(_, si2)| si2);
-                let t2 = self.data_ref(s2);
-                //println!("    t2: {:?}", t2);
 
                 let mut possible = post_g.clone();
-                for ti in t2 {
-                    possible &= &ti.s;
+                for i in 0..N {
+                    possible &= self.gki[i].origin_loc(s2[i]);
                 }
 
                 if !possible.is_empty() {
@@ -104,5 +68,11 @@ impl<T: Clone, const N: usize> AbstractGame<N> for MKBSC<T, N> {
                 }
             });
         }
+    }
+
+    fn fmt_loc(&self, f: &mut fmt::Formatter, s: &Self::Loc) -> fmt::Result {
+        format_list(f, 0..N, |f, i|
+            self.gki[i].fmt_loc(f, s[i])
+        )
     }
 }

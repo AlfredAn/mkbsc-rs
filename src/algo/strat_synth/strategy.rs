@@ -1,12 +1,12 @@
 use crate::*;
 
 #[derive(Debug, new, Clone)]
-pub struct AllStrategies<T: Clone, const N: usize> {
-    parts: [AllStrategies1<KBSCData<T>>; N],
-    gk: ConstructedGame<MKBSC<T, N>, N>
+pub struct AllStrategies<const N: usize> {
+    parts: [AllStrategies1; N],
+    gk: ConstructedGame<MKBSC<N>, N>
 }
 
-impl<T: Clone, const N: usize> AllStrategies<T, N> {
+impl<const N: usize> AllStrategies<N> {
     pub fn advance(&mut self) -> bool {
         for p in &mut self.parts {
             if p.advance() {
@@ -20,20 +20,20 @@ impl<T: Clone, const N: usize> AllStrategies<T, N> {
     }
 
     pub fn transducers(&self)
-    -> [AbstractTransducer<T, MlessStrat<KBSCData<T>, Vec<Option<Act>>>>; N] {
+    -> [AbstractTransducer<MlessStrat<Vec<Option<Act>>>>; N] {
         array_init(|i|
-            transducer(self.gk.origin.gki[i].clone(), self.parts[i].get())
+            transducer(self.gk.origin().gki[i].clone(), self.parts[i].get())
         )
     }
     
-    pub fn get(&self) -> MKBSCStratProfile<T, [MlessStrat<KBSCData<T>, Vec<Option<Act>>>; N], N> {
+    pub fn get(&self) -> MKBSCStratProfile<[MlessStrat<Vec<Option<Act>>>; N], N> {
         MKBSCStratProfile::new(
             array_init(|i| self.parts[i].get()),
             self.gk.clone()
         )
     }
 
-    pub fn get_ref(&self) -> MKBSCStratProfile<T, [MlessStrat<KBSCData<T>, &Vec<Option<Act>>>; N], N> {
+    pub fn get_ref(&self) -> MKBSCStratProfile<[MlessStrat<&Vec<Option<Act>>>; N], N> {
         MKBSCStratProfile::new(
             array_init(|i| self.parts[i].get_ref()),
             self.gk.clone()
@@ -51,44 +51,44 @@ impl<T: Clone, const N: usize> AllStrategies<T, N> {
     }
 }
 
-pub fn all_strategies<T: Clone, const N: usize>(mkbsc: &ConstructedGame<MKBSC<T, N>, N>) -> AllStrategies<T, N> {
+pub fn all_strategies<const N: usize>(mkbsc: ConstructedGame<MKBSC<N>, N>) -> AllStrategies<N> {
     AllStrategies::new(
         array_init(|i|
-            all_strategies1(&mkbsc.origin.gki[i])
+            all_strategies1(&mkbsc.origin().gki[i])
         ),
-        mkbsc.clone()
+        mkbsc
     )
 }
 
-pub trait Strategy<T> {
+pub trait Strategy {
     type M: Clone + Eq + Hash;
-    fn call(&self, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)>;
+    fn call(&self, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)>;
     fn init(&self) -> Self::M;
 }
 
-pub trait MemorylessStrategy<T>: Strategy<T, M=()> {
-    fn call_ml(&self, obs: Obs<T>) -> Option<Act> {
+pub trait MemorylessStrategy: Strategy<M=()> {
+    fn call_ml(&self, obs: Obs) -> Option<Act> {
         self.call(obs, &()).map(|(a, _)| a)
     }
 }
 
-impl<T, S> MemorylessStrategy<T> for S
-where S: Strategy<T, M=()> {}
+impl<S> MemorylessStrategy for S
+where S: Strategy<M=()> {}
 
-pub trait StrategyProfile<T, const N: usize> {
+pub trait StrategyProfile<const N: usize> {
     type M: Clone + Eq + Hash;
-    fn call(&self, agt: Agt, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)>;
+    fn call(&self, agt: Agt, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)>;
     fn init(&self) -> [Self::M; N];
 
-    fn project(&self, index: Agt) -> StratProfileProject<T, Self, N> where Self: Sized {
+    fn project(&self, index: Agt) -> StratProfileProject<Self, N> where Self: Sized {
         StratProfileProject::new(self, index)
     }
 }
 
-impl<T, S: Strategy<T>, const N: usize> StrategyProfile<T, N> for [S; N] {
+impl<S: Strategy, const N: usize> StrategyProfile<N> for [S; N] {
     type M = S::M;
 
-    fn call(&self, agt: Agt, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)> {
+    fn call(&self, agt: Agt, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)> {
         self[agt].call(obs, mem)
     }
 
@@ -100,12 +100,12 @@ impl<T, S: Strategy<T>, const N: usize> StrategyProfile<T, N> for [S; N] {
 }
 
 #[derive(new, Debug, Clone)]
-pub struct StratProfileProject<'a, T, S: StrategyProfile<T, N>, const N: usize>(&'a S, Agt, PhantomData<T>);
+pub struct StratProfileProject<'a, S: StrategyProfile<N>, const N: usize>(&'a S, Agt);
 
-impl<'a, T, S: StrategyProfile<T, N>, const N: usize> Strategy<T> for StratProfileProject<'a, T, S, N> {
+impl<'a, S: StrategyProfile<N>, const N: usize> Strategy for StratProfileProject<'a,  S, N> {
     type M = S::M;
 
-    fn call(&self, obs: Obs<T>, mem: &Self::M) -> Option<(Act, Self::M)> {
+    fn call(&self, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)> {
         self.0.call(self.1, obs, mem)
     }
 
@@ -115,25 +115,26 @@ impl<'a, T, S: StrategyProfile<T, N>, const N: usize> Strategy<T> for StratProfi
 }
 
 #[derive(new, Clone)]
-pub struct MKBSCStratProfile<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> {
+pub struct MKBSCStratProfile<S: StrategyProfile<N>, const N: usize> {
     s: S,
-    gk: ConstructedGame<MKBSC<T, N>, N>
+    gk: ConstructedGame<MKBSC<N>, N>
 }
 
-impl<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> Debug for MKBSCStratProfile<T, S, N>
+impl<S: StrategyProfile<N>, const N: usize> Debug for MKBSCStratProfile<S, N>
 where S: Debug {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.s)
     }
 }
 
-impl<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> StrategyProfile<MKBSCData<T, N>, N> for MKBSCStratProfile<T, S, N> {
+impl<S: StrategyProfile<N>, const N: usize> StrategyProfile<N> for MKBSCStratProfile<S, N> {
     type M = S::M;
 
-    fn call(&self, agt: Agt, o_gk: Obs<MKBSCData<T, N>>, mem: &Self::M) -> Option<(Act, Self::M)> {
-        let (gk, gki) = (&self.gk.game, &self.gk.origin.gki[agt]);
+    fn call(&self, agt: Agt, o_gk: Obs, mem: &Self::M) -> Option<(Act, Self::M)> {
+        let (gk, gki) = (&self.gk, &self.gk.origin().gki[agt]);
+        
         let l_gk = gk.obs_set(agt, o_gk)[0];
-        let l_gki = gk.data(l_gk).0[agt].0;
+        let l_gki = gk.origin_loc(l_gk)[agt];
         let [o_gki] = gki.observe(l_gki);
 
         self.s.call(agt, o_gki, mem)
@@ -145,25 +146,25 @@ impl<T: Clone, S: StrategyProfile<KBSCData<T>, N>, const N: usize> StrategyProfi
 }
 
 #[derive(new, Clone)]
-pub struct KBSCStratProfile<T: Clone, S: StrategyProfile<MKBSCData<T, N>, N>, const N: usize> {
+pub struct KBSCStratProfile<S: StrategyProfile<N>, const N: usize> {
     s: S,
-    gk: ConstructedGame<MKBSC<T, N>, N>
+    gk: ConstructedGame<MKBSC<N>, N>
 }
 
-impl<T: Clone, S: StrategyProfile<MKBSCData<T, N>, N>, const N: usize> Debug for KBSCStratProfile<T, S, N>
+impl<S: StrategyProfile<N>, const N: usize> Debug for KBSCStratProfile<S, N>
 where S: Debug {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.s)
     }
 }
 
-impl<T: Clone, S: StrategyProfile<MKBSCData<T, N>, N>, const N: usize> StrategyProfile<KBSCData<T>, N> for KBSCStratProfile<T, S, N> {
+impl<S: StrategyProfile<N>, const N: usize> StrategyProfile<N> for KBSCStratProfile<S, N> {
     type M = S::M;
 
-    fn call(&self, agt: Agt, o_gki: Obs<KBSCData<T>>, mem: &Self::M) -> Option<(Act, Self::M)> {
-        let (gk, gki) = (&self.gk, &self.gk.origin.gki[agt]);
-        let l_gki: Loc<KBSCData<T>> = gki.to_unique_loc(o_gki, 0).unwrap();
-        let o_gk = gk.obs_map[&(agt, l_gki)];
+    fn call(&self, agt: Agt, o_gki: Obs, mem: &Self::M) -> Option<(Act, Self::M)> {
+        let (gk, gki) = (&self.gk, &self.gk.origin().gki[agt]);
+        let l_gki = gki.to_unique_loc(o_gki, 0).unwrap();
+        let o_gk = gk.obs(&(agt, l_gki));
 
         self.s.call(agt, o_gk, mem)
     }
