@@ -25,3 +25,12 @@ impl<const N: usize> AbstractGame<1> for Project<N> {
         self.g.fmt_loc(f, l)
     }
 }
+
+impl<const N: usize> ConstructedGame<Project<N>, 1> {
+    pub fn translate_strategy(
+        &self,
+        strat: impl Strategy
+    ) -> impl Strategy {
+        proj_to_base_strategy(self.clone(), strat)
+    }
+}

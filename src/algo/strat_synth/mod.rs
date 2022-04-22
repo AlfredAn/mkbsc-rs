@@ -1,6 +1,7 @@
 pub mod strategy;
 pub mod strategy1;
 pub mod transducer;
+pub mod translate;
 
 use crate::*;
 use thiserror::Error;
@@ -12,6 +13,7 @@ use StackEntry::*;
 pub use strategy::*;
 pub use strategy1::*;
 pub use transducer::*;
+pub use translate::*;
 
 #[derive(Error, Debug, Clone)]
 pub enum StrategyError<M> {
@@ -33,11 +35,14 @@ enum StackEntry<M> {
     Finish(Loc, M)
 }
 
-pub fn verify_strategy<S: StrategyProfile<N>, const N: usize>(
+pub fn verify_strategy<S: Strategy, const N: usize>(
     g: &Game<N>,
-    strat: &S
+    strat: &[S; N]
 ) -> Result<(), StrategyError<[S::M; N]>> where S::M: Debug {
-    let mut stack = vec![Visit(g.l0(), strat.init())];
+    let mut stack = vec![Visit(
+        g.l0(),
+        array_init(|i| strat[i].init())
+    )];
     let mut visit = HashMap::new();
 
     while let Some(entry) = stack.pop() {
@@ -62,7 +67,7 @@ pub fn verify_strategy<S: StrategyProfile<N>, const N: usize>(
                                 |i| {
                                     //println!("    {:?}: {:?}", i, m);
                                     //println!("      strat({:?}, {:?})", obs[i], &m[i]);
-                                    let x = strat.call(i, obs[i], &m[i]);
+                                    let x = strat[i].call(obs[i], &m[i]);
                                     //println!("      (a, m2)={:?}", x);
                                     x
                                 }

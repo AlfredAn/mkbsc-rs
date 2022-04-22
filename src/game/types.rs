@@ -1,4 +1,3 @@
-use num::ToPrimitive;
 use crate::*;
 
 macro_rules! newtype {
@@ -38,14 +37,14 @@ newtype!(Loc, u32);
 newtype!(Obs, u32);
 newtype!(TransducerState, u32);
 
-pub fn loc(l: impl ToPrimitive) -> Loc {
-    Loc::new(l.to_u32().unwrap())
+pub fn loc(l: impl TryInto<u32>) -> Loc {
+    Loc::new(l.try_into().ok().unwrap())
 }
 
-pub fn obs(o: impl ToPrimitive) -> Obs {
-    Obs::new(o.to_u32().unwrap())
+pub fn obs(o: impl TryInto<u32>) -> Obs {
+    Obs::new(o.try_into().ok().unwrap())
 }
 
-pub fn transducer_state(s: impl ToPrimitive) -> TransducerState {
-    TransducerState::new(s.to_u32().unwrap())
+pub fn transducer_state(s: impl TryInto<u32>) -> TransducerState {
+    TransducerState::new(s.try_into().ok().unwrap())
 }

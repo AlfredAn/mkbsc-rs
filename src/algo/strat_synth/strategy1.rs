@@ -1,5 +1,8 @@
+use std::iter;
+
 use crate::*;
 use Outcome::*;
+use itertools::izip;
 
 type Depth = u16;
 
@@ -79,19 +82,23 @@ impl Default for Outcome {
     fn default() -> Self { Lose }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct StratEntry {
     pub action: Vec<Outcome>,
-    pub outcome: Outcome
+    pub outcome: Outcome,
+    pub initial: Outcome
 }
 
 impl StratEntry {
     fn new(n: usize, is_goal: bool) -> Self {
+        let outcome = if is_goal {Win(0)} else {Lose};
         Self {
             action: vec![Lose; n],
-            outcome: if is_goal {Win(0)} else {Lose}
+            outcome,
+            initial: outcome
         }
     }
+ 
     fn insert(&mut self, a: Act, outcome: Outcome) -> (bool, Outcome) {
         let a = &mut self.action[a as usize];
         let a_old = *a;
@@ -102,9 +109,38 @@ impl StratEntry {
 
         (*a != a_old || self.outcome != l_old, l_old)
     }
+    fn calculate_outcome(&mut self) {
+        self.outcome = self.action.iter()
+            .copied()
+            .fold(self.initial, |o1, o2| o1 | o2);
+    }
 }
 
-pub fn find_memoryless_strategies(g: &Game<1>) -> Vec<StratEntry> {
+impl BitAndAssign<&Self> for StratEntry {
+    fn bitand_assign(&mut self, rhs: &Self) {
+        for (a, b) in izip!(&mut self.action, &rhs.action) {
+            *a &= *b;
+        }
+        self.calculate_outcome();
+    }
+}
+
+pub fn find_memoryless_strategies_ii(g: &Game<1>) -> Vec<StratEntry> {
+    let sl = find_memoryless_strategies_pi(g);
+    let mut so = Vec::with_capacity(g.n_obs(0));
+
+    for (_, set) in g.iter_obs(0) {
+        let mut entry = sl[set[0].index()].clone();
+        for l in set[1..].iter() {
+            entry &= &sl[l.index()];
+        }
+        so.push(entry);
+    }
+
+    so
+}
+
+pub fn find_memoryless_strategies_pi(g: &Game<1>) -> Vec<StratEntry> {
     let n = g.n_loc();
 
     let mut w = Vec::with_capacity(n);
@@ -164,24 +200,21 @@ pub struct AllStrategies1 {
 }
 
 #[derive(new, Clone)]
-pub struct MlessStrat<R: Borrow<Vec<Option<Act>>>>(R);
+pub struct MlessStrat(Vec<Option<Act>>);
 
-impl<R: Borrow<Vec<Option<Act>>>> Strategy for MlessStrat<R> {
+impl Strategy for MlessStrat {
     type M = ();
 
     fn call(&self, obs: Obs, _: &()) -> Option<(Act, ())> {
-        self.0.borrow()[obs.index()].map(|a| (a, ()))
+        self.0[obs.index()].map(|a| (a, ()))
     }
 
-    fn init(&self) -> Self::M { () }
+    fn init(&self) -> () { () }
 }
 
-impl<R> Debug for MlessStrat<R>
-where
-    R: Borrow<Vec<Option<Act>>>
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        format_list(f, self.0.borrow(), |f, x|
+impl Debug for MlessStrat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        format_list(f, self.0.iter(), |f, x|
             if let Some(a) = x {
                 write!(f, "{}", a)
             } else {
@@ -208,12 +241,8 @@ impl AllStrategies1 {
         false
     }
 
-    pub fn get(&self) -> MlessStrat<Vec<Option<Act>>> {
+    pub fn get(&self) -> MlessStrat {
         MlessStrat::new(self.get_raw().clone())
-    }
-
-    pub fn get_ref(&self) -> MlessStrat<&Vec<Option<Act>>> {
-        MlessStrat::new(self.get_raw())
     }
 
     pub fn get_raw(&self) -> &Vec<Option<Act>> {
@@ -274,11 +303,28 @@ impl AllStrategies1 {
             variables: variables
         }
     }
+
+    pub fn into_iter(mut self) -> impl Iterator<Item=MlessStrat> {
+        let mut first = true;
+        let mut done = false;
+        iter::from_fn(move || {
+            if first {
+                first = false;
+                Some(self.get())
+            } else {
+                if !done && self.advance() {
+                    Some(self.get())
+                } else {
+                    done = true;
+                    None
+                }
+            }
+        })
+    }
 }
 
 pub fn all_strategies1(g: &Game<1>) -> AllStrategies1 {
-    let fms = find_memoryless_strategies(g);
-    //println!("{:#?}", fms);
+    let fms = find_memoryless_strategies_ii(g);
 
     AllStrategies1::new(
         &fms,
