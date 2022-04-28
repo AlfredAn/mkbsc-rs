@@ -1,3 +1,5 @@
+use itertools::Either;
+
 use crate::*;
 
 pub trait AbstractGame<const N: usize> {

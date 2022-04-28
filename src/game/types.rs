@@ -10,6 +10,9 @@ impl $name {
     pub fn index(self) -> usize {
         self.0 as usize
     }
+    pub fn value(self) -> $t {
+        self.0
+    }
 }
 
 impl Debug for $name {
@@ -27,6 +30,12 @@ impl Display for $name {
 impl From<$name> for usize {
     fn from(t: $name) -> usize {
         t.index()
+    }
+}
+
+impl From<$name> for $t {
+    fn from(t: $name) -> $t {
+        t.0
     }
 }
     };

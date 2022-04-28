@@ -2,6 +2,133 @@
 
 use crate::*;
 
+pub fn find_group<T>(slice: &[T], mut cmp: impl FnMut(&T) -> std::cmp::Ordering) -> &[T] {
+    let (mut lo, mut hi) = (0, slice.len());
+
+    // println!("{:?}", slice.iter().map(|x| cmp(x)).collect_vec());
+
+    let mid = loop {
+        // println!("{:?}", (lo, hi));
+
+        if lo == hi {
+            return &[];
+        }
+
+        let mid = lo + (hi - lo)/2;
+        match cmp(&slice[mid]) {
+            Ordering::Less => (lo, hi) = (lo, mid),
+            Ordering::Equal => break mid,
+            Ordering::Greater => (lo, hi) = (mid+1, hi)
+        }
+    };
+
+    // println!("{:?}", mid);
+ 
+    let start = find_first(&slice[lo..mid+1], |x| cmp(x).is_le()) + lo;
+    // println!("start = {:?}", start);
+    let end = find_first(&slice[mid..hi], |x| cmp(x).is_lt()) + mid;
+    // println!("end = {:?}", end);
+
+    assert!(cmp(&slice[start]).is_eq());
+    assert!(start == 0 || cmp(&slice[start-1]).is_gt());
+
+    assert!(end == slice.len() || cmp(&slice[end]).is_lt());
+    assert!(cmp(&slice[end-1]).is_eq());
+    
+    &slice[start..end]
+}
+
+/// Finds the index of the first element that satisfies the predicate.
+/// 
+/// Returns slice.len() if all elements are false.
+/// 
+/// Assumes that there exists an index i such that the predicate
+/// returns false for all elements with index less than i
+/// and true for all elements with index greater than or equal to i.
+/// 
+pub fn find_first<T>(slice: &[T], mut pred: impl FnMut(&T) -> bool) -> usize {
+    let (mut lo, mut hi) = (0, slice.len());
+
+    if lo == hi {
+        return 0;
+    }
+
+    // println!("{:?}", slice.iter().map(|x| pred(x)).collect_vec());
+
+    loop {
+        // println!("{:?}", (lo, hi));
+
+        assert!(lo <= hi);
+        assert!(lo == 0 || !pred(&slice[lo-1]));
+        assert!(hi == slice.len() || pred(&slice[hi]));
+
+        match hi - lo {
+            0 => {
+                return hi;
+            },
+            1 => if pred(&slice[lo]) {
+                return lo;
+            } else {
+                return hi;
+            },
+            _ => {
+                let mid = lo + (hi - lo)/2;
+                if pred(&slice[mid]) {
+                    (lo, hi) = (lo, mid);
+                } else {
+                    (lo, hi) = (mid+1, hi);
+                }
+            }
+        }
+    }
+}
+
+pub struct PtrEqRc<T: ?Sized>(pub Rc<T>);
+
+impl<T: ?Sized> Clone for PtrEqRc<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T: ?Sized> Ord for PtrEqRc<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Rc::as_ptr(&self.0).cmp(&Rc::as_ptr(&other.0))
+    }
+}
+
+impl<T: ?Sized> PartialOrd for PtrEqRc<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl<T: Debug + ?Sized> Debug for PtrEqRc<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PtrEqRc({:?})", &*self.0)
+    }
+}
+
+impl<T: Display + ?Sized> Display for PtrEqRc<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &*self.0)
+    }
+}
+
+impl<T: ?Sized> PartialEq for PtrEqRc<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<T: ?Sized> Eq for PtrEqRc<T> {}
+
+impl<T: ?Sized> Hash for PtrEqRc<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Rc::as_ptr(&self.0).hash(state);
+    }
+}
+
 pub struct SequenceFormat<'a> {
     start: &'a str,
     end: &'a str,

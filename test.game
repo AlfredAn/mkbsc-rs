@@ -1,0 +1,18 @@
+agt: 0, 1
+act: g, s, l
+
+loc: start, bad, good, lose, win
+l0: start
+reach: win
+
+obs 1: bad|good
+
+delta:
+    start (g g) (bad, good),
+    bad (l l, l s, s l) lose,
+    bad (s s) good,
+    good (l s, s l) lose,
+    good (s s) good,
+    good (l l) win,
+    lose (s s) lose,
+    win (l l) win

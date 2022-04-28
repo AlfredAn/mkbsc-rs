@@ -34,3 +34,4 @@ impl<const N: usize> ConstructedGame<Project<N>, 1> {
         proj_to_base_strategy(self.clone(), strat)
     }
 }
+

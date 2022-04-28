@@ -27,6 +27,7 @@ impl<'a, const N: usize> StackElement<'a, N> {
     }
 }
 
+#[derive(Debug)]
 pub struct MKBSCStack<const N: usize> {
     pub base: G<N>,
     stack: Vec<GK<N>>,
@@ -50,6 +51,7 @@ impl<const N: usize> MKBSCStack<N> {
     }
 
     pub fn get(&self, i: usize) -> StackElement<N> {
+        assert!(i < self.len(), "index out of bounds: {} >= {}", i, self.len());
         if i == 0 {
             StackElement::Base(&self.base)
         } else {

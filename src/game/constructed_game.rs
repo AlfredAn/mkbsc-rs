@@ -1,14 +1,13 @@
 use crate::*;
 use crate::hash_map::Entry::*;
 
-
 #[derive(Clone)]
 pub struct ConstructedGame<G, const N: usize>
 where
     G: AbstractGame<N> + ?Sized
 {
     pub game: Rc<Game<N>>,
-    origin: Rc<OriginImpl<G, N>>
+    origin: Rc<OriginImpl<G, N>>,
 }
 
 #[derive(Clone, Debug, new)]
@@ -88,34 +87,6 @@ where
         self.game.fmt(f)
     }
 }
-/*
-impl<G, const N: usize> From<ConstructedGame<G, N>> for Rc<G>
-where
-    G: AbstractGame<N> + ?Sized
-{
-    fn from(g: ConstructedGame<G, N>) -> Self { g.origin }
-}
-
-impl<G, const N: usize> From<ConstructedGame<G, N>> for Rc<Game<N>>
-where
-    G: AbstractGame<N> + ?Sized
-{
-    fn from(g: ConstructedGame<G, N>) -> Self { g.game }
-}
-
-impl<G, const N: usize> From<&ConstructedGame<G, N>> for Rc<G>
-where
-    G: AbstractGame<N> + ?Sized
-{
-    fn from(g: &ConstructedGame<G, N>) -> Self { g.origin.clone() }
-}
-
-impl<G, const N: usize> From<&ConstructedGame<G, N>> for Rc<Game<N>>
-where
-    G: AbstractGame<N> + ?Sized
-{
-    fn from(g: &ConstructedGame<G, N>) -> Self { g.game.clone() }
-}*/
 
 impl<G, const N: usize> Deref for ConstructedGame<G, N>
 where

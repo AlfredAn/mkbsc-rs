@@ -59,23 +59,4 @@ impl ObsSubset {
     fn loc(&self, g: &Game<1>, i: usize) -> Loc {
         g.obs_set(0, self.obs)[i]
     }
-
-    /*pub fn fmt_debug<T: Debug>
-        (&self, f: &mut fmt::Formatter, d: &GameData<T, 1>)
-        -> fmt::Result {
-        write!(f, "{}", self.iter(&d.game)
-        .map(|l| &d[l])
-            .format_with("|", |x, f|
-                f(&format_args!("{:?}", x))
-            )
-        )
-    }*/
-
-    /*pub fn fmt_display<D: Display>(&self, f: &mut fmt::Formatter, d: &GameDataStruct<D, 1>) -> fmt::Result
-    {
-        write!(f, "{}", self.iter(d.game)
-        .map(|l| &d[l])
-            .format("|")
-        )
-    }*/
 }
