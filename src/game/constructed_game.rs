@@ -98,7 +98,7 @@ where
     }
 }
 
-pub fn build_game<G, const N: usize>(g: Rc<G>) -> ConstructedGame<G, N>
+pub fn build_game<G, const N: usize>(g: Rc<G>, keep_origin: bool) -> ConstructedGame<G, N>
 where
     G: AbstractGame<N> + ?Sized + 'static
 {
@@ -198,7 +198,9 @@ where
         obs_map_reverse
     ));
 
-    r.origin = Some(o.clone() as Rc<dyn Origin>);
+    if keep_origin {
+        r.origin = Some(o.clone() as Rc<dyn Origin>);
+    }
 
     ConstructedGame { game: Rc::new(r), origin: o }
 }

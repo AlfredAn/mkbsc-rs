@@ -2,6 +2,30 @@
 
 use crate::*;
 
+#[allow(unused_macros)]
+macro_rules! include_game {
+    ($path:expr, $n:expr) => {{
+        let s = include_str!($path);
+        let parsed = parser::parse(s).unwrap();
+        let g: io_game::IOGame<$n> = io_game::IOGameEnum::new(parsed)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        g
+    }};
+}
+pub(crate) use include_game;
+
+#[allow(unused_macros)]
+macro_rules! for_each_tuple {
+    (($head:expr $(,$rest:expr)*$(,)?), $f:expr) => {
+        ($f)($head);
+        for_each_tuple!(($($rest),*), $f);
+    };
+    ((), $f:expr) => ();
+}
+pub(crate) use for_each_tuple;
+
 pub fn find_group<T>(slice: &[T], mut cmp: impl FnMut(&T) -> std::cmp::Ordering) -> &[T] {
     let (mut lo, mut hi) = (0, slice.len());
 

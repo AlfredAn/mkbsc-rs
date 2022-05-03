@@ -8,6 +8,7 @@ pub mod obs_subset;
 pub mod loc_set;
 pub mod constructed_game;
 pub mod types;
+pub mod grid_pursuit;
 
 pub use game::*;
 pub use abstract_game::*;

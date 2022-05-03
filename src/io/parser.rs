@@ -1,5 +1,3 @@
-use std::str::from_utf8;
-
 use itertools::iproduct;
 use nom::{
     *,
@@ -249,12 +247,4 @@ pub fn parse(input: &str) -> Result<Vec<Statement>, E<final_parser::Location>> {
             many1(statement)
         ))
     )(input)
-}
-
-pub fn test() {
-    let f = from_utf8(include_bytes!("../../test.game")).unwrap();
-    println!("{}", f);
-
-    let result = parse(f);
-    println!("{:#?}", result);
 }

@@ -8,7 +8,8 @@ pub use std::{
     mem,
     cmp::{Ordering, min, max},
     borrow::Borrow,
-    marker::PhantomData
+    marker::PhantomData,
+    iter
 };
 pub use fixedbitset::FixedBitSet;
 pub use array_init::{array_init, from_iter};

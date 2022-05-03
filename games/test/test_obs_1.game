@@ -1,0 +1,12 @@
+agt: 0
+act: x
+
+loc: a, b, c
+l0: a
+
+obs 0: a|b
+
+delta:
+a (x) b,
+b (x) c,
+c (x) a

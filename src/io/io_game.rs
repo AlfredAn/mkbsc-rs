@@ -4,8 +4,6 @@ use itertools::Itertools;
 use paste::paste;
 use anyhow::{bail, ensure, Context};
 use array_init::{array_init};
-use derive_more::*;
-use slice_group_by::GroupBy;
 
 use crate::*;
 
@@ -213,7 +211,7 @@ impl<const N: usize> IOGame<N> {
     pub fn find_agent(&self, name: &Symbol) -> Option<usize> {
         self.agt.iter()
             .enumerate()
-            .find(|(i, agt)| *agt == name)
+            .find(|(_, agt)| *agt == name)
             .map(|(i, _)| i)
     }
 }

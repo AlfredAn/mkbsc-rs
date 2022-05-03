@@ -1,9 +1,8 @@
-use anyhow::{Context, ensure};
 use once_cell::unsync::OnceCell;
 
 use crate::{*, io_game::*};
 
-use super::{Action, PostProcessing};
+use super::{Action, MKBSCAction};
 
 #[derive(Debug)]
 #[enum_dispatch(RunnerTrait)]
@@ -72,64 +71,98 @@ impl<const N: usize> Runner<N> {
         }
         self.stack.as_mut().unwrap()        
     }
+
+    fn clear_stack(&mut self) {
+        if let Some(stack) = &mut self.stack {
+            stack.clear()
+        }
+    }
 }
 
 #[enum_dispatch]
 pub trait RunnerTrait {
-    fn run(&mut self, action: &Action, post: &PostProcessing) -> anyhow::Result<()>;
+    fn run(&mut self, action: &Action) -> anyhow::Result<()>;
 }
 
 impl<const N: usize> RunnerTrait for Runner<N> {
-    fn run(&mut self, action: &Action, post: &PostProcessing) -> anyhow::Result<()> {
+    fn run(&mut self, action: &Action) -> anyhow::Result<()> {
         match action {
-            Action::None | Action::MKBSC(_) => {
-                let g = match action {
-                    Action::None => self.game().clone(),
-                    Action::MKBSC(n) => self.mkbsc(*n).clone(),
-                };
-
-                if post.project.is_some() || post.kbsc {
-                    let agt = if let Some(agt) = &post.project {
-                        self.io_game.find_agent(agt)
-                            .with_context(|| format!("undefined agent: {}", agt))?
-                    } else {
-                        ensure!(N == 1, "KBSC can only be performed on single-agent games");
-                        0
-                    };
-                    
-                    let gi = Project::new(g.clone(), agt).build();
-
-                    if post.kbsc {
-                        let gk = KBSC::new(gi.game).build();
-                        println!("{:?}", gk);
-                    } else {
-                        println!("{:?}", gi);
-                    }
-                } else {
-                    println!("{:?}", g);
-                }
-            }
+            Action::MKBSC(a) => self.mkbsc(a),
+            Action::Synth(_) => self.synthesize(),
         }
+        
         Ok(())
     }
 }
 
 impl<const N: usize> Runner<N> {
-    fn mkbsc(&mut self, iterations: usize) -> &Rc<Game<N>> {
-        let mkbsc = self.stack();
+    fn mkbsc(&mut self, action: &MKBSCAction) {
+        self.clear_stack();
+        let mut g = self.game().clone();
 
-        for i in 0..=iterations {
-            // println!("-----G^({}K)-----", i);
-
-            if mkbsc.len() <= i {
-                mkbsc.push();
+        for i in 0..action.iterations {
+            if action.print_iteration {
+                println!("-----G^({}K)-----", i+1);
             }
 
-            // println!("{:?}", mkbsc.get(i).game());
+            let g_prev = g.clone();
+            if action.keep_structure {
+                g = Rc::new(MKBSC::new(g))
+                    .build()
+                    .game;
+            } else {
+                g = Rc::new(MKBSC::new(g))
+                    .build_no_origin();
+            }
+
+            if action.print_sizes {
+                println!("n = {}", g.loc.len());
+            }
+
+            if action.print_games {
+                println!("{:?}", g);
+            }
+
+            if action.check_convergence && is_isomorphic(&g, &g_prev, true) {
+                println!("isomorphic, stopping at G^({}K)", i);
+                g = g_prev;
+                break;
+            }
         }
 
-        mkbsc.get(iterations).game()
+        if action.print_result && !action.print_games {
+            println!("{:?}", g);
+        }
     }
 
+    fn synthesize(&mut self) {
+        self.clear_stack();
+        let stack = self.stack();
 
+        for i in 0.. {
+            println!("-----G^({}K)-----", i);
+
+            if stack.len() < i+1 {
+                println!("applying MKBSC...");
+                stack.push();
+                println!("n = {}", stack.last().game().n_loc());
+                if is_isomorphic(stack.get(i).game(), stack.get(i-1).game(), true) {
+                    println!("isomorphic, stopping at G^({}K)", i-1);
+                    break;
+                }
+            } else {
+                println!("n = {}", stack.last().game().n_loc());
+            }
+
+            
+            println!("finding strategy...");
+            if let Some(profile) = stack.find_strategy() {
+                println!("strategy found");
+                println!("{:?}", profile);
+                break;
+            }
+
+            println!("no strategy found");
+        }
+    }
 }

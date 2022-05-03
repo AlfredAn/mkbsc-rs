@@ -1,5 +1,3 @@
-use itertools::Either;
-
 use crate::*;
 
 pub trait AbstractGame<const N: usize> {
@@ -26,10 +24,15 @@ pub trait AbstractGame<const N: usize> {
 
 pub trait AbstractGameRc<G: AbstractGame<N> + 'static, const N: usize> {
     fn build(self) -> ConstructedGame<G, N>;
+    fn build_no_origin(self) -> Rc<Game<N>>;
 }
 
 impl<G: AbstractGame<N> + 'static, const N: usize> AbstractGameRc<G, N> for Rc<G> {
     fn build(self) -> ConstructedGame<G, N> {
-        build_game(self)
+        build_game(self, true)
+    }
+
+    fn build_no_origin(self) -> Rc<Game<N>> {
+        build_game(self, false).game
     }
 }

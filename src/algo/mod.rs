@@ -2,9 +2,11 @@ use crate::*;
 
 pub use strat_synth::*;
 pub use mkbsc_stack::*;
+pub use isomorphism::*;
 
 pub mod strat_synth;
 pub mod mkbsc_stack;
+pub mod isomorphism;
 
 /// Perform depth first search on `g`, calling the function `node`
 /// for each location, and `edge` for each transition.

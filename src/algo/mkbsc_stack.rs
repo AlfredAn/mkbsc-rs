@@ -63,6 +63,11 @@ impl<const N: usize> MKBSCStack<N> {
         self.get(self.len() - 1)
     }
 
+    pub fn clear(&mut self) {
+        self.stack.clear();
+        self.strat.clear();
+    }
+
     pub fn push(&mut self) -> &GK<N> {
         let g = self.last().game();
         let gk = MKBSC::new(g.clone()).build();

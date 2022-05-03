@@ -15,6 +15,6 @@ fn main() -> anyhow::Result<()> {
     let cli = cli::parse();
     println!("{:?}", cli);
     cli::run(&cli)?;
-    
+
     Ok(())
 }
