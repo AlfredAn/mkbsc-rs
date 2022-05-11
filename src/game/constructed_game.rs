@@ -45,7 +45,7 @@ where
         &self.loc_map_reverse[l.index()]
     }
     fn origin_obs(&self, agt: Agt, o: Obs) -> &G::Obs {
-        &self.obs_map_reverse[agt][o.index()]
+        &self.obs_map_reverse[agt.index()][o.index()]
     }
 
     fn loc(&self, l: &G::Loc) -> Loc {
@@ -81,12 +81,22 @@ where
 
 impl<G, const N: usize> Debug for ConstructedGame<G, N>
 where
+    G: AbstractGame<N> + ?Sized + Debug
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.origin())
+    }
+}
+
+impl<G, const N: usize> Display for ConstructedGame<G, N>
+where
     G: AbstractGame<N> + ?Sized
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.game.fmt(f)
+        write!(f, "{}", self.game)
     }
 }
+
 
 impl<G, const N: usize> Deref for ConstructedGame<G, N>
 where
@@ -124,20 +134,21 @@ where
 
                 let mut obs_ = ArrayVec::<_, N>::new();
                 let mut obs_offset = ArrayVec::<_, N>::new();
-                for (agt, oi) in o.into_iter().enumerate() {
-                    let obs_i = match obs_map.entry((agt, oi.clone())) {
+                
+                for (i, oi) in o.into_iter().enumerate() {
+                    let obs_i = match obs_map.entry((agt(i), oi.clone())) {
                         Vacant(e) => {
-                            let obs_i = obs(r.obs[agt].len());
-                            r.obs[agt].push(Vec::new());
+                            let obs_i = obs(r.obs[i].len());
+                            r.obs[i].push(Vec::new());
                             e.insert(obs_i);
-                            obs_map_reverse[agt].push(oi);
+                            obs_map_reverse[i].push(oi);
                             obs_i
                         },
                         Occupied(e) => {
                             *e.get()
                         }
                     };
-                    let obs_set = &mut r.obs[agt][obs_i.index()];
+                    let obs_set = &mut r.obs[i][obs_i.index()];
 
                     obs_.push(obs_i);
                     obs_offset.push(obs_set.len());
@@ -168,6 +179,8 @@ where
     let mut i: u32 = 0;
     while let Some(l) = queue.pop_front() {
         let n = loc(i);
+
+        // print(|f| g.fmt_loc(f, &l));
 
         g.succ(&l, |a, l2| {
             let n2 = if let Some(&n2) = loc_map.get(&l2) {

@@ -56,7 +56,7 @@ impl<'g, const N: usize> State<'g, N> {
             m: [VecMap::with_capacity(n), VecMap::with_capacity(n)],
             m_obs: array_init(|_| array_init(|i|
                 if check_obs {
-                    VecMap::with_capacity(g[0].n_obs(i))
+                    VecMap::with_capacity(g[0].n_obs(agt(i)))
                 } else {
                     VecMap::new()
                 }
@@ -202,15 +202,16 @@ impl<'g, const N: usize> State<'g, N> {
     fn is_obs_feasible(&mut self, obs: [[Obs; N]; 2]) -> bool {
         if !self.check_obs { return true; }
 
-        (0..N).all(|agt|
-            [0, 1].map(|i|
-                self.g[i].obs_set(agt, obs[i][agt]).len()
+        (0..N).all(|ag| {
+            let agt = agt(ag);
+            [0, 1].map(|j|
+                self.g[j].obs_set(agt, obs[j][ag]).len()
             ).iter().all_equal()
              && match [0, 1].map(|i|
-                self.m_obs[i][agt].get(obs[i][agt].index())
+                self.m_obs[i][ag].get(obs[i][ag].index())
             ) {
                 [Some(o1), Some(o0)] => {
-                    o0.0 == obs[0][agt] && o1.0 == obs[1][agt]
+                    o0.0 == obs[0][ag] && o1.0 == obs[1][ag]
                 },
                 [None, None] => {
                     // could be made to prune the search tree even more here
@@ -219,7 +220,7 @@ impl<'g, const N: usize> State<'g, N> {
                 },
                 _ => false
             }
-        )
+        })
     }
 }
 
@@ -228,7 +229,7 @@ pub fn is_isomorphic<const N: usize>(g0: &Game<N>, g1: &Game<N>, check_obs: bool
 
     let g = [g0, g1];
     if g[0].n_loc() != g[1].n_loc()
-    || (check_obs && (0..N).any(|i| g[0].n_obs(i) != g[1].n_obs(i))) {
+    || (check_obs && (0..N).any(|i| g[0].n_obs(agt(i)) != g[1].n_obs(agt(i)))) {
         return false;
     }
     
@@ -322,7 +323,7 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
 
 #[test]
 fn test_cup_game() {
-    let g = include_game!("../../games/cup_game.game", 2)
+    let g = include_game!("../../games/cup_game", 2)
         .build().game;
     let mut stack = MKBSCStack::new(g);
     for _ in 0..4 {

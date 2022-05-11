@@ -4,19 +4,28 @@ use crate::*;
 pub struct MKBSC<const N: usize> {
     pub g: Rc<Game<N>>,
     pub gi: [ConstructedGame<Project<N>, 1>; N],
-    pub gki: [ConstructedGame<KBSC, 1>; N]
+    pub gki: [ConstructedGame<KBSC, 1>; N],
+    buf: RefCell<[LocSet; 2]>
 }
 
 impl<const N: usize> MKBSC<N> {
     pub fn new(g: Rc<Game<N>>) -> Self {
         let gi: [_; N] = array_init(|i|
-            Project::new(g.clone(), i).build()
+            Project::new(g.clone(), agt(i)).build()
         );
         let gki: [_; N] = array_init(|i|
             KBSC::new(gi[i].game.clone()).build()
         );
 
+        // for (i, gi) in gi.iter().enumerate() {
+        //     println!("p({}): {}", i, gi);
+        // }
+        // for (i, gki) in gki.iter().enumerate() {
+        //     println!("k({}): {}", i, gki);
+        // }
+
         Self {
+            buf: RefCell::new([LocSet::new(&*g), LocSet::new(&*g)]),
             g, gi, gki
         }
     }
@@ -37,41 +46,92 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
     }
 
     fn succ(&self, &s: &Self::Loc, mut f: impl FnMut([Act; N], Self::Loc)) {
-        let mut pre_locs: LocSet = self.gki[0].origin_loc(s[0]).clone();
+        // println!("succ: {}", display(|f| self.fmt_loc(f, &s)));
+
+        let mut buf = self.buf.borrow_mut();
+        let buf = buf.split_at_mut(1);
+
+        let pre_locs = &mut buf.0[0];
+        // LocSet::intersect::<N>(pre_locs, array_init(|i| &**self.gki[i].origin_loc(s[i])));
+        pre_locs.replace_with(self.gki[0].origin_loc(s[0]));
         for i in 1..N {
-            pre_locs &= self.gki[i].origin_loc(s[i]);
+            *pre_locs &= self.gki[i].origin_loc(s[i]);
         }
-        assert!(!pre_locs.is_empty());
+        // assert!(!pre_locs.is_empty());
+
+        // println!("  pre_locs: {}", display(|f| format_list(f, pre_locs.iter(), |f, l| self.g.fmt_loc(f, l))));
+
+        let post_g = &mut buf.1[0];
+        let mut slices: [_; N] = array_init(|_| vec![]);
 
         for a in self.g.action_profiles() {
-            let post_g = LocSet::from_iter(
-                &self.g,
-                self.g.post_set(pre_locs.iter(), a)
-            );
+            // println!("    a: {}", display(|f| format_list(f, a.iter(), |f, a| write!(f, "{}", a))));
 
-            if post_g.is_empty() { continue; }
+            post_g.clear();
 
-            let post_gki: [_; N] = array_init(|i|
-                self.gki[i].post_raw(s[i], [a[i]])
-            );
-    
-            cartesian_product(post_gki, |x| {
-                let s2 = x.map(|&(_, si2)| si2);
+            let mut itr = self.g.post_set(pre_locs.iter(), a);
+            if let Some(first) = itr.next() {
+                post_g.insert(first);
+            } else {
+                continue;
+            }
 
-                let mut possible = post_g.clone();
-                for i in 0..N {
-                    possible &= self.gki[i].origin_loc(s2[i]);
+            post_g.extend(itr);
+
+            // println!("      post_g: {}", display(|f| format_list(f, post_g.iter(), |f, l| self.g.fmt_loc(f, l))));
+
+            for i in 0..N {
+                slices[i].clear();
+                let post_gki = self.gki[i].post_raw(s[i], [a[i]]);
+
+                for &(_, si2) in post_gki {
+                    let si = &**self.gki[i].origin_loc(si2);
+
+                    // TODO: remove slow workaround
+                    let si = LocSet::from_iter(
+                        &self.g,
+                        si.iter().map(|l_gi|
+                            *self.gi[i].origin_loc(l_gi)
+                        )
+                    );
+
+                    slices[i].push((si2, si));
                 }
+            }
 
-                if !possible.is_empty() {
-                    f(a, s2);
+            let slices: [_; N] = from_iter(
+                slices.iter().map(|v| &**v)
+            ).unwrap();
+
+            cartesian_product(slices, |x| {
+                // println!("        trying: {}", display(|f|
+                //     format_list(f, x.iter(), |f, (_, s)|
+                //         format_list(f, s.iter(), |f, l|
+                //             self.g.fmt_loc(f, l)
+                //         )
+                //     )
+                // ));
+
+                for (i, &(mut block)) in post_g.raw().iter().enumerate() {
+                    // println!("            {:#09b}", block);
+                    for (_, set) in x {
+                        // println!("            {:#09b}", set.raw()[i]);
+                        block &= set.raw()[i]
+                    }
+                    if block != 0 {
+                        // println!("          success");
+
+                        let s2 = x.map(|&(si2, _)| si2);
+                        f(a, s2);
+                        break;
+                    }
                 }
             });
         }
     }
 
     fn fmt_loc(&self, f: &mut fmt::Formatter, s: &Self::Loc) -> fmt::Result {
-        format_list(f, 0..N, |f, i|
+        format_sequence(f, SequenceFormat {sep: ",", ..LIST}, 0..N, |f, i|
             self.gki[i].fmt_loc(f, s[i])
         )
     }

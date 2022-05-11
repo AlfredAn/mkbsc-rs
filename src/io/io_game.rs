@@ -60,13 +60,13 @@ impl IOGameEnum {
                 Statement::Agt(list) => {
                     for agt in list {
                         ensure!(!agents.contains_key(&agt), "duplicate agent: {}", &agt);
-                        agents.insert(agt, agents.len());
+                        agents.insert(agt, crate::agt(agents.len()));
                     }
                 },
                 Statement::Act(list) => {
                     for act in list {
                         ensure!(!actions.contains_key(&act), "duplicate action: {}", &act);
-                        actions.insert(act, actions.len());
+                        actions.insert(act, crate::act(actions.len()));
                     }
                 },
                 Statement::Loc(list) => {
@@ -142,9 +142,9 @@ impl<const N: usize> IOGame<N> {
                     let &agt = agents.get(&agt)
                         .with_context(|| format!("undefined agent: {}", agt))?;
                     for equivalence in list.into_iter() {
-                        for (a, b) in equivalence.into_iter().tuples() {
+                        for (a, b) in equivalence.into_iter().tuple_windows() {
                             let (&a, &b) = (get_loc(a)?, get_loc(b)?);
-                            obs[agt].union(a.value(), b.value());
+                            obs[agt.index()].union(a.value(), b.value());
                         }
                     }
                 },
@@ -208,11 +208,11 @@ impl<const N: usize> IOGame<N> {
 }
 
 impl<const N: usize> IOGame<N> {
-    pub fn find_agent(&self, name: &Symbol) -> Option<usize> {
+    pub fn find_agent(&self, name: &Symbol) -> Option<crate::Agt> {
         self.agt.iter()
             .enumerate()
             .find(|(_, agt)| *agt == name)
-            .map(|(i, _)| i)
+            .map(|(i, _)| agt(i))
     }
 }
 

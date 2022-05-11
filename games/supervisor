@@ -1,0 +1,16 @@
+agt: 0, 1
+loc: start, one, two, three, win
+l0: start
+act: x, a, b
+delta:
+start (x x) (one, two),
+one (a a, a b, b a) one,
+one (b b) three,
+two (b b, b a, a b) two,
+two (a a) win,
+three (a a, a b, b a) three,
+three (b b) two,
+win (x x) win
+
+obs 0: one|two
+reach: win

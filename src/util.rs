@@ -1,6 +1,82 @@
+use std::cell::Cell;
+use derive_more::*;
+use itertools::structs::GroupBy;
+
 #[allow(dead_code)]
 
 use crate::*;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deref, From)]
+pub struct ReverseOrd<T>(T);
+
+impl<T: PartialOrd> PartialOrd for ReverseOrd<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
+            .map(|o| o.reverse())
+    }
+}
+
+impl<T: Ord> Ord for ReverseOrd<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.cmp(&other.0).reverse()
+    }
+}
+
+pub trait CustomArray<T, const N: usize>: Index<usize, Output=T> {
+    fn ref_array(&self) -> [&T; N] {
+        array_init(|i| &self[i])
+    }
+}
+
+impl<T, const N: usize> CustomArray<T, N> for [T; N] {}
+
+pub type SortAndGroupBy<T, K, F> = GroupBy<K, std::vec::IntoIter<T>, F>;
+
+pub trait CustomIterator: Iterator + Sized {
+    fn sort_and_group_by<K, F>(self, mut f: F)
+    -> SortAndGroupBy<Self::Item, K, F>
+    where
+        Self::Item: Debug + Clone,
+        K: Ord,
+        F: FnMut(&Self::Item) -> K
+    {
+        self.sorted_by(|a, b| f(a).cmp(&f(b)))
+            .group_by(f)
+    }
+
+    fn collect_array<const N: usize>(self) -> Option<[Self::Item; N]> {
+        let mut result = ArrayVec::<_, N>::new();
+        for x in self {
+            if result.try_push(x).is_err() {
+                return None;
+            }
+        }
+        result.into_inner().ok()
+    }
+}
+
+impl<T: Iterator + Sized> CustomIterator for T {}
+
+struct OpaqueDisplay<F: Fn(&mut fmt::Formatter) -> fmt::Result>(F);
+
+impl<F: Fn(&mut fmt::Formatter) -> fmt::Result> Display for OpaqueDisplay<F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (self.0)(f)
+    }
+}
+
+pub fn display(func: impl Fn(&mut fmt::Formatter) -> fmt::Result) -> impl Display {
+    OpaqueDisplay(func)
+}
+
+pub fn display_once(func: impl FnOnce(&mut fmt::Formatter) -> fmt::Result) -> impl Display {
+    let cell = Cell::new(Some(func));
+    OpaqueDisplay(move |f| (cell.take().unwrap())(f))
+}
+
+pub fn print(func: impl FnOnce(&mut fmt::Formatter) -> fmt::Result) {
+    println!("{}", display_once(func));
+}
 
 #[allow(unused_macros)]
 macro_rules! include_game {
@@ -109,6 +185,13 @@ pub fn find_first<T>(slice: &[T], mut pred: impl FnMut(&T) -> bool) -> usize {
 
 pub struct PtrEqRc<T: ?Sized>(pub Rc<T>);
 
+impl<T: ?Sized> Deref for PtrEqRc<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<T: ?Sized> Clone for PtrEqRc<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -154,9 +237,9 @@ impl<T: ?Sized> Hash for PtrEqRc<T> {
 }
 
 pub struct SequenceFormat<'a> {
-    start: &'a str,
-    end: &'a str,
-    sep: &'a str
+    pub start: &'a str,
+    pub end: &'a str,
+    pub sep: &'a str
 }
 
 pub const LIST: SequenceFormat = SequenceFormat {
@@ -215,6 +298,45 @@ pub fn format_set<T>(
     x: impl FnMut(&mut fmt::Formatter, T) -> fmt::Result
 ) -> fmt::Result {
     format_sequence(f, SET, iter, x)
+}
+
+pub fn fold_product<T, A, const N: usize>(
+    init: A,
+    len: [usize; N],
+    mut fold: impl FnMut(usize, usize, &A) -> A,
+    mut end: impl FnMut(A)
+) {
+    if len.contains(&0) {
+        return;
+    }
+
+    let mut stack = ArrayVec::<_, N>::new();
+    
+    let mut i = [0; N];
+    'outer: loop {
+        while !stack.is_full() {
+            let j = stack.len();
+            stack.push(
+                fold(
+                    j,
+                    i[j],
+                    stack.last().unwrap_or(&init)
+                )
+            );
+        }
+        end(stack.pop().unwrap());
+
+        for j in 0..N {
+            i[j] += 1;
+            if i[j] < len[j] {
+                continue 'outer;
+            } else {
+                i[j] = 0;
+                stack.pop();
+            }
+        }
+        break;
+    }
 }
 
 pub fn cartesian_product_generic<T, const N: usize>(

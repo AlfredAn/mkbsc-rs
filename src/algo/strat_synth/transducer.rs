@@ -22,13 +22,13 @@ impl Strategy for Transducer {
 
 impl Transducer {
     pub fn build<S: Strategy + ?Sized>(g: &Game<1>, strat: &S) -> Self {
-        Self::build_ma(g, 0, strat)
+        Self::build_ma(g, agt(0), strat)
     }
 
     pub fn build_ma<S: Strategy + ?Sized, const N: usize>(g: &Game<N>, agt: Agt, strat: &S) -> Self {
         let mut tr = BTreeMap::new();
         let mut state_map = HashMap::new();
-        let mut empty = HashSet::new();
+        let mut visited = HashSet::new();
         let mut states = Vec::new();
 
         macro_rules! state {
@@ -48,26 +48,36 @@ impl Transducer {
 
         let mut stack = vec![(g.l0(), state!(strat.init()))];
 
-        while let Some((l, s)) = stack.pop() {
-            let o = g.observe(l)[agt];
+        // eprintln!("--------------------------------------------------");
 
-            if tr.contains_key(&(o, s)) || empty.contains(&(o, s)) {
+        while let Some((l, s)) = stack.pop() {
+            if visited.contains(&(l, s)) {
                 continue;
             }
+
+            let o = g.observe(l)[agt.index()];
+
+            // eprint!("(l{l}) o{o},s{s}");
 
             let m = &states[s.index()];
             if let Some((a, m2)) = strat.call(o, m) {
                 let s2 = state!(m2);
                 tr.insert((o, s), (a, s2));
 
+                // eprintln!(" -> (a{a}) -> s{s2}");
+
+                // eprintln!("{:?}\n", g.successors(l));
                 for &(a_succ, l2) in g.successors(l) {
-                    if a == a_succ[agt] {
+                    // eprintln!("{:?}", (a_succ, l2));
+                    if a == a_succ[agt.index()] {
+                        // eprintln!("yes");
                         stack.push((l2, s2));
-                    }
+                    } // else { eprintln!("no"); }
                 }
             } else {
-                empty.insert((o, s));
+                // eprintln!(" -> None");
             }
+            visited.insert((l, s));
         }
 
         Transducer(tr)

@@ -14,7 +14,7 @@ pub fn proj_to_base_strategy<'a, const N: usize>(
     strategy(
         strat.init(),
         move |o_g, mem| {
-            strat.call(proj.obs(&(0, o_g)), mem)
+            strat.call(proj.obs(&(agt(0), o_g)), mem)
         }
     )
 }
@@ -31,11 +31,17 @@ pub fn kbsc_to_mkbsc_profile<'a, const N: usize>(
                 strategy(
                     strat.init(),
                     move |o_gk, mem| {
+                        // println!("o_gk: {o_gk}");
+
                         let gki = &gk.origin().gki[i];
+                        // println!("gki: {gki:?}");
 
-                        let &l_gki = gk.origin_obs(i, o_gk);
+                        let &l_gki = gk.origin_obs(agt(i), o_gk);
+                        // println!("({i})l_gki: {l_gki}");
+                        
                         let [o_gki] = gki.observe(l_gki);
-
+                        // println!("({i})o_gki: {o_gki}");
+                        
                         strat.call(o_gki, mem)
                     }
                 )
@@ -57,8 +63,8 @@ pub fn mkbsc_to_kbsc_profile<'a, const N: usize>(
                     move |o_gki, mem| {
                         let gki = &gk.origin().gki[i];
 
-                        let l_gki = gki.to_unique_loc(o_gki, 0).unwrap();
-                        let o_gk = gk.obs(&(i, l_gki));
+                        let l_gki = gki.to_unique_loc(o_gki, agt(0)).unwrap();
+                        let o_gk = gk.obs(&(agt(i), l_gki));
 
                         strat.call(o_gk, mem)
                     }
@@ -113,6 +119,6 @@ impl<S: Strategy> Strategy for KBSCStrategyTranslation<S> {
     }
 
     fn init(&self) -> Self::M {
-        (None, self.strat.borrow().init())
+        (None, self.strat.init())
     }
 }

@@ -11,13 +11,13 @@ impl<const N: usize> AbstractGame<1> for Project<N> {
     type Obs = Obs;
 
     fn l0(&self) -> Loc { self.g.l0() }
-    fn n_actions(&self) -> [usize; 1] { [self.g.n_actions[self.agt]] }
-    fn obs(&self, &l: &Loc) -> [Obs; 1] { [self.g.observe(l)[self.agt]] }
+    fn n_actions(&self) -> [usize; 1] { [self.g.n_actions[self.agt.index()]] }
+    fn obs(&self, &l: &Loc) -> [Obs; 1] { [self.g.observe(l)[self.agt.index()]] }
     fn is_winning(&self, &l: &Loc) -> bool { self.g.is_winning(l) }
 
     fn succ(&self, &l: &Loc, mut f: impl FnMut([Act; 1], Loc)) {
         for &(a, l2) in self.g.successors(l) {
-            f([a[self.agt]], l2)
+            f([a[self.agt.index()]], l2)
         }
     }
     

@@ -1,13 +1,28 @@
 use derive_more::*;
+use itertools::{izip};
 
-use crate::*;
+use crate::{*, string::{Interned, Interner}};
 
 #[derive(PartialEq, Eq, Hash, Debug, From, Into, Clone)]
 pub struct LocSet {
     s: FixedBitSet
 }
 
+thread_local! {
+    static GLOBAL_LOCSET: Interner<LocSet> = Interner::default();
+}
+
 impl LocSet {
+    pub fn from_raw(len: usize, itr: impl Iterator<Item=u32>) -> Self {
+        FixedBitSet::with_capacity_and_blocks(len, itr).into()
+    }
+
+    pub fn intern(&self) -> Interned<Self> {
+        GLOBAL_LOCSET.with(|int|
+            int.intern(self)
+        )
+    }
+
     pub fn new<const N: usize>(g: &Game<N>) -> Self {
         Self { s: FixedBitSet::with_capacity(g.n_loc()) }
     }
@@ -24,8 +39,8 @@ impl LocSet {
         result
     }
 
-    pub fn from_subset(g: &Game<1>, s: &ObsSubset) -> Self {
-        Self::from_iter(g, s.iter(g))
+    pub fn raw(&self) -> &[u32] {
+        self.s.as_slice()
     }
 
     pub fn iter(&self) -> impl Iterator<Item=Loc> + '_ {
@@ -48,29 +63,47 @@ impl LocSet {
         self.s.put(l.index())
     }
 
+    pub fn remove(&mut self, l: Loc) {
+        self.s.set(l.index(), false);
+    }
+
     pub fn first(&self) -> Option<Loc> {
         self.iter().next()
     }
     
-    /*pub fn fmt_debug<T: Debug>
-        (&self, f: &mut fmt::Formatter, d: &impl GameDataT<T>)
-        -> fmt::Result {
-        write!(f, "{}", self.iter()
-            .map(|l| &d[l])
-            .format_with("|", |x, f|
-                f(&format_args!("{:?}", x))
+    pub fn clear(&mut self) {
+        self.s.clear()
+    }
+
+    pub fn replace_with(&mut self, source: &LocSet) {
+        assert_eq!(self.s.len(), source.s.len());
+        for (b1, b2) in izip!(self.s.as_mut_slice(), source.raw()) {
+            *b1 = *b2;
+        }
+    }
+
+    pub fn intersection(s: &[&LocSet]) -> Self {
+        let len = s.iter().map(|s| s.s.len()).min().unwrap();
+        
+        Self::from_raw(
+            len,
+            (0..(len+31)/32).map(|i|
+                s.iter()
+                    .map(|s| s.raw()[i])
+                    .reduce(|a, b| a & b)
+                    .unwrap()
             )
         )
     }
 
-    pub fn fmt_display<T: Display>
-        (&self, f: &mut fmt::Formatter, d: &impl GameDataT<T>)
-        -> fmt::Result {
-        write!(f, "{}", self.iter()
-            .map(|l| &d[l])
-            .format("|")
-        )
-    }*/
+    pub fn intersect<const N: usize>(dest: &mut LocSet, s: [&LocSet; N]) {
+        for i in 0..dest.raw().len() {
+            dest.s.as_mut_slice()[i] = s.iter()
+                .map(|s| s.raw()[i])
+                .reduce(|a, b| a & b)
+                .unwrap();
+        }
+    }
 }
 
 impl BitAndAssign<&Self> for LocSet {

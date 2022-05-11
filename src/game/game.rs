@@ -1,5 +1,6 @@
-use slice_group_by::GroupBy;
-use crate::*;
+use itertools::chain;
+use indoc::{writedoc};
+use crate::{*, cli::Format};
 
 #[derive(Clone, SmartDefault)]
 pub struct Game<const N: usize> {
@@ -30,7 +31,7 @@ impl<const N: usize> Game<N> {
         self.loc.len()
     }
     pub fn n_obs(&self, agt: Agt) -> usize {
-        self.obs[agt as usize].len()
+        self.obs[agt.index()].len()
     }
 
     pub fn observe(&self, l: Loc) -> [Obs; N] {
@@ -44,7 +45,7 @@ impl<const N: usize> Game<N> {
     }
 
     pub fn obs_set(&self, agt: Agt, obs: Obs) -> &[Loc] {
-        &self.obs[agt][obs.index()]
+        &self.obs[agt.index()][obs.index()]
     }
 
     pub fn n_action_profiles(&self) -> usize {
@@ -52,13 +53,13 @@ impl<const N: usize> Game<N> {
     }
     pub fn action_profiles(&self) -> impl Iterator<Item=[Act; N]> {
         range_product(self.n_actions.map(|n| 0..n))
-            .map(|aa| aa.map(|a| a as Act))
+            .map(|aa| aa.map(|a| act(a)))
     }
     fn action_profile_index(&self, a: [Act; N]) -> usize {
         let mut result = 0;
         for i in (0..N).rev() {
             result *= self.n_actions[i];
-            result += a[i];
+            result += a[i].index();
         }
         result
     }
@@ -67,10 +68,13 @@ impl<const N: usize> Game<N> {
         self.loc.iter().enumerate().map(|(i, x)| (loc(i), x))
     }
     pub fn iter_obs(&self, agt: Agt) -> impl Iterator<Item=(Obs, &[Loc])> {
-        self.obs[agt].iter().enumerate().map(|(i, x)| (obs(i), &**x))
+        self.obs[agt.index()].iter().enumerate().map(|(i, x)| (obs(i), &**x))
     }
-    pub fn iter_agt(&self) -> impl Iterator<Item=Agt> {
-        0..N
+    pub fn iter_agt(&self) -> impl Iterator<Item=Agt> + Clone {
+        (0..N).map(|i| agt(i))
+    }
+    pub fn iter_act(&self, agt: Agt) -> impl Iterator<Item=Act> {
+        (0..self.n_actions[agt.index()]).map(|i| act(i))
     }
 
     pub fn edges(&self) -> impl Iterator<Item=(Loc, [Act; N], Loc)> + '_ {
@@ -85,10 +89,9 @@ impl<const N: usize> Game<N> {
         &self[l].successors
     }
     pub fn post_raw(&self, l: Loc, a: [Act; N]) -> &[([Act; N], Loc)] {
-        self.successors(l)
-            .linear_group_by(|(a1, _), (a2, _)| a1 == a2)
-            .find(|slice| slice[0].0 == a)
-            .unwrap_or(&[])
+        find_group(self.successors(l), |x|
+            a.cmp(&x.0)
+        )
     }
     pub fn post(&self, l: Loc, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
         self.post_raw(l, a).iter().map(|&(_, l)| l)
@@ -103,15 +106,26 @@ impl<const N: usize> Game<N> {
                 self.post(l, a)
             )
     }
+    pub fn succ_set<'a, I>(&'a self, s: I) -> impl Iterator<Item=([Act; N], Loc)> + 'a
+    where
+        I: IntoIterator<Item=Loc>,
+        I::IntoIter: 'a
+    {
+        s.into_iter()
+            .flat_map(move |l|
+                self.successors(l)
+                    .iter()
+                    .copied()
+            )
+    }
 
     pub fn predecessors(&self, l: Loc) -> &[([Act; N], Loc)] {
         &self[l].predecessors
     }
     pub fn pre_raw(&self, l: Loc, a: [Act; N]) -> &[([Act; N], Loc)] {
-        self.predecessors(l)
-            .linear_group_by(|(a1, _), (a2, _)| a1 == a2)
-            .find(|slice| slice[0].0 == a)
-            .unwrap_or(&[])
+        find_group(self.predecessors(l), |x|
+            a.cmp(&x.0)
+        )
     }
     pub fn pre(&self, l: Loc, a: [Act; N]) -> impl Iterator<Item=Loc> + '_ {
         self.pre_raw(l, a).iter().map(|&(_, l)| l)
@@ -131,9 +145,22 @@ impl<const N: usize> Game<N> {
         loc(0)
     }
 
+    pub fn is_obs_winning(&self, agt: Agt, obs: Obs) -> bool {
+        self.obs_set(agt, obs)
+            .iter()
+            .all(|&l| self.is_winning(l))
+    }
+
+    pub fn neighbors(&self, l: Loc) -> impl Iterator<Item=Loc> + '_ {
+        self.successors(l)
+            .iter()
+            .map(|&(_, l)| l)
+            .dedup()
+    }
+
     pub fn to_unique_loc(&self, obs: Obs, agt: Agt) -> Option<Loc> {
-        if self.obs[agt][obs.index()].len() == 1 {
-            Some(self.obs[agt][obs.index()][0])
+        if self.obs[agt.index()][obs.index()].len() == 1 {
+            Some(self.obs[agt.index()][obs.index()][0])
         } else {
             None
         }
@@ -148,7 +175,7 @@ impl<const N: usize> Game<N> {
     }
 
     pub fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, obs: Obs) -> fmt::Result {
-        format_sep(f, " | ", self.obs_set(agt, obs).iter(), |f, &l|
+        format_sep(f, "|", self.obs_set(agt, obs).iter(), |f, &l|
             self.fmt_loc(f, l)
         )
     }
@@ -161,7 +188,6 @@ impl<const N: usize> Index<Loc> for Game<N> {
 impl<const N: usize> IndexMut<Loc> for Game<N> {
     fn index_mut(&mut self, l: Loc) -> &mut LocData<N> { &mut self.loc[l.index()] }
 }
-
 
 impl<const N: usize> Debug for Game<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -191,5 +217,197 @@ impl<const N: usize> Debug for Game<N> {
         })?;
 
         write!(f, " }}\n}}")
+    }
+}
+
+impl<const N: usize> Display for Game<N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "agt: ")?;
+        format_sep(f, ", ",
+            0..N,
+            |f, i| write!(f, "{}", i)
+        )?;
+
+        write!(f, "\nact: ")?;
+        format_sep(f, ", ",
+            0..self.n_actions.into_iter().max().unwrap(),
+            |f, i| write!(f, "{}", i)
+        )?;
+
+        write!(f, "\nloc: ")?;
+        format_sep(f, ", ",
+            self.iter(),
+            |f, (l, _)| self.fmt_loc(f, l)
+        )?;
+
+        write!(f, "\nl0: ")?;
+        self.fmt_loc(f, self.l0())?;
+
+        let mut reach = self.iter()
+            .filter(|(_, data)| data.is_winning);
+
+        if let Some(first) = reach.next() {
+            write!(f, "\nreach: ")?;
+            format_sep(f, ", ",
+                chain!(iter::once(first), reach),
+                |f, (l, _)| self.fmt_loc(f, l)
+            )?;
+        }
+
+        for i in 0..N {
+            let agt = agt(i);
+
+            let mut obs = self.iter_obs(agt)
+                .filter(|(_, set)| set.len() > 1);
+
+            if let Some(first) = obs.next() {
+                write!(f, "\nobs {}: ", agt)?;
+                format_sep(f, ", ",
+                    chain!(iter::once(first), obs),
+                    |f, (_, set)| format_sep(f, "|",
+                        set.iter(),
+                        |f, &l| self.fmt_loc(f, l)
+                    )
+                )?;
+            }
+        }
+
+        write!(f, "\ndelta:\n")?;
+        format_sep(f, ",\n",
+            self.edges(),
+            |f, (l, a, l2)| {
+                self.fmt_loc(f, l)?;
+                format_sequence(f,
+                    SequenceFormat {
+                        start: " (",
+                        sep: " ",
+                        end: ") "
+                    },
+                    a.into_iter(),
+                    |f, a| write!(f, "{}", a)
+                )?;
+                self.fmt_loc(f, l2)
+            }
+        )?;
+
+        Ok(())
+    }
+}
+
+fn tex_escaped(f: &mut fmt::Formatter, input: &str) -> fmt::Result {
+    for c in input.chars() {
+        match c {
+            '&'|'%'|'$'|'#'|'_'|'{'|'}' => write!(f, r"\{c}"),
+            '~' => write!(f, r"\textasciitilde "),
+            '^' => write!(f, r"\textasciicircum "),
+            '\\' => write!(f, r"\textbackslash "),
+            _ => write!(f, "{c}")
+        }?;
+    }
+    Ok(())
+}
+
+impl<const N: usize> Game<N> {
+    pub fn format(&self, f: &mut fmt::Formatter, fmt: &Format) -> fmt::Result {
+        match fmt {
+            Format::Default => write!(f, "{}", self),
+            Format::Tikz => self.format_tikz(f),
+        }
+    }
+
+    pub fn format_tikz(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let nodes = display(|f| {
+            for (l, data) in self.iter() {
+                let label = display(|f|
+                    tex_escaped(f,
+                        &format!("{}",
+                            display(|f| self.fmt_loc(f, l))
+                        )
+                    )
+                );
+
+                let options = display(|f| {
+                    write!(f, "state")?;
+                    if self.l0() == l { write!(f, ", initial")?; }
+                    if data.is_winning { write!(f, ", accepting")?; }
+                    Ok(())
+                });
+
+                let name = l.index();
+                writeln!(f, r"    \node[{options}] ({name}) {{{label}}};")?;
+            }
+
+            Ok(())
+        });
+
+        println!("{:?}", self.iter().map(|x| x.0).collect_vec());
+        println!("{:?}", self.edges().collect_vec());
+
+        let edges = display(|f| {
+            for ((l, l2), group) in self.edges().sort_and_group_by(|&(l, _, l2)| (l, l2)).into_iter() {
+                let label = display_once(|f|
+                    format_sep(f, ",", group, |f, (_, a, _)|
+                        format_sequence(f, SequenceFormat {
+                            start: "(", end: ")", sep: ","
+                        }, a.iter(), |f, ai|
+                            write!(f, "a{ai}")
+                        )
+                    )
+                );
+
+                let options = display(|f| {
+                    write!(f, "above")?;
+                    if l == l2 {
+                        write!(f, ", loop above")?;
+                    }
+                    Ok(())
+                });
+                let l2 = display(|f| if l != l2 { write!(f, "{l2}") } else { Ok(()) });
+
+                writeln!(f, r"    \draw ({l}) edge[{options}] node{{{label}}} ({l2});")?;
+            }
+
+            Ok(())
+        });
+
+        let obs = display(|f| {
+            for (l, _) in self.iter() {
+                let o = self.observe(l);
+                for (l2, _) in self.iter().skip(l.index()+1) {
+                    if l == l2 { continue; }
+
+                    let o2 = self.observe(l2);
+
+                    let mut agt = self.iter_agt()
+                        .filter(|agt| o[agt.index()] == o2[agt.index()])
+                        .peekable();
+
+                    if let Some(_) = agt.peek() {
+                        let options = "obs, above";
+                        let label = display(|f|
+                            format_sep(f, ",", agt.clone(), |f, agt| write!(f, "{agt}"))
+                        );
+
+                        writeln!(f, r"    \draw ({l}) edge[{options}] node{{\textasciitilde {label}}} ({l2});")?;
+                    }
+                }
+            }
+            Ok(())
+        });
+
+        writedoc!(f, r"
+            \begin{{figure}}
+              \centering
+              \begin{{tikzpicture}}
+            {nodes}
+            {edges}
+            {obs}
+              \end{{tikzpicture}}
+              \caption{{Game}}
+              \label{{fig:game}}
+            \end{{figure}}
+        ")?;
+
+        Ok(())
     }
 }

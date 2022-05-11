@@ -97,56 +97,107 @@ impl<const N: usize> MKBSCStack<N> {
     fn base_proj(&self) -> &[ConstructedGame<Project<N>, 1>; N] {
         self.base_proj.get_or_init(||
             array_init(move |i|
-                Project::new(self.base.clone(), i).build()
+                Project::new(self.base.clone(), agt(i)).build()
             )
         )
     }
 
-    pub fn find_strategy(&mut self) -> Option<&[Transducer; N]> {
+    pub fn find_strategy(&mut self, print: bool, find_all: bool) -> (Option<&[Transducer; N]>, Stats) {
         let entry = self.last();
         let g = entry.game();
-        let parts = self.parts(&entry).map(|rc| &**rc);
+        
+        if let Some(mkbsc) = entry.mkbsc() {
+            // if print { println!("{:?}", mkbsc.game); }
 
-        for profile in all_strategies(parts).into_iter() {
-            if verify_strategy(g, &profile).is_ok() {
-                let profile = array_init(|i| &profile[i]);
+            if print { println!("starting strategy synthesis"); }
 
-                let transducer = array_init(|i|
-                    match entry {
-                        StackElement::Base(_) => {
-                            self.base_proj()[i]
-                                .translate_strategy(profile[i])
-                                .transducer_ma(g, i)
-                        },
-                        StackElement::MKBSC(g) => {
-                            g.from_kbsc_profile(profile)[i]
-                                .transducer_ma(g, i)
-                        },
+            let mut found_strategies = HashSet::new();
+
+            let mut profile = None;
+            let stats = find_strategy(
+                mkbsc,
+                |depth| {
+                    if print { println!("depth: {depth}"); }
+                    ControlFlow::Continue(())
+                },
+                |strat| {
+                    if profile.is_none() {
+                        profile = Some(strat.clone());
                     }
-                );
-                self.strat.clear();
-                self.strat.push(transducer);
+                    if !found_strategies.contains(strat) {
+                        found_strategies.insert(strat.clone());
+                        if print { println!("found strategy: {:#?}", strat); }
+                    }
+                    if find_all {
+                        ControlFlow::Continue(())
+                    } else {
+                        ControlFlow::Break(())
+                    }
+                },
+                find_all
+            );
 
-                for i in (0..N-1).rev() {
-                    let last_strat = self.strat.last().unwrap();
-                    let last_strat = array_init(|i| &last_strat[i]);
+            // if print { println!("{:?}", stats); }
 
-                    let last_g = self.get(i+1).mkbsc().unwrap();
-                    let g = self.get(i).game();
+            if print { println!("number of strategies found: {}", found_strategies.len()); }
 
-                    let transducer = array_init(|i|
-                        last_g.translate_strategy(last_strat)[i]
-                            .transducer_ma(g, i)
+            if profile.is_none() { return (None, stats); }
+            let profile = profile.unwrap();
+
+            let transducer = match entry {
+                StackElement::Base(_) => {
+                    let s = array_init(|i|
+                        self.base_proj()[i]
+                            .translate_strategy(&profile[i])
                     );
-
-                    self.strat.push(transducer);
+                    let works = verify_strategy(g, &s).is_ok();
+                    assert!(works);
+                    from_iter(s.into_iter().enumerate().map(|(i, si)|
+                        si.transducer_ma(g, agt(i))
+                    )).unwrap()
+                },
+                StackElement::MKBSC(g) => {
+                    let profile = g.from_kbsc_profile(profile.ref_array());
+                    let s = profile.ref_array();
+                    let works = verify_strategy(g, &s).is_ok();
+                    assert!(works);
+                    from_iter(s.into_iter().enumerate().map(|(i, si)|
+                        si.transducer_ma(g, agt(i))
+                    )).unwrap()
                 }
+            };
 
-                self.strat.reverse();
-                return self.strat(0);
+            // println!("{:?}", transducer);
+            assert!(verify_strategy(g, &transducer).is_ok());
+
+            self.strat.clear();
+            self.strat.push(transducer);
+
+            for i in (0..self.len()-1).rev() {
+                let last_strat = self.strat.last().unwrap().ref_array();
+
+                let last_g = self.get(i+1).mkbsc().unwrap();
+                let g = self.get(i).game();
+
+                // println!("{:?}", g);
+
+                let transducer = {
+                    let translated = last_g.translate_strategy(last_strat);
+                    array_init(|i|
+                        translated[i].transducer_ma(g, agt(i))
+                    )
+                };
+
+                // println!("{i}: {:?}", transducer);
+                assert!(verify_strategy(g, &transducer).is_ok());
+
+                self.strat.push(transducer);
             }
+
+            self.strat.reverse();
+            return (self.strat(0), stats);
         }
 
-        None
+        (None, Stats::default())
     }
 }

@@ -1,5 +1,3 @@
-use once_cell::unsync::OnceCell;
-
 use crate::{*, io_game::*};
 
 use super::{Action, MKBSCAction};
@@ -18,24 +16,25 @@ pub enum RunnerEnum {
 }
 
 impl RunnerEnum {
-    pub fn new(io_game: IOGameEnum) -> Self {
+    pub fn new(io_game: IOGameEnum, preserve_origin: bool) -> Self {
         macro_rules! new {
-            ($n:expr, $g:expr) => {
+            ($n:expr) => {
                 Runner::<$n>::new(
-                    $g.try_into().unwrap(),
+                    io_game.try_into().unwrap(),
+                    preserve_origin
                 ).into()
             }
         }
 
         match io_game.n_agents() {
-            1 => new!(1, io_game),
-            2 => new!(2, io_game),
-            3 => new!(3, io_game),
-            4 => new!(4, io_game),
-            5 => new!(5, io_game),
-            6 => new!(6, io_game),
-            7 => new!(7, io_game),
-            8 => new!(8, io_game),
+            1 => new!(1),
+            2 => new!(2),
+            3 => new!(3),
+            4 => new!(4),
+            5 => new!(5),
+            6 => new!(6),
+            7 => new!(7),
+            8 => new!(8),
             _ => panic!("unsupported number of agents: {}", io_game.n_agents())
         }
     }
@@ -44,37 +43,22 @@ impl RunnerEnum {
 #[derive(Debug)]
 pub struct Runner<const N: usize> {
     io_game: Rc<IOGame<N>>,
-    game: OnceCell<ConstructedGame<IOGame<N>, N>>,
-    stack: Option<MKBSCStack<N>>
+    preserve_origin: bool
 }
 
 impl<const N: usize> Runner<N> {
-    fn new(io_game: IOGame<N>) -> Self {
+    fn new(io_game: IOGame<N>, preserve_origin: bool) -> Self {
         Self {
             io_game: Rc::new(io_game),
-            game: Default::default(),
-            stack: None
+            preserve_origin
         }
     }
 
-    fn game(&self) -> &Rc<Game<N>> {
-        self.game.get_or_init(|| self.io_game.clone().build())
-    }
-
-    fn stack(&mut self) -> &mut MKBSCStack<N> {
-        if self.stack.is_none() {
-            self.stack = Some(
-                MKBSCStack::new(
-                    self.game().clone()
-                )
-            );
-        }
-        self.stack.as_mut().unwrap()        
-    }
-
-    fn clear_stack(&mut self) {
-        if let Some(stack) = &mut self.stack {
-            stack.clear()
+    fn game(&self) -> Rc<Game<N>> {
+        if self.preserve_origin {
+            self.io_game.clone().build().game
+        } else {
+            self.io_game.clone().build_no_origin()
         }
     }
 }
@@ -88,7 +72,31 @@ impl<const N: usize> RunnerTrait for Runner<N> {
     fn run(&mut self, action: &Action) -> anyhow::Result<()> {
         match action {
             Action::MKBSC(a) => self.mkbsc(a),
-            Action::Synth(_) => self.synthesize(),
+            Action::Synth => {
+                println!("finding one...");
+                self.synthesize(true, false);
+
+                println!("finding all...");
+                self.synthesize(true, true);
+
+                println!("benchmarking one...");
+                let n = 10000;
+                let before = SystemTime::now();
+                for _ in 0..n {
+                    self.synthesize(false, false);
+                }
+                let elapsed = before.elapsed().unwrap();
+
+                println!("benchmarking all...");
+                let before2 = SystemTime::now();
+                for _ in 0..n {
+                    self.synthesize(false, true);
+                }
+                let elapsed2 = before2.elapsed().unwrap();
+
+                println!("benchmark (one): {:?}", elapsed/n);
+                println!("benchmark (all): {:?}", elapsed2/n);
+            },
         }
         
         Ok(())
@@ -97,8 +105,18 @@ impl<const N: usize> RunnerTrait for Runner<N> {
 
 impl<const N: usize> Runner<N> {
     fn mkbsc(&mut self, action: &MKBSCAction) {
-        self.clear_stack();
         let mut g = self.game().clone();
+
+        if action.print_iteration {
+            println!("-----G^({}K)-----", 0);
+        }
+        if action.print_sizes {
+            println!("n = {}", g.loc.len());
+        }
+
+        if action.print_games {
+            println!("{}", display(|f| g.format(f, &action.format)));
+        }
 
         for i in 0..action.iterations {
             if action.print_iteration {
@@ -120,7 +138,7 @@ impl<const N: usize> Runner<N> {
             }
 
             if action.print_games {
-                println!("{:?}", g);
+                println!("{}", display(|f| g.format(f, &action.format)));
             }
 
             if action.check_convergence && is_isomorphic(&g, &g_prev, true) {
@@ -130,39 +148,64 @@ impl<const N: usize> Runner<N> {
             }
         }
 
-        if action.print_result && !action.print_games {
-            println!("{:?}", g);
+        if action.kbsc || action.project.is_some() {
+            let agt = if let Some(agt) = &action.project {
+                self.io_game.find_agent(agt).unwrap()
+            } else {
+                assert_eq!(N, 1);
+                agt(0)
+            };
+
+            let mut g = Project::new(g, agt).build().game;
+
+            if action.kbsc {
+                g = KBSC::new(g).build().game;
+            }
+
+            if action.print_result {
+                println!("{}", display(|f| g.format(f, &action.format)));
+            }
+        } else {
+            if action.print_result && !action.print_games {
+                println!("{}", display(|f| g.format(f, &action.format)));
+            }
         }
     }
 
-    fn synthesize(&mut self) {
-        self.clear_stack();
-        let stack = self.stack();
+    fn synthesize(&mut self, print: bool, find_all: bool) {
+        let mut stack = MKBSCStack::new(self.io_game.clone().build().game);
+        let mut stats = Stats::default();
 
         for i in 0.. {
-            println!("-----G^({}K)-----", i);
+            if print { println!("-----G^({}K)-----", i); }
 
             if stack.len() < i+1 {
-                println!("applying MKBSC...");
+                if print { println!("applying MKBSC..."); }
                 stack.push();
-                println!("n = {}", stack.last().game().n_loc());
-                if is_isomorphic(stack.get(i).game(), stack.get(i-1).game(), true) {
-                    println!("isomorphic, stopping at G^({}K)", i-1);
+                if print { println!("n = {}", stack.last().game().n_loc()); }
+                if i > 1 && is_isomorphic(stack.get(i).game(), stack.get(i-1).game(), true) {
+                    if print { println!("isomorphic, stopping at G^({}K)", i-1); }
                     break;
                 }
             } else {
-                println!("n = {}", stack.last().game().n_loc());
+                if print { println!("n = {}", stack.last().game().n_loc()); }
             }
-
+            // if print { println!("{:?}", stack.last().game()); }
             
-            println!("finding strategy...");
-            if let Some(profile) = stack.find_strategy() {
-                println!("strategy found");
-                println!("{:?}", profile);
+            if print { println!("finding strategy..."); }
+
+            let (result, stats2) = stack.find_strategy(print, find_all);
+            stats += stats2;
+
+            if let Some(profile) = result {
+                if print { println!("strategy found"); }
+                if print { println!("{:?}", profile); }
                 break;
             }
 
-            println!("no strategy found");
+            if print { println!("no strategy found"); }
         }
+
+        if print { println!("{:?}", stats); }
     }
 }

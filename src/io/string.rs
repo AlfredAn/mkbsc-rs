@@ -2,49 +2,72 @@ use std::{rc::{Rc, Weak}, cell::RefCell, hash::Hash};
 
 use weak_table::WeakHashSet;
 
-use crate::PtrEqRc;
+use crate::{PtrEqRc};
 
 thread_local! {
-    static GLOBAL_STRINGS: Interner = Interner::new();
+    static GLOBAL_STRINGS: Interner<str> = Interner::default();
 }
 
 pub fn intern(s: &str) -> Symbol {
     GLOBAL_STRINGS.with(|strings|
-        strings.intern(s)
+        Symbol(strings.intern(s))
     )
 }
 
-#[derive(Debug, Default)]
-pub struct Interner(RefCell<WeakHashSet<Weak<str>>>);
+#[derive(Debug)]
+pub struct Interner<T: ?Sized + Eq + Hash>(RefCell<WeakHashSet<Weak<T>>>);
 
-impl Interner {
-    fn new() -> Self {
-        Self::default()
+impl<T: ?Sized + Eq + Hash> Default for Interner<T> {
+    fn default() -> Self {
+        Self(Default::default())
     }
+}
 
-    fn intern(&self, s: &str) -> Symbol {
+impl<T: Eq + Hash + Clone> Interner<T> {
+    pub fn intern(&self, s: &T) -> Interned<T> {
         let mut set = self.0.borrow_mut();
         if let Some(s) = set.get(s) {
-            Symbol(PtrEqRc(s))
+            PtrEqRc(s)
         } else {
-            let rc = Rc::<str>::from(s);
+            let rc = Rc::new(s.clone());
             set.insert(rc.clone());
-            Symbol(PtrEqRc(rc))
+            PtrEqRc(rc)
         }
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct Symbol(PtrEqRc<str>);
+impl Interner<str> {
+    pub fn intern(&self, s: &str) -> Interned<str> {
+        let mut set = self.0.borrow_mut();
+        if let Some(s) = set.get(s) {
+            PtrEqRc(s)
+        } else {
+            let rc = Rc::from(s);
+            set.insert(Rc::clone(&rc));
+            PtrEqRc(rc)
+        }
+    }
+}
+
+pub type Interned<T> = PtrEqRc<T>;
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Symbol(Interned<str>);
+
+impl Clone for Symbol {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.0.0)
     }
 }
 
 impl std::fmt::Display for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.0.0)
     }
 }

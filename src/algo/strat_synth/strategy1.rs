@@ -1,12 +1,10 @@
-use std::iter;
-
 use crate::*;
 use Outcome::*;
 use itertools::izip;
 
 type Depth = u16;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Outcome {
     Win(Depth), // guaranteed to win in at most x steps
     Maybe(Depth, Depth), // possible to win after x steps; possible to reach Win(_) state in y steps
@@ -19,6 +17,12 @@ impl Outcome {
     pub fn is_lose(self) -> bool { self == Lose }
     pub fn can_win(self) -> bool { self != Lose }
     pub fn increment(self) -> Self { match self { Win(x) => Win(x+1), Maybe(x, y) => Maybe(x+1, y+1), Lose => Lose } }
+}
+
+impl PartialOrd for Outcome {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Ord for Outcome {
@@ -83,13 +87,13 @@ impl Default for Outcome {
 }
 
 #[derive(Clone, Debug)]
-pub struct StratEntry {
+pub struct OutcomeSet {
     pub action: Vec<Outcome>,
     pub outcome: Outcome,
     pub initial: Outcome
 }
 
-impl StratEntry {
+impl OutcomeSet {
     fn new(n: usize, is_goal: bool) -> Self {
         let outcome = if is_goal {Win(0)} else {Lose};
         Self {
@@ -100,7 +104,7 @@ impl StratEntry {
     }
  
     fn insert(&mut self, a: Act, outcome: Outcome) -> (bool, Outcome) {
-        let a = &mut self.action[a as usize];
+        let a = &mut self.action[a.index()];
         let a_old = *a;
         *a |= outcome;
 
@@ -116,7 +120,7 @@ impl StratEntry {
     }
 }
 
-impl BitAndAssign<&Self> for StratEntry {
+impl BitAndAssign<&Self> for OutcomeSet {
     fn bitand_assign(&mut self, rhs: &Self) {
         for (a, b) in izip!(&mut self.action, &rhs.action) {
             *a &= *b;
@@ -125,11 +129,13 @@ impl BitAndAssign<&Self> for StratEntry {
     }
 }
 
-pub fn find_memoryless_strategies_ii(g: &Game<1>) -> Vec<StratEntry> {
-    let sl = find_memoryless_strategies_pi(g);
-    let mut so = Vec::with_capacity(g.n_obs(0));
+pub fn find_obs_outcomes(g: &Game<1>) -> Vec<OutcomeSet> {
+    let sl = find_outcomes(g);
+    // println!("pi: {:#?}", sl);
 
-    for (_, set) in g.iter_obs(0) {
+    let mut so = Vec::with_capacity(g.n_obs(agt(0)));
+
+    for (_, set) in g.iter_obs(agt(0)) {
         let mut entry = sl[set[0].index()].clone();
         for l in set[1..].iter() {
             entry &= &sl[l.index()];
@@ -140,7 +146,7 @@ pub fn find_memoryless_strategies_ii(g: &Game<1>) -> Vec<StratEntry> {
     so
 }
 
-pub fn find_memoryless_strategies_pi(g: &Game<1>) -> Vec<StratEntry> {
+pub fn find_outcomes(g: &Game<1>) -> Vec<OutcomeSet> {
     let n = g.n_loc();
 
     let mut w = Vec::with_capacity(n);
@@ -150,19 +156,19 @@ pub fn find_memoryless_strategies_pi(g: &Game<1>) -> Vec<StratEntry> {
 
     for l in (0..n).map(|l| loc(l)) {
         if g.is_winning(l) {
-            w.push(StratEntry::new(n_actions, true));
+            w.push(OutcomeSet::new(n_actions, true));
             w_list.push(l);
         } else {
-            w.push(StratEntry::new(n_actions, false));
+            w.push(OutcomeSet::new(n_actions, false));
         }
     }
     
     let mut buf = Vec::new();
-    //let mut depth = 1;
+    //let mut depth = ;
     loop {
         //println!("depth={}", depth);
 
-        for a in 0..n_actions {
+        for a in (0..n_actions).map(|a| act(a)) {
             for l in g.pre_set(w_list.iter().copied(), [a]) {
                 let outcome = g.post(l, [a])
                     .map(|l2| w[l2.index()].outcome)
@@ -192,7 +198,7 @@ pub fn find_memoryless_strategies_pi(g: &Game<1>) -> Vec<StratEntry> {
 
     w
 }
-
+/*
 #[derive(Debug, Clone)]
 pub struct AllStrategies1 {
     strat: Vec<Option<Act>>,
@@ -225,6 +231,12 @@ impl Debug for MlessStrat {
 }
 
 impl AllStrategies1 {
+    pub fn count(&self) -> u128 {
+        self.variables.iter()
+            .map(|(_, v, _)| v.len() as u128)
+            .fold(1, |a, b| a * b)
+    }
+
     pub fn advance(&mut self) -> bool {
         for (l, actions, i) in &mut self.variables {
             *i += 1;
@@ -255,26 +267,53 @@ impl AllStrategies1 {
         }
     }
 
-    pub(crate) fn new(w: &Vec<StratEntry>, n: usize) -> Self {
-        let mut base = Vec::with_capacity(n);
-        let mut variables = Vec::new();
+    pub fn new(w: &Vec<OutcomeSet>, g: &Game<1>) -> Self {
+        let mut strat = VecMap::with_capacity(g.n_obs(agt(0)));
+        let mut visited = LocSet::new(g);
+        let mut added = LocSet::new(g);
+        let mut queue = VecDeque::new();
+
+        queue.push_back(g.l0());
+        added.insert(g.l0());
 
         let mut buf = Vec::new();
-        
-        for (l, entry) in w.iter().enumerate() {
-            for (a, &outcome) in entry.action.iter().enumerate() {
+
+        while let Some(l) = queue.pop_front() {
+            visited.insert(l);
+            let [obs] = g.observe(l);
+
+            if g.is_obs_winning(agt(0), obs) {
+                continue;
+            }
+
+            let mut itr = g.obs_set(agt(0), obs)
+                .iter()
+                .filter(|&&l| visited.contains(l))
+                .map(|l| &w[l.index()]);
+            let outcomes = itr.fold(
+                itr.next().unwrap().clone(),
+                |e, e2| {
+                    e &= e2;
+                    e
+                }
+            );
+
+            assert!(buf.is_empty());
+            for (a, &outcome) in outcomes.action.iter().enumerate() {
                 if outcome.can_win() {
-                    buf.push((a, outcome));
+                    buf.push((act(a), outcome));
                 }
             }
 
-            if entry.outcome.is_win() {
+            if outcomes.outcome.is_win() {
                 let best = buf.iter()
                     .copied()
-                    .reduce(|(a1, o1), (a2, o2)| if o1 <= o2 {(a1, o1)} else {(a2, o2)})
-                    .unwrap();
+                    .reduce(|(a1, o1), (a2, o2)| if o1 <= o2 {(a1, o1)} else {(a2, o2)});
                 buf.clear();
-                buf.push(best);
+
+                if let Some(best) = best {
+                    buf.push(best);
+                }
             }
 
             match buf.len() {
@@ -290,13 +329,14 @@ impl AllStrategies1 {
                     variables.push((
                         loc(l),
                         buf.drain(..)
-                            .map(|(a, _)| a)
+                            .map(|(a, _)| act(a))
                             .collect(),
                         0
                     ));
                 }
             }
         }
+        todo!();
 
         AllStrategies1 {
             strat: base,
@@ -324,10 +364,15 @@ impl AllStrategies1 {
 }
 
 pub fn all_strategies1(g: &Game<1>) -> AllStrategies1 {
-    let fms = find_memoryless_strategies_ii(g);
+    // let fms = find_memoryless_strategies(g);
+    todo!()
 
-    AllStrategies1::new(
-        &fms,
-        g.n_obs(0)
-    )
+    // println!("{}", g);
+    // println!("ii: {:#?}", fms);
+
+    // AllStrategies1::new(
+    //     &fms,
+    //     g.n_obs(agt(0))
+    // )
 }
+*/

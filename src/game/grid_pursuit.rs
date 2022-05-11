@@ -1,9 +1,9 @@
 use derive_more::*;
-use itertools::izip;
+use itertools::{izip, chain};
 
 use crate::*;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Add, Sub, AddAssign, SubAssign)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Add, Sub, AddAssign, SubAssign)]
 pub struct Pos {
     x: i8,
     y: i8
@@ -26,143 +26,206 @@ const MOVE: [Pos; 5] = [
 const VIS: [Pos; 5] = MOVE;
 
 #[derive(Debug, Clone)]
-pub struct GridPursuitGame<const X: i8, const Y: i8, const N: usize> {
-    l0: Loc<X, Y, N>
+pub struct GridPursuitGame<const N: usize> {
+    l0: Loc<N>,
+    max: Pos
 }
 
-#[derive(Debug, Copy, Clone, Eq, new)]
-pub struct Loc<const X: i8, const Y: i8, const N: usize> {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Loc<const N: usize> { l: RawLoc<N>, capture: bool }
+
+impl Pos {
+    pub fn vis(self) -> impl Iterator<Item=Pos> {
+        VIS.into_iter()
+            .map(move |delta| self + delta)
+    }
+
+    pub fn obs(self, other: Pos) -> Option<u8> {
+        self.vis()
+            .find_position(|&vis| vis == other)
+            .map(|(i, _)| i.try_into().unwrap())
+    }
+
+    pub fn in_bounds(self, max: Pos) -> bool {
+        (0..max.x).contains(&self.x) && (0..max.y).contains(&self.y)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, new)]
+pub struct RawLoc<const N: usize> {
     pu: [Pos; N],
-    ev: Pos
+    ev: Pos,
+    max: Pos
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Add for Loc<X, Y, N> {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Obs<const N: usize> {
+    this: Pos,
+    pu: [Option<u8>; N],
+    ev: Option<u8>,
+    capture: bool
+}
+
+impl<const N: usize> Loc<N> {
+    pub fn is_winning(self) -> bool {
+        self.l.is_winning() || self.capture
+    }
+
+    pub fn obs(self, agt: Agt) -> Obs<N> {
+        let this = self.l.pu[agt.index()];
+
+        let pu = from_iter(
+            self.l.pu.into_iter()
+            .map(|other| this.obs(other))
+        ).unwrap();
+        
+        let ev = this.obs(self.l.ev);
+
+        Obs { this, pu, ev, capture: self.capture }
+    }
+}
+
+impl<const N: usize> Add for RawLoc<N> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::new(
             array_init(|i| self.pu[i] + rhs.pu[i]),
-            self.ev + rhs.ev
+            self.ev + rhs.ev,
+            self.max
         )
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Sub for Loc<X, Y, N> {
+impl<const N: usize> Sub for RawLoc<N> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self::new(
             array_init(|i| self.pu[i] - rhs.pu[i]),
-            self.ev - rhs.ev
+            self.ev - rhs.ev,
+            self.max
         )
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> AddAssign for Loc<X, Y, N> {
+impl<const N: usize> AddAssign for RawLoc<N> {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
 }
-impl<const X: i8, const Y: i8, const N: usize> SubAssign for Loc<X, Y, N> {
+impl<const N: usize> SubAssign for RawLoc<N> {
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
     }
 }
 
-const SYM: [(u8, bool); 8] = [
+type Sym = (u8, bool);
+
+const SYM: [Sym; 8] = [
     (0, false), (1, false), (2, false), (3, false),
     (0, true), (1, true), (2, true), (3, true)
 ];
 
-fn sym<const X: i8, const Y: i8>(mut p: Pos, (rot, flip): (u8, bool)) -> Pos {
+fn sym(mut p: Pos, (rot, flip): Sym, max: Pos) -> Pos {
     if flip {
-        p = pos!(X-1-p.x, p.y);
+        p = pos!(max.x-1-p.x, p.y);
     }
 
     match rot & 3 {
         0 => p,
-        1 => pos!(p.y, X-1-p.x),
-        2 => pos!(X-1-p.x, Y-1-p.y),
-        3 => pos!(Y-1-p.y, p.x),
+        1 => pos!(p.y, max.x-1-p.x),
+        2 => pos!(max.x-1-p.x, max.y-1-p.y),
+        3 => pos!(max.y-1-p.y, p.x),
         _ => unreachable!()
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Loc<X, Y, N> {
-    fn is_winning(self) -> bool {
+fn sym_act(mut p: Pos, (rot, flip): Sym) -> Pos {
+    if flip {
+        p = pos!(-p.x, p.y);
+    }
+
+    match rot & 3 {
+        0 => p,
+        1 => pos!(p.y, -p.x),
+        2 => pos!(-p.x, -p.y),
+        3 => pos!(-p.y, p.x),
+        _ => unreachable!()
+    }
+}
+
+impl<const N: usize> RawLoc<N> {
+    pub fn is_winning(self) -> bool {
         self.pu.contains(&self.ev)
     }
 
-    fn sym(self, s: (u8, bool)) -> Self {
+    fn sym_private(self, s: Sym) -> Self {
         Self {
-            pu: array_init::array_init(|a| sym::<X, Y>(self.pu[a], s)),
-            ev: sym::<X, Y>(self.ev, s)
+            pu: array_init::array_init(|a| sym(self.pu[a], s, self.max)),
+            ev: sym(self.ev, s, self.max),
+            max: self.max
         }
     }
 
-    fn shallow_eq(self, other: Self) -> bool {
-        self.pu == other.pu && self.ev == other.ev
+    pub fn sym(self) -> impl Iterator<Item=Self> {
+        iter::once(self)
+        // SYM.into_iter()
+        //     .map(move |s| self.sym_private(s))
     }
 
-    fn isomorphic(self, other: Self) -> bool {
-        SYM.iter().any(|&s| self.sym(s).shallow_eq(other))
+    // pub fn view(self, agt: Agt, capture: bool) -> (Sym, Obs<N>) {
+    //     let (i, _) = self.sym()
+    //         .enumerate()
+    //         .min_by_key(|(_, l)| (l.pu[agt.index()], l.pu, l.ev))
+    //         .unwrap();
+    //     let sym = SYM[i];
+        
+    //     let this = self.pu[agt.index()];
+    //     let pu = from_iter(
+    //         self.pu.into_iter()
+    //         .map(|other| this.obs(other))
+    //     ).unwrap();
+    //     let ev = this.obs(self.ev);
+
+    //     let obs = Obs::<N> { this, pu, ev, capture };
+
+    //     todo!()
+    // }
+
+    pub fn canonical(self) -> Self {
+        // self.sym().min().unwrap()
+        self
     }
 
-    fn ord_value(self) -> u64 {
-        let (mut result, mut mul) = (0, 1);
-
-        let mut add = |val, max| { result += (val as u64)*mul; mul *= max as u64 };
-
-        add(self.ev.x, X);
-        add(self.ev.y, Y);
-
-        for a in self.pu {
-            add(a.x, X);
-            add(a.y, Y);
+    pub fn to_loc(self, capture: bool) -> Loc<N> {
+        Loc {
+            l: self.canonical(),
+            capture: if self.is_winning() { false } else { capture }
         }
-
-        result
     }
 
-    fn canonical(self) -> (Self, u64) {
-        SYM[1..].iter().map(|&s| self.sym(s)).fold((self, self.ord_value()), |(a, ax), b| {
-            let bx = b.ord_value();
-            if ax < bx { (a, ax) } else { (b, bx) }
-        })
+    pub fn in_bounds(self) -> bool {
+        self.pu.into_iter()
+            .all(|pu| pu.in_bounds(self.max))
+          && self.ev.in_bounds(self.max)
     }
 
-    fn fmt_compact(&self) -> String {
+    pub fn fmt_compact(&self) -> String {
         if N != 2 {
             todo!();
-        } else if self.is_winning() {
-            "W".into()
+        // } else if self.is_winning() {
+        //     "W".into()
         } else {
             format!("{}{}{}{}{}{}", self.pu[0].x, self.pu[0].y, self.pu[1].x, self.pu[1].y, self.ev.x, self.ev.y)
         }
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> PartialEq for Loc<X, Y, N> {
-    fn eq(&self, other: &Self) -> bool {
-          (self.is_winning() && other.is_winning())
-        || self.isomorphic(*other)
-    }
-}
-
-impl<const X: i8, const Y: i8, const N: usize> Hash for Loc<X, Y, N> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        if self.is_winning() {
-            'w'.hash(state)
-        } else {
-            self.canonical().1.hash(state)
-        }
-    }
-}
-
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, new)]
-pub struct Edge<const X: i8, const Y: i8, const N: usize> {
-    from: Loc<X, Y, N>,
-    to: Loc<X, Y, N>,
+pub struct Edge<const N: usize> {
+    from: Loc<N>,
+    to: Loc<N>,
     act: Action<N>
 }
 
@@ -172,9 +235,22 @@ const fn act_zero<const N: usize>() -> Action<N> {
     [pos!(0, 0); N]
 }
 
-impl<const X: i8, const Y: i8, const N: usize> AbstractGame<N> for GridPursuitGame<X, Y, N> {
-    type Loc = Loc<X, Y, N>;
-    type Obs = Obs;
+impl GridPursuitGame<2> {
+    pub fn new(xsize: i8, ysize: i8) -> Self {
+        let max = pos!(xsize, ysize);
+        Self {
+            l0: RawLoc {
+                pu: [pos!(xsize-1, 0), pos!(0, ysize-1)],
+                ev: pos!(0, 0), max
+            }.to_loc(false),
+            max
+        }
+    }
+}
+
+impl<const N: usize> AbstractGame<N> for GridPursuitGame<N> {
+    type Loc = Loc<N>;
+    type Obs = Obs<N>;
 
     fn l0(&self) -> Self::Loc {
         self.l0
@@ -189,18 +265,7 @@ impl<const X: i8, const Y: i8, const N: usize> AbstractGame<N> for GridPursuitGa
     }
 
     fn obs(&self, l: &Self::Loc) -> [Self::Obs; N] {
-        array_init(|i| {
-            let p = l.pu[i];
-            Obs(p, array_init(|j| {
-                let p_vis = p + VIS[j];
-                let has_evader = l.ev == p_vis;
-                if let Some((p2, _)) = l.pu.iter().find_position(|&&p2| p2 == p_vis) {
-                    SquareObs::new(Some(p2 as u8), has_evader)
-                } else {
-                    SquareObs::new(None, has_evader)
-                }
-            }))
-        })
+        array_init(|i| l.obs(agt(i)))
     }
 
     fn succ(
@@ -208,98 +273,110 @@ impl<const X: i8, const Y: i8, const N: usize> AbstractGame<N> for GridPursuitGa
         l: &Self::Loc,
         mut f: impl FnMut([Act; N], Self::Loc)
     ) {
-        for e in Edges::new(*l) {
-            let act = array_init(|i|
-                MOVE.iter().find_position(|&&p| p == l.pu[i]).unwrap().0
-            );
+        cartesian_product([&MOVE; N], |p_move| {
+            let p_move = p_move.map(|&x| x);
+            let p_old = l.l.pu;
+            let p_new = izip!(p_old, p_move)
+                .map(|(old, mv)| old + mv)
+                .collect_array::<N>()
+                .unwrap();
 
-            f(act, e.to);
-        }
+            if p_new.into_iter().any(|p| !p.in_bounds(self.max)) {
+                return;
+            }
+
+            let a = p_move.map(|mv| act(
+                MOVE.into_iter()
+                    .find_position(|&x| x == mv)
+                    .unwrap()
+                    .0
+            ));
+
+            let overlap: ArrayVec<_, N> = p_new.into_iter()
+                .enumerate()
+                .filter(|&(i, this)|
+                    chain!(
+                        p_old.into_iter().enumerate(),
+                        p_new.into_iter().enumerate()
+                    )
+                    .any(|(j, other)| i != j && this == other)
+                )
+                .map(|(i, _)| i)
+                .collect();
+                
+            assert!(N <= 32);
+            for k in 0..1u32 << overlap.len() {
+                let mut p_final = p_new;
+                for i in 0..overlap.len() {
+                    if k & (1 << i) == 0 {
+                        p_final[overlap[i]] = p_old[overlap[i]];
+                    }
+                }
+                if !p_final.into_iter()
+                    .enumerate()
+                    .any(|(i, this)|
+                        p_final[i+1..].contains(&this)
+                    ) 
+                    && overlap.iter()
+                        .all(|&i| p_final.contains(&p_new[i])) {
+                        for e_move in MOVE {
+                            let e_old = l.l.ev;
+                            let e_new = e_old + e_move;
+            
+                            if !e_new.in_bounds(self.max) { continue; }
+            
+                            let result = RawLoc::new(
+                                p_final,
+                                e_new,
+                                self.max
+                            ).to_loc((0..N)
+                                .any(|i|
+                                       p_old[i] == e_new
+                                    && p_final[i] == e_old
+                                )
+                            );
+
+                            f(a, result);
+                        }
+                    }
+            }
+        });
     }
 
     fn fmt_loc(&self, f: &mut fmt::Formatter, l: &Self::Loc) -> fmt::Result {
-        write!(f, "{}", l.fmt_compact())
-    }
-
-    /*fn post(&self, n: &Self::Loc, a: Action<N>) -> Itr<Self::Loc> {
-        //todo: optimize
-        Box::new(Edges::new(*n).filter(move |e| e.act == a).map(|e| e.to))
-    }
-
-    fn actions(&self) -> Itr<[Self::Act; N]> {
-        Box::new(index_power(MOVE))
-    }
-
-
-    fn observe(&self, l: &Self::Loc) -> [Obs; N] {
-        array_init(|i| {
-            let p = l.pu[i];
-            Obs(p, array_init(|j| {
-                let p_vis = p + VIS[j];
-                let has_evader = l.ev == p_vis;
-                if let Some((p2, _)) = l.pu.iter().find_position(|&&p2| p2 == p_vis) {
-                    SquareObs::new(Some(p2 as u8), has_evader)
-                } else {
-                    SquareObs::new(None, has_evader)
-                }
-            }))
-        })
-    }
-
-    type Agt = usize;
-
-    fn actions_i(&self, _: Self::Agt) -> Itr<Self::Act> {
-        Box::new(MOVE.iter().copied())
-    }
-
-    fn debug_string(&self, l: &Self::Loc) -> Option<String> {
-        if N == 2 {
-            Some(l.fmt_compact())
-        } else {
-            todo!();
-        }
-    }
-
-    derive_dgame!(N);*/
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct SquareObs {
-    pursuer: Option<u8>,
-    evader: bool
-}
-
-impl SquareObs {
-    pub fn new(pursuer: Option<u8>, evader: bool) -> Self { Self { pursuer, evader } }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Obs(Pos, [SquareObs; VIS.len()]);
-
-impl<const X: i8, const Y: i8> Default for GridPursuitGame<X, Y, 2> {
-    fn default() -> Self {
-        Self { l0: Loc { pu: [pos!(X-1, 0), pos!(0, Y-1)], ev: pos!(0, 0) } }
+        write!(f, "{}{}",
+            l.l.fmt_compact(),
+            if l.l.is_winning() { "W" } else { if l.is_winning() { "X" } else { "" } }
+        )
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Edges<const X: i8, const Y: i8, const N: usize> {
-    l: Loc<X, Y, N>,
+fn in_bounds<const N: usize>(l: RawLoc<N>) -> bool {
+    chain!(
+        l.pu.into_iter(),
+        iter::once(l.ev)
+    ).all(|p|
+        (0..l.max.x).contains(&p.x)
+     && (0..l.max.y).contains(&p.y)
+    )
+}
+
+/*#[derive(Clone, Debug)]
+pub struct Edges<const N: usize> {
+    l: Loc<N>,
     finished: bool,
     i: [usize; N],
     j: usize,
     overlaps: ArrayVec<ArrayVec<usize, N>, N>,
-    l2: Loc<X, Y, N>,
+    l2: RawLoc<N>,
     act: Action<N>,
     k: [usize; N],
     k_fixed: [bool; N]
 }
 
-fn in_bounds<const X: i8, const Y: i8, const N: usize>(l: Loc<X, Y, N>) -> bool {
-    l.pu.into_iter().chain(iter::once(l.ev)).all(|p| (0..X).contains(&p.x) && (0..Y).contains(&p.y))
-}
 
-fn overlaps<const X: i8, const Y: i8, const N: usize>(l: Loc<X, Y, N>) -> bool {
+
+fn overlaps<const N: usize>(l: RawLoc<N>) -> bool {
     for (i, ai) in l.pu.iter().enumerate() {
         for aj in l.pu.iter().skip(i+1) {
             if ai == aj {
@@ -310,22 +387,22 @@ fn overlaps<const X: i8, const Y: i8, const N: usize>(l: Loc<X, Y, N>) -> bool {
     false
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Edges<X, Y, N> {
-    fn new(l: Loc<X, Y, N>) -> Self {
+impl<const N: usize> Edges<N> {
+    fn new(l: Loc<N>) -> Self {
         Edges {
             l: l,
             finished: false,
             i: [0; N],
             j: 0,
             overlaps: ArrayVec::new(),
-            l2: l,
+            l2: l.l,
             act: [pos!(0, 0); N],
             k: [0; N],
             k_fixed: [false; N]
         }
     }
 
-    fn handle_overlaps(&mut self) -> Edge<X, Y, N> {
+    fn handle_overlaps(&mut self) -> Edge<N> {
         //print!("handle_overlaps: {:?}\n", self);
 
         let mut result = self.l2;
@@ -359,12 +436,17 @@ impl<const X: i8, const Y: i8, const N: usize> Edges<X, Y, N> {
 
         //print!("result={:?}, act={:?}\n\n", result, self.act);
 
+        let result = result.to_loc(
+            result.pu.into_iter()
+                .contains(&self.l.l.ev)
+        );
+
         Edge::new(self.l, result, self.act)
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Iterator for Edges<X, Y, N> {
-    type Item = Edge<X, Y, N>;
+impl<const N: usize> Iterator for Edges<N> {
+    type Item = Edge<N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
@@ -376,7 +458,7 @@ impl<const X: i8, const Y: i8, const N: usize> Iterator for Edges<X, Y, N> {
         }
 
         loop {
-            let mut l = self.l;
+            let mut l = self.l.l;
             let mut act = act_zero();
             for a in 0..N {
                 act[a] = MOVE[self.i[a]];
@@ -431,17 +513,22 @@ impl<const X: i8, const Y: i8, const N: usize> Iterator for Edges<X, Y, N> {
                 }
                 
                 if self.overlaps.is_empty() {
-                    return Some(Edge::new(self.l, l, act));
+                    let result = l.to_loc(
+                        l.pu.into_iter()
+                            .contains(&self.l.l.ev)
+                    );
+                    return Some(Edge::new(self.l, result, act));
                 } else {
                     //print!("overlaps, act={:?}, sets={1:?}\n", act, self.overlaps);
                     self.act = act;
-                    self.l2.pu = self.l.pu;
+                    self.l2.pu = self.l.l.pu;
                     self.l2.ev = l.ev;
                     for a in 0..N {
                         if !flag[a] {
                             self.l2.pu[a] += act[a];
                         }
                     }
+
                     return Some(self.handle_overlaps());
                 }
             }
@@ -468,9 +555,9 @@ impl Display for SquareContents {
     }
 }
 
-impl<const X: i8, const Y: i8, const N: usize> Display for Loc<X, Y, N> {
+impl<const N: usize> Display for RawLoc<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (xs, ys) = (X as usize, Y as usize);
+        let (xs, ys) = (self.max.x as usize, self.max.y as usize);
         let mut grid = vec![vec![SquareContents::None; ys]; xs];
         
         for (i, a) in self.pu.iter().enumerate() {
@@ -486,4 +573,4 @@ impl<const X: i8, const Y: i8, const N: usize> Display for Loc<X, Y, N> {
         
         write!(f, "{:?}", grid)
     }
-}
+}*/

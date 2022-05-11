@@ -1,0 +1,24 @@
+agt: 0, 1, 2
+
+loc: start, 1, 2, 3, 4, win, lose
+l0: start
+
+act: a, b, c
+
+obs 2: 1|2
+
+reach: win
+
+delta:
+start (a b c, a c b) 1,
+start (b a c, b c a) 2,
+start (c a b, c b a) 3,
+1 (b a c, c b a) 1,
+1 (b c a, c a b) 2,
+1 (a b c, a c b) lose,
+2 (b a c, a c b, a b c) 2,
+2 (b c a, c a b, c b a) 4,
+3 (a b c, a c b, b a c) 4,
+3 (b c a, c a b, c b a) lose,
+4 (b a c, a b c, c a b) 4,
+4 (a c b, b c a, c b a) win

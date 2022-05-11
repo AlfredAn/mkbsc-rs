@@ -4,7 +4,7 @@ macro_rules! newtype {
     ($name:ident, $t:ty) => {
 
 #[derive(new, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct $name($t);
+pub struct $name(pub $t);
 
 impl $name {
     pub fn index(self) -> usize {
@@ -44,6 +44,9 @@ impl From<$name> for $t {
 
 newtype!(Loc, u32);
 newtype!(Obs, u32);
+newtype!(Act, u16);
+newtype!(Agt, u8);
+
 newtype!(TransducerState, u32);
 
 pub fn loc(l: impl TryInto<u32>) -> Loc {
@@ -52,6 +55,14 @@ pub fn loc(l: impl TryInto<u32>) -> Loc {
 
 pub fn obs(o: impl TryInto<u32>) -> Obs {
     Obs::new(o.try_into().ok().unwrap())
+}
+
+pub fn act(o: impl TryInto<u16>) -> Act {
+    Act::new(o.try_into().ok().unwrap())
+}
+
+pub fn agt(o: impl TryInto<u8>) -> Agt {
+    Agt::new(o.try_into().ok().unwrap())
 }
 
 pub fn transducer_state(s: impl TryInto<u32>) -> TransducerState {

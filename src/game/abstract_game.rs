@@ -19,6 +19,10 @@ pub trait AbstractGame<const N: usize> {
         Rc::new(self).build()
     }
 
+    fn build_no_origin(self) -> Rc<Game<N>> where Self: Sized + 'static {
+        Rc::new(self).build_no_origin()
+    }
+
     fn fmt_loc(&self, f: &mut fmt::Formatter, _: &Self::Loc) -> fmt::Result;
 }
 
