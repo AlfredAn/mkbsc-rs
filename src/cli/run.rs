@@ -72,31 +72,7 @@ impl<const N: usize> RunnerTrait for Runner<N> {
     fn run(&mut self, action: &Action) -> anyhow::Result<()> {
         match action {
             Action::MKBSC(a) => self.mkbsc(a),
-            Action::Synth => {
-                println!("finding one...");
-                self.synthesize(true, false);
-
-                println!("finding all...");
-                self.synthesize(true, true);
-
-                println!("benchmarking one...");
-                let n = 10000;
-                let before = SystemTime::now();
-                for _ in 0..n {
-                    self.synthesize(false, false);
-                }
-                let elapsed = before.elapsed().unwrap();
-
-                println!("benchmarking all...");
-                let before2 = SystemTime::now();
-                for _ in 0..n {
-                    self.synthesize(false, true);
-                }
-                let elapsed2 = before2.elapsed().unwrap();
-
-                println!("benchmark (one): {:?}", elapsed/n);
-                println!("benchmark (all): {:?}", elapsed2/n);
-            },
+            Action::Synth => self.synthesize(true, false),
         }
         
         Ok(())

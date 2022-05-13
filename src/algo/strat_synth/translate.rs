@@ -7,7 +7,7 @@ pub fn translate_kbsc_strategy(
     KBSCStrategyTranslation::new(gk, strat)
 }
 
-pub fn proj_to_base_strategy<'a, const N: usize>(
+pub fn proj_to_base_strategy<const N: usize>(
     proj: ConstructedGame<Project<N>, 1>,
     strat: impl Strategy
 ) -> impl Strategy {
@@ -31,16 +31,10 @@ pub fn kbsc_to_mkbsc_profile<'a, const N: usize>(
                 strategy(
                     strat.init(),
                     move |o_gk, mem| {
-                        // println!("o_gk: {o_gk}");
-
                         let gki = &gk.origin().gki[i];
-                        // println!("gki: {gki:?}");
 
                         let &l_gki = gk.origin_obs(agt(i), o_gk);
-                        // println!("({i})l_gki: {l_gki}");
-                        
                         let [o_gki] = gki.observe(l_gki);
-                        // println!("({i})o_gki: {o_gki}");
                         
                         strat.call(o_gki, mem)
                     }
@@ -86,7 +80,7 @@ impl<S: Strategy> Strategy for KBSCStrategyTranslation<S> {
     fn call(&self, o_g: Obs, (la0, m): &Self::M) -> Option<(Act, Self::M)> {
         let g = &self.gk.origin().g;
         let gk = &self.gk;
-        let strat: &S = self.strat.borrow();
+        let strat = &self.strat;
 
         // map location in gk to observation in g
         let map_to_obs = |l_gk| {
