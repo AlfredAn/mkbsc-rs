@@ -264,38 +264,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "grid_pursuit"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "array-init",
- "arrayvec",
- "bit-set",
- "clap",
- "debug-rs",
- "derive-new",
- "derive_more",
- "disjoint-sets",
- "enum_dispatch",
- "enumset",
- "fixedbitset",
- "indexmap",
- "indoc",
- "itertools",
- "lazy_format",
- "nom",
- "nom-supreme",
- "num",
- "once_cell",
- "paste",
- "slice-group-by",
- "smart-default",
- "thiserror",
- "vec_map",
- "weak-table",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -406,6 +374,38 @@ name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
+name = "mkbsc-rs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "array-init",
+ "arrayvec",
+ "bit-set",
+ "clap",
+ "debug-rs",
+ "derive-new",
+ "derive_more",
+ "disjoint-sets",
+ "enum_dispatch",
+ "enumset",
+ "fixedbitset",
+ "indexmap",
+ "indoc",
+ "itertools",
+ "lazy_format",
+ "nom",
+ "nom-supreme",
+ "num",
+ "once_cell",
+ "paste",
+ "slice-group-by",
+ "smart-default",
+ "thiserror",
+ "vec_map",
+ "weak-table",
+]
 
 [[package]]
 name = "nom"

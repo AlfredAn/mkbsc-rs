@@ -1,1 +1,1 @@
-# grid_pursuit
+# mkbsc-rs
