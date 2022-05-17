@@ -1,4 +1,4 @@
-use crate::{*, string::Interned};
+use crate::*;
 
 #[derive(new, Debug, Clone)]
 pub struct KBSC {

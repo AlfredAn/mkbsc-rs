@@ -3,5 +3,4 @@ pub mod string;
 pub mod io_game;
 
 use parser::*;
-use string::*;
-// use io_game::*;
+pub use string::*;
