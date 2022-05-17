@@ -6,10 +6,10 @@ pub struct KBSC {
 }
 
 impl AbstractGame<1> for KBSC {
-    type Loc = Interned<LocSet>;
-    type Obs = Interned<LocSet>;
+    type Loc = LocSet;
+    type Obs = LocSet;
 
-    fn l0(&self) -> Self::Loc { LocSet::singleton(&self.g, self.g.l0()).intern() }
+    fn l0(&self) -> Self::Loc { LocSet::singleton(&self.g, self.g.l0()) }
     fn n_actions(&self) -> [usize; 1] { self.g.n_actions }
     fn obs(&self, s: &Self::Loc) -> [Self::Obs; 1] { [s.clone()] }
     fn is_winning(&self, s: &Self::Loc) -> bool {
@@ -37,7 +37,7 @@ impl AbstractGame<1> for KBSC {
                 subset.put(*l);
             }
 
-            f([a], subset.intern());
+            f([a], subset.clone());
         }
     }
 

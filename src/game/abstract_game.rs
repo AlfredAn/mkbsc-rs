@@ -19,8 +19,8 @@ pub trait AbstractGame<const N: usize> {
         Rc::new(self).build()
     }
 
-    fn build_no_origin(self) -> Rc<Game<N>> where Self: Sized + 'static {
-        Rc::new(self).build_no_origin()
+    fn build_ext(self, keep_origin: bool) -> ConstructedGame<Self, N> where Self: Sized + 'static {
+        Rc::new(self).build_ext(keep_origin)
     }
 
     fn fmt_loc(&self, f: &mut fmt::Formatter, _: &Self::Loc) -> fmt::Result;
@@ -28,15 +28,15 @@ pub trait AbstractGame<const N: usize> {
 
 pub trait AbstractGameRc<G: AbstractGame<N> + 'static, const N: usize> {
     fn build(self) -> ConstructedGame<G, N>;
-    fn build_no_origin(self) -> Rc<Game<N>>;
+    fn build_ext(self, keep_origin: bool) -> ConstructedGame<G, N>;
 }
 
 impl<G: AbstractGame<N> + 'static, const N: usize> AbstractGameRc<G, N> for Rc<G> {
     fn build(self) -> ConstructedGame<G, N> {
-        build_game(self, true)
+        self.build_ext(true)
     }
 
-    fn build_no_origin(self) -> Rc<Game<N>> {
-        build_game(self, false).game
+    fn build_ext(self, keep_origin: bool) -> ConstructedGame<G, N> {
+        build_game(self, keep_origin)
     }
 }

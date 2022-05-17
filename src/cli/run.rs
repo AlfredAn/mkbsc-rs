@@ -55,11 +55,7 @@ impl<const N: usize> Runner<N> {
     }
 
     fn game(&self) -> Rc<Game<N>> {
-        if self.preserve_origin {
-            self.io_game.clone().build().game
-        } else {
-            self.io_game.clone().build_no_origin()
-        }
+        self.io_game.clone().build_ext(self.preserve_origin).game
     }
 }
 
@@ -100,14 +96,9 @@ impl<const N: usize> Runner<N> {
             }
 
             let g_prev = g.clone();
-            if action.keep_structure {
-                g = Rc::new(MKBSC::new(g))
-                    .build()
-                    .game;
-            } else {
-                g = Rc::new(MKBSC::new(g))
-                    .build_no_origin();
-            }
+            g = Rc::new(MKBSC::new(g))
+                .build_ext(action.keep_structure)
+                .game;
 
             if action.print_sizes {
                 println!("n = {}", g.loc.len());

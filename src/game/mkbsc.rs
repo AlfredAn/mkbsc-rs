@@ -11,7 +11,7 @@ pub struct MKBSC<const N: usize> {
 impl<const N: usize> MKBSC<N> {
     pub fn new(g: Rc<Game<N>>) -> Self {
         let gi: [_; N] = array_init(|i|
-            Project::new(g.clone(), agt(i)).build()
+            build_game_keep_ids(Rc::new(Project::new(g.clone(), agt(i))), true)
         );
         let gki: [_; N] = array_init(|i|
             KBSC::new(gi[i].game.clone()).build()
@@ -66,15 +66,8 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
                 let post_gki = self.gki[i].post_raw(s[i], [a[i]]);
 
                 for &(_, si2) in post_gki {
-                    let si = &**self.gki[i].origin_loc(si2);
-
-                    // TODO: remove slow workaround
-                    let si = LocSet::from_iter(
-                        &self.g,
-                        si.iter().map(|l_gi|
-                            *self.gi[i].origin_loc(l_gi)
-                        )
-                    );
+                    // hacky workaround
+                    let si = self.gki[i].origin_loc(si2);
 
                     slices[i].push((si2, si));
                 }

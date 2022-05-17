@@ -2,7 +2,7 @@ use crate::*;
 
 #[derive(new, Debug, Clone)]
 pub struct Project<const N: usize> {
-    g: Rc<Game<N>>,
+    pub g: Rc<Game<N>>,
     agt: Agt
 }
 
