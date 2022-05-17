@@ -344,7 +344,7 @@ impl<const N: usize> Game<N> {
         println!("{:?}", self.edges().collect_vec());
 
         let edges = display(|f| {
-            for ((l, l2), group) in self.edges().sort_and_group_by(|&(l, _, l2)| (l, l2)).into_iter() {
+            for ((l, l2), group) in self.edges().sort_and_group_by_key(|&(l, _, l2)| (l, l2)).into_iter() {
                 let label = display_once(|f|
                     format_sep(f, ",", group, |f, (_, a, _)|
                         format_sequence(f, SequenceFormat {
@@ -356,9 +356,9 @@ impl<const N: usize> Game<N> {
                 );
 
                 let options = display(|f| {
-                    write!(f, "above")?;
+                    // write!(f, "above")?;
                     if l == l2 {
-                        write!(f, ", loop above")?;
+                        write!(f, "loop above")?;
                     }
                     Ok(())
                 });
@@ -383,7 +383,7 @@ impl<const N: usize> Game<N> {
                         .peekable();
 
                     if let Some(_) = agt.peek() {
-                        let options = "obs, above";
+                        let options = "obs";
                         let label = display(|f|
                             format_sep(f, ",", agt.clone(), |f, agt| write!(f, "{agt}"))
                         );

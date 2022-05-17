@@ -22,9 +22,19 @@ impl<T: Ord> Ord for ReverseOrd<T> {
     }
 }
 
-pub trait CustomArray<T, const N: usize>: Index<usize, Output=T> {
+pub trait CustomArray<T, const N: usize>: IndexMut<usize, Output=T> + Into<[T; N]>
+where
+    for<'a> &'a Self: Into<&'a [T; N]>,
+    for<'a> &'a mut Self: Into<&'a mut [T; N]>
+{
     fn ref_array(&self) -> [&T; N] {
         array_init(|i| &self[i])
+    }
+
+    fn ref_array_mut(&mut self) -> [&mut T; N] {
+        let mut result = ArrayVec::new();
+        result.extend(self.into().iter_mut());
+        result.into_inner().unwrap_or_else(|_| unreachable!())
     }
 }
 
@@ -33,7 +43,7 @@ impl<T, const N: usize> CustomArray<T, N> for [T; N] {}
 pub type SortAndGroupBy<T, K, F> = GroupBy<K, std::vec::IntoIter<T>, F>;
 
 pub trait CustomIterator: Iterator + Sized {
-    fn sort_and_group_by<K, F>(self, mut f: F)
+    fn sort_and_group_by_key<K, F>(self, mut f: F)
     -> SortAndGroupBy<Self::Item, K, F>
     where
         Self::Item: Debug + Clone,
@@ -45,7 +55,7 @@ pub trait CustomIterator: Iterator + Sized {
     }
 
     fn collect_array<const N: usize>(self) -> Option<[Self::Item; N]> {
-        let mut result = ArrayVec::<_, N>::new();
+        let mut result = ArrayVec::new();
         for x in self {
             if result.try_push(x).is_err() {
                 return None;

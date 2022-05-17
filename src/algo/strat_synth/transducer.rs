@@ -27,8 +27,8 @@ impl Transducer {
 
     pub fn build_ma<S: Strategy + ?Sized, const N: usize>(g: &Game<N>, agt: Agt, strat: &S) -> Self {
         let mut tr = BTreeMap::new();
-        let mut state_map = HashMap::new();
-        let mut visited = HashSet::new();
+        let mut state_map = FxHashMap::default();
+        let mut visited = FxHashSet::default();
         let mut states = Vec::new();
 
         macro_rules! state {

@@ -1,8 +1,7 @@
-use std::{rc::{Rc, Weak}, cell::RefCell, hash::Hash};
+use std::rc::Weak;
 
+use crate::*;
 use weak_table::WeakHashSet;
-
-use crate::{PtrEqRc};
 
 thread_local! {
     static GLOBAL_STRINGS: Interner<str> = Interner::default();
@@ -15,7 +14,7 @@ pub fn intern(s: &str) -> Symbol {
 }
 
 #[derive(Debug)]
-pub struct Interner<T: ?Sized + Eq + Hash>(RefCell<WeakHashSet<Weak<T>>>);
+pub struct Interner<T: ?Sized + Eq + Hash>(RefCell<WeakHashSet<Weak<T>, BuildHasherDefault<FxHasher>>>);
 
 impl<T: ?Sized + Eq + Hash> Default for Interner<T> {
     fn default() -> Self {

@@ -400,6 +400,7 @@ dependencies = [
  "num",
  "once_cell",
  "paste",
+ "rustc-hash",
  "slice-group-by",
  "smart-default",
  "thiserror",
@@ -563,6 +564,12 @@ checksum = "7d707a4fa2637f2dca2ef9fd02225ec7661fe01a53623c1e6515b6916511f7a7"
 dependencies = [
  "ucd-util",
 ]
+
+[[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc_version"

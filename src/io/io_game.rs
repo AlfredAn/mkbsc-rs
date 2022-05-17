@@ -50,10 +50,10 @@ impl IOGameEnum {
     pub fn new(v: Vec<Statement>) -> anyhow::Result<Self> {
         let mut v2 = vec![];
 
-        let mut agents = HashMap::new();
-        let mut actions = HashMap::new();
-        let mut locations = HashMap::new();
-        let mut reach = HashSet::new();
+        let mut agents = FxHashMap::default();
+        let mut actions = FxHashMap::default();
+        let mut locations = FxHashMap::default();
+        let mut reach = FxHashSet::default();
 
         for st in v.into_iter() {
             match st {
@@ -95,11 +95,11 @@ impl IOGameEnum {
 pub struct IOGame<const N: usize> {
     agt: [Agt; N],
     act: Vec<Act>,
-    loc: HashMap<Loc, crate::Loc>,
+    loc: FxHashMap<Loc, crate::Loc>,
     obs: [UnionFind<u32>; N],
     delta: Vec<(Loc, [crate::Act; N], Loc)>,
     l0: Loc,
-    reach: HashSet<Loc>
+    reach: FxHashSet<Loc>
 }
 
 #[enum_dispatch]
@@ -113,10 +113,10 @@ impl<const N: usize> IOGameTrait for IOGame<N> {
 
 impl<const N: usize> IOGame<N> {
     fn new(
-        agents: HashMap<Agt, crate::Agt>,
-        act: HashMap<Act, crate::Act>,
-        loc: HashMap<Loc, crate::Loc>,
-        reach: HashSet<Loc>,
+        agents: FxHashMap<Agt, crate::Agt>,
+        act: FxHashMap<Act, crate::Act>,
+        loc: FxHashMap<Loc, crate::Loc>,
+        reach: FxHashSet<Loc>,
         v: Vec<Statement>
     ) -> anyhow::Result<IOGame<N>> {
 

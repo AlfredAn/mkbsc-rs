@@ -17,15 +17,8 @@ impl<const N: usize> MKBSC<N> {
             KBSC::new(gi[i].game.clone()).build()
         );
 
-        // for (i, gi) in gi.iter().enumerate() {
-        //     println!("p({}): {}", i, gi);
-        // }
-        // for (i, gki) in gki.iter().enumerate() {
-        //     println!("k({}): {}", i, gki);
-        // }
-
         Self {
-            buf: RefCell::new([LocSet::new(&*g), LocSet::new(&*g)]),
+            buf: RefCell::new(array_init(|_| LocSet::new(&*g))),
             g, gi, gki
         }
     }
@@ -46,27 +39,17 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
     }
 
     fn succ(&self, &s: &Self::Loc, mut f: impl FnMut([Act; N], Self::Loc)) {
-        // println!("succ: {}", display(|f| self.fmt_loc(f, &s)));
-
         let mut buf = self.buf.borrow_mut();
-        let buf = buf.split_at_mut(1);
+        let [pre_locs, post_g] = buf.ref_array_mut();
 
-        let pre_locs = &mut buf.0[0];
-        // LocSet::intersect::<N>(pre_locs, array_init(|i| &**self.gki[i].origin_loc(s[i])));
         pre_locs.replace_with(self.gki[0].origin_loc(s[0]));
         for i in 1..N {
             *pre_locs &= self.gki[i].origin_loc(s[i]);
         }
-        // assert!(!pre_locs.is_empty());
 
-        // println!("  pre_locs: {}", display(|f| format_list(f, pre_locs.iter(), |f, l| self.g.fmt_loc(f, l))));
-
-        let post_g = &mut buf.1[0];
         let mut slices: [_; N] = array_init(|_| vec![]);
 
         for a in self.g.action_profiles() {
-            // println!("    a: {}", display(|f| format_list(f, a.iter(), |f, a| write!(f, "{}", a))));
-
             post_g.clear();
 
             let mut itr = self.g.post_set(pre_locs.iter(), a);
@@ -77,8 +60,6 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
             }
 
             post_g.extend(itr);
-
-            // println!("      post_g: {}", display(|f| format_list(f, post_g.iter(), |f, l| self.g.fmt_loc(f, l))));
 
             for i in 0..N {
                 slices[i].clear();
@@ -104,23 +85,11 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
             ).unwrap();
 
             cartesian_product(slices, |x| {
-                // println!("        trying: {}", display(|f|
-                //     format_list(f, x.iter(), |f, (_, s)|
-                //         format_list(f, s.iter(), |f, l|
-                //             self.g.fmt_loc(f, l)
-                //         )
-                //     )
-                // ));
-
                 for (i, &(mut block)) in post_g.raw().iter().enumerate() {
-                    // println!("            {:#09b}", block);
                     for (_, set) in x {
-                        // println!("            {:#09b}", set.raw()[i]);
                         block &= set.raw()[i]
                     }
                     if block != 0 {
-                        // println!("          success");
-
                         let s2 = x.map(|&(si2, _)| si2);
                         f(a, s2);
                         break;

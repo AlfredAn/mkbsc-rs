@@ -43,7 +43,7 @@ pub fn verify_strategy<S: Strategy, const N: usize>(
         g.l0(),
         array_init(|i| strat[i].init())
     )];
-    let mut visit = HashMap::new();
+    let mut visit = FxHashMap::default();
 
     while let Some(entry) = stack.pop() {
         // println!("{:?}", entry);

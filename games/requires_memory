@@ -1,0 +1,16 @@
+agt: 0
+act: a, b
+loc: 0, 1, lose, win
+l0: 0
+obs 0: 0|1
+reach: win
+
+delta:
+0 (a) 1,
+0 (a) win,
+0 (b) lose,
+1 (b) 0,
+1 (b) win,
+1 (a) lose,
+win (a, b) win,
+lose (a, b) lose

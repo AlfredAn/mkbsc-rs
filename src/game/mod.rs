@@ -7,7 +7,6 @@ pub mod loc_set;
 pub mod constructed_game;
 pub mod types;
 pub mod grid_pursuit;
-pub mod coin_game;
 
 pub use game::*;
 pub use abstract_game::*;

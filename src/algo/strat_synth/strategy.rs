@@ -227,10 +227,10 @@ fn _find_strategy<const N: usize>(
 
                             stats.nodes += 1;
 
-                            let l_gi: [_; N] = array_init(|i| to_l_gki(agt(i), l));
+                            let l_gki: [_; N] = array_init(|i| to_l_gki(agt(i), l));
                             for agt in gk.iter_agt() {
-                                let l_gi = l_gi[agt.index()];
-                                let outcome = &outcomes[agt.index()][l_gi.index()];
+                                let l_gki = l_gki[agt.index()];
+                                let outcome = &outcomes[agt.index()][l_gki.index()];
 
                                 options[agt.index()].clear();
 
@@ -274,7 +274,7 @@ fn _find_strategy<const N: usize>(
                                 at_least_one = true;
 
                                 if (0..N).all(|i|
-                                    if let Some(&a_) = strat[i].0.get(l_gi[i].index()) {
+                                    if let Some(&a_) = strat[i].0.get(l_gki[i].index()) {
                                         a[i] == a_
                                     } else {
                                         true

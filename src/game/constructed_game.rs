@@ -1,5 +1,5 @@
 use crate::*;
-use crate::hash_map::Entry::*;
+use collections::hash_map::Entry::*;
 
 #[derive(Clone)]
 pub struct ConstructedGame<G, const N: usize>
@@ -17,8 +17,8 @@ where
 {
     game: Rc<G>,
 
-    loc_map: HashMap<G::Loc, Loc>,
-    obs_map: HashMap<(Agt, G::Obs), Obs>,
+    loc_map: FxHashMap<G::Loc, Loc>,
+    obs_map: FxHashMap<(Agt, G::Obs), Obs>,
     
     loc_map_reverse: Vec<G::Loc>,
     obs_map_reverse: [Vec<G::Obs>; N]
@@ -117,8 +117,8 @@ where
 
     let mut queue = VecDeque::new();
 
-    let mut loc_map = HashMap::new();
-    let mut obs_map = HashMap::new();
+    let mut loc_map = FxHashMap::default();
+    let mut obs_map = FxHashMap::default();
 
     let mut loc_map_reverse = Vec::new();
     let mut obs_map_reverse = array_init(|_| Vec::new());

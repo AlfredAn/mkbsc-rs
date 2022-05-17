@@ -111,7 +111,7 @@ impl<const N: usize> MKBSCStack<N> {
 
             if print { println!("starting strategy synthesis"); }
 
-            let mut found_strategies = HashSet::new();
+            let mut found_strategies = FxHashSet::default();
 
             let mut profile = None;
             let stats = find_strategy(
