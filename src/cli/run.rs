@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use anyhow::ensure;
 
 use crate::{*, io_game::*};
@@ -75,27 +77,35 @@ impl<const N: usize> Runner<N> {
 
 #[enum_dispatch]
 pub trait RunnerTrait {
-    fn run(&mut self, action: &Action) -> anyhow::Result<()>;
+    fn run(&self, action: &Action, output: &mut (impl Write + ?Sized)) -> anyhow::Result<()>;
 }
 
 impl<const N: usize> RunnerTrait for Runner<N> {
-    fn run(&mut self, a: &Action) -> anyhow::Result<()> {
+    fn run(&self, a: &Action, output: &mut (impl Write + ?Sized)) -> anyhow::Result<()> {
         match a {
-            Action::Transform(a) => self.mkbsc(a),
+            Action::Transform(a) => self.mkbsc(a, output),
             Action::Synthesize(a) => self.synthesize(a)
         }
     }
 }
 
 impl<const N: usize> Runner<N> {
-    fn mkbsc(&mut self, a: &TransformAction) -> anyhow::Result<()> {
+    fn mkbsc(&self, a: &TransformAction, output: &mut (impl Write + ?Sized)) -> anyhow::Result<()> {
         let mut g = self.game(a.keep_structure).clone();
+
+        macro_rules! output {
+            ($g:expr) => {{
+                let g = $g;
+                writeln!(output, "{}", display(|f| g.format(f, &a.output_format)))?;
+                output.flush()?;
+            }};
+        }
 
         if !self.is_quiet() {
             println!("-----G^({}K)-----", 0);
             println!("n = {}", g.loc.len());
             if self.is_verbose() {
-                println!("{}", display(|f| g.format(f, &a.output_format)));
+                output!(&g);
             }
         }
 
@@ -112,7 +122,7 @@ impl<const N: usize> Runner<N> {
             if !self.is_quiet() {
                 println!("n = {}", g.loc.len());
                 if self.is_verbose() {
-                    println!("{}", display(|f| g.format(f, &a.output_format)));
+                    output!(&g);
                 }
             }
 
@@ -137,19 +147,17 @@ impl<const N: usize> Runner<N> {
                 g = KBSC::new(g).build().game;
             }
 
-            if !self.is_quiet() {
-                println!("{}", display(|f| g.format(f, &a.output_format)));
-            }
+            output!(&g);
         } else {
-            if self.is_normal() {
-                println!("{}", display(|f| g.format(f, &a.output_format)));
+            if !self.is_verbose() {
+                output!(&g);
             }
         }
 
         Ok(())
     }
 
-    fn synthesize(&mut self, a: &SynthesizeAction) -> anyhow::Result<()> {
+    fn synthesize(&self, a: &SynthesizeAction) -> anyhow::Result<()> {
         let mut stack = MKBSCStack::new(self.io_game.clone().build().game);
         let mut stats = Stats::default();
 

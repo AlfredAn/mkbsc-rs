@@ -1,8 +1,8 @@
-use std::{path::Path, fs::File, io::{Read, stdin}, str::FromStr, error::Error};
+use std::{path::Path, fs::File, io::{Read, stdin, stdout, sink, BufWriter}, str::FromStr, error::Error};
 use anyhow::bail;
 use clap::*;
 use derive_more::IsVariant;
-use crate::{*, string::{Symbol}, io_game::IOGameEnum, cli::run::{RunnerEnum, RunnerTrait}};
+use crate::{*, string::Symbol, io_game::IOGameEnum, cli::run::*};
 
 mod run;
 
@@ -32,12 +32,11 @@ struct CliInternal {
     ))] transform: bool,
 
     #[clap(short, long, conflicts_with_all(&[
-            "output", "format",
-            "kbsc", "project",
-            "no-iso-check", "no-structure",
-            "transform"
-        ]
-    ))] synthesize: bool,
+        "output", "format",
+        "kbsc", "project",
+        "no-iso-check", "no-structure",
+        "transform"
+    ]))] synthesize: bool,
 
     #[clap(short, long)] quiet: bool,
     #[clap(short, long, conflicts_with("quiet"))] verbose: bool
@@ -163,22 +162,30 @@ pub fn parse() -> anyhow::Result<Cli> {
 }
 
 pub fn run(cli: &Cli) -> anyhow::Result<()> {
-    if cli.output.is_file() {
-        bail!("file output not yet supported")
-    }
-
     let io_game = match &cli.input {
         Input::StdIn => read_input(&mut stdin())?,
         Input::File(path) => read_input(&mut File::open(path)?)?
     };
 
-    let mut runner = RunnerEnum::new(io_game, cli.verbosity.clone());
+    let runner = RunnerEnum::new(io_game, cli.verbosity.clone());
     
     let before = SystemTime::now();
-    runner.run(&cli.action)?;
+
+    match &cli.output {
+        Output::StdOut => runner.run(&cli.action, &mut BufWriter::new(
+            stdout()
+        ))?,
+        Output::File(path) => runner.run(&cli.action, &mut BufWriter::new(
+            File::create(path.as_ref())?
+        ))?,
+        Output::None => runner.run(&cli.action, &mut sink())?,
+    }
+    
     let elapsed = before.elapsed()?;
 
-    println!("action: {:?}", elapsed);
+    if !cli.verbosity.is_quiet() {
+        println!("action: {:?}", elapsed);
+    }
 
     Ok(())
 }

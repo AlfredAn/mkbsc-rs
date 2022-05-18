@@ -19,7 +19,6 @@ fn main() -> anyhow::Result<()> {
 
 fn run_cli() -> anyhow::Result<()> {
     let cli = cli::parse()?;
-    println!("{:?}", cli);
     cli::run(&cli)?;
 
     Ok(())
