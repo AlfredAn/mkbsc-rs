@@ -23,7 +23,7 @@ weak-table = "0.3.2"
 disjoint-sets = "0.4.2"
 paste = "1.0.7"
 indexmap = "1.8.1"
-clap = { version = "3.1.12", features = ["cargo"] }
+clap = { version = "3.1.12", features = ["cargo", "derive"] }
 enum_dispatch = "0.3.8"
 lazy_format = "1.10.0"
 vec_map = "0.8.2"

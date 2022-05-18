@@ -1,6 +1,8 @@
+use anyhow::ensure;
+
 use crate::{*, io_game::*};
 
-use super::{Action, MKBSCAction};
+use super::{Action, TransformAction, SynthesizeAction, Verbosity};
 
 #[derive(Debug)]
 #[enum_dispatch(RunnerTrait)]
@@ -16,12 +18,12 @@ pub enum RunnerEnum {
 }
 
 impl RunnerEnum {
-    pub fn new(io_game: IOGameEnum, preserve_origin: bool) -> Self {
+    pub fn new(io_game: IOGameEnum, verbosity: Verbosity) -> Self {
         macro_rules! new {
             ($n:expr) => {
                 Runner::<$n>::new(
                     io_game.try_into().unwrap(),
-                    preserve_origin
+                    verbosity
                 ).into()
             }
         }
@@ -43,19 +45,31 @@ impl RunnerEnum {
 #[derive(Debug)]
 pub struct Runner<const N: usize> {
     io_game: Rc<IOGame<N>>,
-    preserve_origin: bool
+    verbosity: Verbosity
 }
 
 impl<const N: usize> Runner<N> {
-    fn new(io_game: IOGame<N>, preserve_origin: bool) -> Self {
+    fn new(io_game: IOGame<N>, verbosity: Verbosity) -> Self {
         Self {
             io_game: Rc::new(io_game),
-            preserve_origin
+            verbosity
         }
     }
 
-    fn game(&self) -> Rc<Game<N>> {
-        self.io_game.clone().build_ext(self.preserve_origin).game
+    fn game(&self, preserve_origin: bool) -> Rc<Game<N>> {
+        self.io_game.clone().build_ext(preserve_origin).game
+    }
+
+    fn is_quiet(&self) -> bool {
+        self.verbosity.is_quiet()
+    }
+
+    fn is_normal(&self) -> bool {
+        self.verbosity.is_normal()
+    }
+
+    fn is_verbose(&self) -> bool {
+        self.verbosity.is_verbose()
     }
 }
 
@@ -65,114 +79,119 @@ pub trait RunnerTrait {
 }
 
 impl<const N: usize> RunnerTrait for Runner<N> {
-    fn run(&mut self, action: &Action) -> anyhow::Result<()> {
-        match action {
-            Action::MKBSC(a) => self.mkbsc(a),
-            Action::Synth => self.synthesize(true, false),
+    fn run(&mut self, a: &Action) -> anyhow::Result<()> {
+        match a {
+            Action::Transform(a) => self.mkbsc(a),
+            Action::Synthesize(a) => self.synthesize(a)
         }
-        
-        Ok(())
     }
 }
 
 impl<const N: usize> Runner<N> {
-    fn mkbsc(&mut self, action: &MKBSCAction) {
-        let mut g = self.game().clone();
+    fn mkbsc(&mut self, a: &TransformAction) -> anyhow::Result<()> {
+        let mut g = self.game(a.keep_structure).clone();
 
-        if action.print_iteration {
+        if !self.is_quiet() {
             println!("-----G^({}K)-----", 0);
-        }
-        if action.print_sizes {
             println!("n = {}", g.loc.len());
+            if self.is_verbose() {
+                println!("{}", display(|f| g.format(f, &a.output_format)));
+            }
         }
 
-        if action.print_games {
-            println!("{}", display(|f| g.format(f, &action.format)));
-        }
-
-        for i in 0..action.iterations {
-            if action.print_iteration {
+        for i in 0..a.max_iterations {
+            if !self.is_quiet() {
                 println!("-----G^({}K)-----", i+1);
             }
 
             let g_prev = g.clone();
             g = Rc::new(MKBSC::new(g))
-                .build_ext(action.keep_structure)
+                .build_ext(a.keep_structure)
                 .game;
 
-            if action.print_sizes {
+            if !self.is_quiet() {
                 println!("n = {}", g.loc.len());
+                if self.is_verbose() {
+                    println!("{}", display(|f| g.format(f, &a.output_format)));
+                }
             }
 
-            if action.print_games {
-                println!("{}", display(|f| g.format(f, &action.format)));
-            }
-
-            if action.check_convergence && is_isomorphic(&g, &g_prev, true) {
+            if a.check_iso && is_isomorphic(&g, &g_prev, true) {
                 println!("isomorphic, stopping at G^({}K)", i);
                 g = g_prev;
                 break;
             }
         }
 
-        if action.kbsc || action.project.is_some() {
-            let agt = if let Some(agt) = &action.project {
+        if a.kbsc || a.project.is_some() {
+            let agt = if let Some(agt) = &a.project {
                 self.io_game.find_agent(agt).unwrap()
             } else {
-                assert_eq!(N, 1);
+                ensure!(N == 1, "KBSC requires a single-agent game");
                 agt(0)
             };
 
             let mut g = Project::new(g, agt).build().game;
 
-            if action.kbsc {
+            if a.kbsc {
                 g = KBSC::new(g).build().game;
             }
 
-            if action.print_result {
-                println!("{}", display(|f| g.format(f, &action.format)));
+            if !self.is_quiet() {
+                println!("{}", display(|f| g.format(f, &a.output_format)));
             }
         } else {
-            if action.print_result && !action.print_games {
-                println!("{}", display(|f| g.format(f, &action.format)));
+            if self.is_normal() {
+                println!("{}", display(|f| g.format(f, &a.output_format)));
             }
         }
+
+        Ok(())
     }
 
-    fn synthesize(&mut self, print: bool, find_all: bool) {
+    fn synthesize(&mut self, a: &SynthesizeAction) -> anyhow::Result<()> {
         let mut stack = MKBSCStack::new(self.io_game.clone().build().game);
         let mut stats = Stats::default();
 
         for i in 0.. {
-            if print { println!("-----G^({}K)-----", i); }
+            if !self.is_quiet() { println!("-----G^({}K)-----", i); }
 
             if stack.len() < i+1 {
-                if print { println!("applying MKBSC..."); }
+                if !self.is_quiet() { println!("applying MKBSC..."); }
+
                 stack.push();
-                if print { println!("n = {}", stack.last().game().n_loc()); }
+
+                if !self.is_quiet() { println!("n = {}", stack.last().game().n_loc()); }
+
                 if i > 1 && is_isomorphic(stack.get(i).game(), stack.get(i-1).game(), true) {
-                    if print { println!("isomorphic, stopping at G^({}K)", i-1); }
+                    if !self.is_quiet() { println!("isomorphic, stopping at G^({}K)", i-1); }
                     break;
                 }
             } else {
-                if print { println!("n = {}", stack.last().game().n_loc()); }
+                if !self.is_quiet() { println!("n = {}", stack.last().game().n_loc()); }
             }
-            // if print { println!("{:?}", stack.last().game()); }
             
-            if print { println!("finding strategy..."); }
+            if !self.is_quiet() { println!("finding strategy..."); }
 
-            let (result, stats2) = stack.find_strategy(print, find_all);
+            let (result, stats2) = stack.find_strategy(!self.is_quiet(), a.find_all);
             stats += stats2;
 
             if let Some(profile) = result {
-                if print { println!("strategy found"); }
-                if print { println!("{:?}", profile); }
+                if !self.is_quiet() { println!("strategy found"); }
+                println!("{:?}", profile);
                 break;
             }
 
-            if print { println!("no strategy found"); }
+            println!("no strategy found");
+
+            if i as u64 >= a.max_iterations {
+                if !self.is_quiet() { println!("reached limit, stopping"); }
+                break;
+            }
         }
 
-        if print { println!("{:?}", stats); }
+        if !self.is_quiet() { println!("{:?}", stats); }
+
+        Ok(())
     }
 }

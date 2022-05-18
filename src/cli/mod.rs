@@ -1,166 +1,191 @@
-use std::{path::Path, fs::File, io::Read};
-
+use std::{path::Path, fs::File, io::{Read, stdin}, str::FromStr, error::Error};
+use anyhow::bail;
 use clap::*;
-
-use crate::{*, string::{Symbol, intern}, io_game::IOGameEnum};
-
-use self::run::{RunnerEnum, RunnerTrait};
+use derive_more::IsVariant;
+use crate::{*, string::{Symbol}, io_game::IOGameEnum, cli::run::{RunnerEnum, RunnerTrait}};
 
 mod run;
 
-#[derive(Debug)]
-pub struct Cli {
-    input_file: Option<Box<Path>>,
-    action: Action,
+#[derive(Parser, Debug, Clone)]
+struct CliInternal {
+    #[clap(short, long, value_name("PATH"))] input: Option<String>,
+    #[clap(short, long, value_name("PATH"))] output: Option<Option<String>>,
+
+    #[clap(short, long, arg_enum, default_value_t)] format: Format,
+
+    #[clap(short = 'm', long = "mkbsc",
+        parse(try_from_str = parse_mkbsc),
+        default_value = "_none",
+        default_missing_value = "_missing"
+    )] max_iterations: Option<Option<u64>>,
+
+    #[clap(short, long)] kbsc: bool,
+    #[clap(short, long)] project: Option<String>,
+
+    #[clap(long, visible_alias("ni"))] no_iso_check: bool,
+    #[clap(long, visible_alias("ns"))] no_structure: bool,
+
+    #[clap(short = 'a', long)] find_all: bool,
+
+    #[clap(short, long, conflicts_with(
+        "find-all"
+    ))] transform: bool,
+
+    #[clap(short, long, conflicts_with_all(&[
+            "output", "format",
+            "kbsc", "project",
+            "no-iso-check", "no-structure",
+            "transform"
+        ]
+    ))] synthesize: bool,
+
+    #[clap(short, long)] quiet: bool,
+    #[clap(short, long, conflicts_with("quiet"))] verbose: bool
+}
+
+fn parse_mkbsc(s: &str) -> Result<Option<Option<u64>>, impl Error> {
+    match s {
+        "_none" => Ok(None),
+        "_missing" => Ok(Some(None)),
+        "." => Ok(Some(Some(u64::MAX))),
+        s => FromStr::from_str(s).map(|x| Some(Some(x)))
+    }
 }
 
 #[derive(Debug, Clone)]
-pub enum Action {
-    MKBSC(MKBSCAction),
-    Synth,
-    // GridPursuit(usize, usize)
+pub struct Cli {
+    input: Input,
+    output: Output,
+
+    action: Action,
+    verbosity: Verbosity
 }
 
-#[derive(Debug, Clone, SmartDefault)]
+#[derive(Debug, Clone, IsVariant)]
+pub enum Input {
+    StdIn,
+    File(Box<Path>)
+}
+
+#[derive(Debug, Clone, IsVariant)]
+pub enum Output {
+    StdOut,
+    File(Box<Path>),
+    None
+}
+
+#[derive(Debug, Clone, IsVariant)]
+pub enum Verbosity {
+    Quiet,
+    Normal,
+    Verbose
+}
+
+#[derive(Debug, Clone, IsVariant)]
+pub enum Action {
+    Transform(TransformAction),
+    Synthesize(SynthesizeAction)
+}
+
+#[derive(Debug, Clone)]
+pub struct TransformAction {
+    output_format: Format,
+    max_iterations: u64,
+    kbsc: bool,
+    project: Option<Symbol>,
+    check_iso: bool,
+    keep_structure: bool
+}
+
+#[derive(Debug, Clone)]
+pub struct SynthesizeAction {
+    max_iterations: u64,
+    find_all: bool
+}
+
+#[derive(ArgEnum, Debug, Clone, IsVariant, SmartDefault)]
 pub enum Format {
-    #[default]
-    Default,
+    #[default] Default,
     Tikz
 }
 
-#[derive(Debug, Clone, SmartDefault)]
-pub struct MKBSCAction {
-    #[default(0)]
-    iterations: usize,
+pub fn parse() -> anyhow::Result<Cli> {
+    let c = CliInternal::parse();
 
-    #[default(true)]
-    check_convergence: bool,
+    let input = match c.input {
+        None => Input::StdIn,
+        Some(s) => Input::File(Path::new(&s).into())
+    };
 
-    project: Option<Symbol>,
-    kbsc: bool,
+    let output = match c.output {
+        None => Output::StdOut,
+        Some(None) => Output::None,
+        Some(Some(s)) => Output::File(Path::new(&s).into())
+    };
 
-    #[default(false)]
-    print_games: bool,
-
-    #[default(true)]
-    print_iteration: bool,
-    
-    #[default(true)]
-    print_result: bool,
-
-    #[default(true)]
-    print_sizes: bool,
-
-    #[default(true)]
-    keep_structure: bool,
-
-    format: Format
-}
-
-pub fn parse() -> Cli {
-    let matches = command!()
-        .subcommand(
-            Command::new("transform")
-                .visible_short_flag_alias('t')
-
-                .arg(
-                    arg!(-m --mkbsc <N>)
-                        .validator(|s| s.parse::<usize>())
-                        .required(false)
-                        .default_value("0")
-                )
-
-                .arg(arg!(-p --project <AGT>).required(false))
-                .arg(arg!(-k --kbsc).required(false))
-                .arg(arg!(-i --print_iterations).required(false))
-                .arg(arg!(-n --no_structure).required(false))
-                .arg(arg!(-r --no_result).required(false))
-                .arg(arg!(-f --format <FORMAT>).required(false))
-        )
-        .subcommand(
-            Command::new("synthesize")
-                .visible_short_flag_alias('s')
-        )
-        .arg(arg!(<INPUT_FILE>))
-        .subcommand_required(true)
-        .get_matches();
-
-    let input_file = matches.value_of("INPUT_FILE")
-        .map(|f| Path::new(f).into());
-
-    let action = match matches.subcommand() {
-        Some(("transform", m)) => Action::MKBSC(
-            MKBSCAction {
-                iterations: m.value_of("mkbsc")
-                    .unwrap()
-                    .parse()
-                    .unwrap(),
-                project: m.value_of("project")
-                    .map(|m| intern(m)),
-                kbsc: m.is_present("kbsc"),
-                print_games: m.is_present("print_iterations"),
-                keep_structure: !m.is_present("no_structure"),
-                print_result: !m.is_present("no_result"),
-                format: match m.value_of("format") {
-                    Some("default") => Format::Default,
-                    Some("tikz") => Format::Tikz,
-                    None => Default::default(),
-                    _ => panic!()
-                },
-                ..Default::default()
-            }
-        ),
-        Some(("synthesize", _)) => Action::Synth,
-        /*Some(("grid_pursuit", m)) => Action::GridPursuit(
-            m.value_of("X").unwrap().parse().unwrap(),
-            m.value_of("Y").unwrap().parse().unwrap()
-        ),*/
+    let action = match (c.transform, c.synthesize) {
+        (_, false) => Action::Transform(TransformAction {
+            output_format: c.format,
+            max_iterations: match c.max_iterations {
+                None => 0,
+                Some(None) => 1,
+                Some(Some(n)) => n as u64
+            },
+            kbsc: c.kbsc,
+            project: c.project.map(|s| intern(&s)),
+            check_iso: !c.no_iso_check,
+            keep_structure: !c.no_structure
+        }),
+        (false, true) => Action::Synthesize(SynthesizeAction {
+            max_iterations: match c.max_iterations {
+                Some(Some(n)) => n as u64,
+                Some(None) => bail!("--mkbsc requires an argument when used with --synthesize"),
+                _ => u64::MAX
+            },
+            find_all: c.find_all
+        }),
         _ => unreachable!()
     };
 
-    Cli {
-        input_file,
-        action
-    }
+    let verbosity = match (c.quiet, c.verbose) {
+        (false, false) => Verbosity::Normal,
+        (true, false) => Verbosity::Quiet,
+        (false, true) => Verbosity::Verbose,
+        _ => unreachable!(),
+    };
+    
+    Ok(Cli {
+        input,
+        output,
+        action,
+        verbosity
+    })
 }
 
 pub fn run(cli: &Cli) -> anyhow::Result<()> {
-    println!("{:?}", cli);
-
-    let io_game = cli.input_file.as_ref()
-        .map(|path| read_input(&path).unwrap());
-
-    if let Some(io_game) = io_game {
-        let mut runner = RunnerEnum::new(
-            io_game,
-            if let Action::MKBSC(a) = &cli.action {
-                a.keep_structure
-            } else {
-                true
-            });
-        
-        let before = SystemTime::now();
-        runner.run(&cli.action)?;
-        let elapsed = before.elapsed()?;
-
-        println!("action: {:?}", elapsed);
-    } else {
-        match cli.action {
-            /*Action::GridPursuit(x, y) => {
-
-            },*/
-            _ => unimplemented!()
-        }
+    if cli.output.is_file() {
+        bail!("file output not yet supported")
     }
+
+    let io_game = match &cli.input {
+        Input::StdIn => read_input(&mut stdin())?,
+        Input::File(path) => read_input(&mut File::open(path)?)?
+    };
+
+    let mut runner = RunnerEnum::new(io_game, cli.verbosity.clone());
+    
+    let before = SystemTime::now();
+    runner.run(&cli.action)?;
+    let elapsed = before.elapsed()?;
+
+    println!("action: {:?}", elapsed);
 
     Ok(())
 }
 
-pub fn read_input(file: &Path) -> anyhow::Result<IOGameEnum> {
-    let mut file = File::open(file)?;
-
+pub fn read_input(input: &mut impl Read) -> anyhow::Result<IOGameEnum> {
     let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    input.read_to_string(&mut contents)?;
 
     let parsed = parser::parse(&contents)?;
 
