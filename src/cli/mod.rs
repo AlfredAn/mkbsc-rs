@@ -7,30 +7,47 @@ use crate::{*, string::Symbol, io_game::IOGameEnum, cli::run::*};
 mod run;
 
 #[derive(Parser, Debug, Clone)]
+#[clap(author, version, about, long_about = None)]
+#[clap(global_setting(AppSettings::DeriveDisplayOrder))]
 struct CliInternal {
+    /// Path to an input file. If unspecified, the standard input is used.
     #[clap(short, long, value_name("PATH"))] input: Option<String>,
+
+    /// Path to an output file. If unspecified, the standard output is used. If used with no parameter, the output is discarded.
     #[clap(short, long, value_name("PATH"))] output: Option<Option<String>>,
 
+    /// Output format
     #[clap(short, long, arg_enum, default_value_t)] format: Format,
 
+    /// Maximum number of MKBSC iterations
     #[clap(short = 'm', long = "mkbsc",
         parse(try_from_str = parse_mkbsc),
-        default_value = "_none",
-        default_missing_value = "_missing"
+        default_value = "_default",
+        default_missing_value = "_missing",
+        value_name("ITERATIONS")
     )] max_iterations: Option<Option<u64>>,
 
+    /// Apply the KBSC to the output
     #[clap(short, long)] kbsc: bool,
-    #[clap(short, long)] project: Option<String>,
 
+    /// Project the output onto the specified agent
+    #[clap(short, long, value_name("AGENT"))] project: Option<String>,
+
+    /// Do not check for isomorphism.
     #[clap(long, visible_alias("ni"))] no_iso_check: bool,
+
+    /// Discard the structure of the game when expanding.
     #[clap(long, visible_alias("ns"))] no_structure: bool,
 
+    /// Find all strategies instead of just one.
     #[clap(short = 'a', long)] find_all: bool,
 
+    /// Perform a transformation and output the result. This is implied if unspecified.
     #[clap(short, long, conflicts_with(
         "find-all"
     ))] transform: bool,
 
+    /// Synthesize strategies. The game will be expanded until at least one strategy is found, or until further expansions lead to isomorphic games.
     #[clap(short, long, conflicts_with_all(&[
         "output", "format",
         "kbsc", "project",
@@ -38,13 +55,16 @@ struct CliInternal {
         "transform"
     ]))] synthesize: bool,
 
+    /// Only output the results.
     #[clap(short, long)] quiet: bool,
+
+    /// Also output intermediate expansions.
     #[clap(short, long, conflicts_with("quiet"))] verbose: bool
 }
 
 fn parse_mkbsc(s: &str) -> Result<Option<Option<u64>>, impl Error> {
     match s {
-        "_none" => Ok(None),
+        "_default" => Ok(None),
         "_missing" => Ok(Some(None)),
         "." => Ok(Some(Some(u64::MAX))),
         s => FromStr::from_str(s).map(|x| Some(Some(x)))
