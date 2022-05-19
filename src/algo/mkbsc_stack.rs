@@ -107,8 +107,6 @@ impl<const N: usize> MKBSCStack<N> {
         let g = entry.game();
         
         if let Some(mkbsc) = entry.mkbsc() {
-            // if print { println!("{:?}", mkbsc.game); }
-
             if print { println!("starting strategy synthesis"); }
 
             let mut found_strategies = FxHashSet::default();
@@ -137,8 +135,6 @@ impl<const N: usize> MKBSCStack<N> {
                 find_all
             );
 
-            // if print { println!("{:?}", stats); }
-
             if print { println!("number of strategies found: {}", found_strategies.len()); }
 
             if profile.is_none() { return (None, stats); }
@@ -150,7 +146,7 @@ impl<const N: usize> MKBSCStack<N> {
                         self.base_proj()[i]
                             .translate_strategy(&profile[i])
                     );
-                    let works = verify_strategy(g, &s).is_ok();
+                    let works = verify_strategy(g, &s);
                     assert!(works);
                     from_iter(s.into_iter().enumerate().map(|(i, si)|
                         si.transducer_ma(g, agt(i))
@@ -159,7 +155,7 @@ impl<const N: usize> MKBSCStack<N> {
                 StackElement::MKBSC(g) => {
                     let profile = g.from_kbsc_profile(profile.ref_array());
                     let s = profile.ref_array();
-                    let works = verify_strategy(g, &s).is_ok();
+                    let works = verify_strategy(g, &s);
                     assert!(works);
                     from_iter(s.into_iter().enumerate().map(|(i, si)|
                         si.transducer_ma(g, agt(i))
@@ -167,8 +163,7 @@ impl<const N: usize> MKBSCStack<N> {
                 }
             };
 
-            // println!("{:?}", transducer);
-            assert!(verify_strategy(g, &transducer).is_ok());
+            assert!(verify_strategy(g, &transducer));
 
             self.strat.clear();
             self.strat.push(transducer);
@@ -179,8 +174,6 @@ impl<const N: usize> MKBSCStack<N> {
                 let last_g = self.get(i+1).mkbsc().unwrap();
                 let g = self.get(i).game();
 
-                // println!("{:?}", g);
-
                 let transducer = {
                     let translated = last_g.translate_strategy(last_strat);
                     array_init(|i|
@@ -188,8 +181,7 @@ impl<const N: usize> MKBSCStack<N> {
                     )
                 };
 
-                // println!("{i}: {:?}", transducer);
-                assert!(verify_strategy(g, &transducer).is_ok());
+                assert!(verify_strategy(g, &transducer));
 
                 self.strat.push(transducer);
             }

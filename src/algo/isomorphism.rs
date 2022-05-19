@@ -1,11 +1,20 @@
 use anyhow::Context;
 use bit_set::BitSet;
-use debug_rs::debug;
 use vec_map::VecMap;
 
 use crate::*;
 
 type Depth = u32;
+
+const DEBUG: bool = false;
+macro_rules! debug {
+    ($s:expr) => {
+        if DEBUG { println!("{:?}", $s) };
+    };
+    ($s:expr, $s2:expr) => {
+        if DEBUG { println!("{}{:?}", $s, $s2) };
+    };
+}
 
 struct State<'game, const N: usize> {
     g: [&'game Game<N>; 2],
