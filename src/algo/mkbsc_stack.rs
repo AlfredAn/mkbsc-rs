@@ -146,13 +146,14 @@ impl<const N: usize> MKBSCStack<N> {
             if profile.is_none() { return (None, stats); }
             let profile = profile.unwrap();
 
-            assert!(verify_strategy(&*self.base, &profile));
+            assert!(verify_strategy(&mkbsc.game, &mkbsc.from_kbsc_profile(profile.clone())));
 
             let transducers = profile.into_iter()
                 .enumerate()
                 .map(|(i, s)| {
                     let translated = translate_strategy(self, agt(i), s);
-                    let transducer = translated.transducer_ma(&*self.base, agt(i));
+                    let transducer = translated.transducer_ma(self.base.clone(), agt(i));
+                    // println!("\n{:?}", transducer);
                     transducer
                 })
                 .collect_array()

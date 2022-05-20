@@ -104,6 +104,10 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
             self.gki[i].fmt_loc(f, s[i])
         )
     }
+
+    fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, &o: &Self::Obs) -> fmt::Result {
+        self.gki[agt.index()].fmt_loc(f, o)
+    }
 }
 
 impl<'a, const N: usize> ConstructedGame<MKBSC<N>, N> {

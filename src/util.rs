@@ -75,11 +75,17 @@ impl<F: Fn(&mut fmt::Formatter) -> fmt::Result> Display for OpaqueDisplay<F> {
     }
 }
 
-pub fn display(func: impl Fn(&mut fmt::Formatter) -> fmt::Result) -> impl Display {
+impl<F: Fn(&mut fmt::Formatter) -> fmt::Result> Debug for OpaqueDisplay<F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (self.0)(f)
+    }
+}
+
+pub fn display(func: impl Fn(&mut fmt::Formatter) -> fmt::Result) -> impl Display + Debug {
     OpaqueDisplay(func)
 }
 
-pub fn display_once(func: impl FnOnce(&mut fmt::Formatter) -> fmt::Result) -> impl Display {
+pub fn display_once(func: impl FnOnce(&mut fmt::Formatter) -> fmt::Result) -> impl Display + Debug {
     let cell = Cell::new(Some(func));
     OpaqueDisplay(move |f| (cell.take().unwrap())(f))
 }

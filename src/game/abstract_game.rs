@@ -23,7 +23,11 @@ pub trait AbstractGame<const N: usize> {
         Rc::new(self).build_ext(keep_origin)
     }
 
-    fn fmt_loc(&self, f: &mut fmt::Formatter, _: &Self::Loc) -> fmt::Result;
+    fn fmt_loc(&self, f: &mut fmt::Formatter, l: &Self::Loc) -> fmt::Result;
+
+    fn fmt_obs(&self, f: &mut fmt::Formatter, _agt: Agt, _o: &Self::Obs) -> fmt::Result {
+        write!(f, "?")
+    }
 }
 
 pub trait AbstractGameRc<G: AbstractGame<N> + 'static, const N: usize> {

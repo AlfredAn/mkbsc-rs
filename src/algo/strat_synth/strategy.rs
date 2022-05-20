@@ -50,8 +50,12 @@ impl Debug for Strat {
 
 impl MemorylessStrategy for Strat {
     fn call_ml(&self, obs: Obs) -> Option<Act> {
+        // eprint!("  call_ml({})", display(|f| self.1.fmt_obs(f, agt(0), obs)));
+
         if let Some(l) = self.1.to_unique_loc(obs, agt(0)) {
-            self.0.get(l.index()).copied()
+            let a = self.0.get(l.index()).copied();
+            // eprintln!(" -> {a:?}");
+            a
         } else {
             panic!("expected a perfect information game")
         }
@@ -315,7 +319,7 @@ fn _find_strategy<const N: usize>(
 }
 
 pub trait Strategy {
-    type M: Clone + Eq + Hash;
+    type M: Clone + Eq + Hash + Debug;
 
     fn update(&self, obs: Obs, mem: &Self::M) -> Option<Self::M>;
     fn action(&self, mem: &Self::M) -> Act;
@@ -334,11 +338,11 @@ pub trait Strategy {
         )
     }
 
-    fn transducer(&self, g: &Game<1>) -> Transducer {
+    fn transducer(&self, g: Rc<Game<1>>) -> Transducer {
         Transducer::build(g, self)
     }
 
-    fn transducer_ma<const N: usize>(&self, g: &Game<N>, agt: Agt) -> Transducer {
+    fn transducer_ma<const N: usize>(&self, g: Rc<Game<N>>, agt: Agt) -> Transducer {
         Transducer::build_ma(g, agt, self)
     }
 }
@@ -367,7 +371,7 @@ pub trait MemorylessStrategy {
 struct FnStrat<M, U, A>(M, U, A);
 
 impl<
-    M: Clone + Eq + Hash,
+    M: Clone + Eq + Hash + Debug,
     U: Fn(Obs, &M) -> Option<M>,
     A: Fn(&M) -> Act
 > Strategy for FnStrat<M, U, A> {
@@ -389,7 +393,7 @@ impl<
 struct FnStratAlt<M, F>((Act, M), F);
 
 impl<
-    M: Clone + Eq + Hash,
+    M: Clone + Eq + Hash + Debug,
     F: Fn(Obs, &M) -> Option<(Act, M)>
 > Strategy for FnStratAlt<M, F> {
     type M = (Act, M);
@@ -421,7 +425,7 @@ impl<
     }
 }
 
-pub fn strategy<M: Clone + Eq + Hash>(
+pub fn strategy<M: Clone + Eq + Hash + Debug>(
     init: M,
     u: impl Fn(Obs, &M) -> Option<M>,
     a: impl Fn(&M) -> Act
@@ -429,7 +433,7 @@ pub fn strategy<M: Clone + Eq + Hash>(
     FnStrat(init, u, a)
 }
 
-pub fn strategy_alt<M: Clone + Eq + Hash>(
+pub fn strategy_alt<M: Clone + Eq + Hash + Debug>(
     init: (Act, M),
     f: impl Fn(Obs, &M) -> Option<(Act, M)>
 ) -> impl Strategy {

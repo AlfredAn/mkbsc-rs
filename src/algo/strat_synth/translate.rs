@@ -86,10 +86,18 @@ impl<'a, S: MemorylessStrategy, const N: usize> Strategy for MKBSCStrategyTransl
         let g = &self.stack.base;
         let gk = self.gk();
 
+        // eprintln!("-----Translate-----");
+
+        // eprintln!("o_g={}", display(|f| g.fmt_obs(f, agt, o_g)));
+        // eprintln!("s={}", display(|f| gk.fmt_loc(f, s)));
+
         let s2 = gk.post(s, [self.action(&s)])
             .filter(|&s2| {
+                // eprintln!("  post: {}", display(|f| gk.fmt_loc(f, s2)));
                 let mut s_k = s2;
-                for k in j..=0 {
+                for k in (0..=j).rev() {
+                    // eprintln!("      s({})={}", k+1, display(|f| self.stack.kbsc(k, agt).fmt_loc(f, s_k)));
+
                     let gi_k = self.stack.projection(k, agt);
                     let gk_k = self.stack.kbsc(k, agt);
 
@@ -102,16 +110,27 @@ impl<'a, S: MemorylessStrategy, const N: usize> Strategy for MKBSCStrategyTransl
                     };
                 }
                 let l = s_k;
-                g.observe(l)[agt.index()] == o_g
+                // eprintln!("    s(0)={}", display(|f| g.fmt_loc(f, s_k)));
+                let accept = g.observe(l)[agt.index()] == o_g;
+                // eprintln!("    accept: {accept}");
+                accept
             })
             .at_most_one()
             .ok().unwrap();
         
-        if let Some(s2) = s2 {
+        // eprintln!("l_gk={:?}", s2.map(|l| display(move |f| gk.fmt_loc(f, l))));
+        
+        let result = if let Some(s2) = s2 {
             if self.strat.call_ml(gk.observe(s2)[0]).is_some() {
                 Some(s2)
             } else { None }
-        } else { None }
+        } else { None };
+
+        // eprintln!("return: {:?}", result.is_some());
+
+        // eprintln!("-------------------");
+
+        result
     }
 
     fn action(&self, &s: &Self::M) -> Act {

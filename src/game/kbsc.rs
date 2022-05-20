@@ -46,4 +46,9 @@ impl AbstractGame<1> for KBSC {
             self.g.fmt_loc(f, l)
         )
     }
+
+    fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, o: &Self::Obs) -> fmt::Result {
+        assert_eq!(agt, types::agt(0));
+        self.fmt_loc(f, o)
+    }
 }

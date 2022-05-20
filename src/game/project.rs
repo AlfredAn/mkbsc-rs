@@ -24,6 +24,10 @@ impl<const N: usize> AbstractGame<1> for Project<N> {
     fn fmt_loc(&self, f: &mut fmt::Formatter, &l: &Self::Loc) -> fmt::Result {
         self.g.fmt_loc(f, l)
     }
+
+    fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, &o: &Self::Obs) -> fmt::Result {
+        self.g.fmt_obs(f, agt, o)
+    }
 }
 
 impl<const N: usize> ConstructedGame<Project<N>, 1> {

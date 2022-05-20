@@ -26,6 +26,17 @@ where
 
 pub trait Origin {
     fn fmt_loc(&self, f: &mut fmt::Formatter, l: Loc) -> fmt::Result;
+    fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, o: Obs) -> fmt::Result;
+}
+
+impl<const N: usize> Origin for Game<N> {
+    fn fmt_loc(&self, f: &mut fmt::Formatter, l: Loc) -> fmt::Result {
+        self.fmt_loc(f, l)
+    }
+
+    fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, o: Obs) -> fmt::Result {
+        self.fmt_obs(f, agt, o)
+    }
 }
 
 impl<G, const N: usize> Origin for OriginImpl<G, N>
@@ -34,6 +45,10 @@ where
 {
     fn fmt_loc(&self, f: &mut fmt::Formatter, l: Loc) -> fmt::Result {
         self.game.fmt_loc(f, self.origin_loc(l))
+    }
+
+    fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, o: Obs) -> fmt::Result {
+        self.game.fmt_obs(f, agt, self.origin_obs(agt, o))
     }
 }
 
