@@ -1,18 +1,19 @@
 use crate::*;
 
-pub fn translate_kbsc_strategy(
-    gk: ConstructedGame<KBSC, 1>,
-    strat: impl Strategy
-) -> impl Strategy {
-    KBSCStrategyTranslation::new(gk, strat)
+pub fn translate_strategy<'a, const N: usize>(
+    stack: &'a MKBSCStack<N>,
+    agt: Agt,
+    strat: impl MemorylessStrategy + 'a
+) -> impl Strategy + 'a {
+    MKBSCStrategyTranslation::new(stack, agt, strat)
 }
 
 pub fn proj_to_base_strategy<const N: usize>(
     proj: ConstructedGame<Project<N>, 1>,
     strat: impl Strategy
 ) -> impl Strategy {
-    strategy(
-        strat.init(),
+    strategy_alt(
+        strat.init_tuple(),
         move |o_g, mem| {
             strat.call(proj.obs(&(agt(0), o_g)), mem)
         }
@@ -28,8 +29,8 @@ pub fn kbsc_to_mkbsc_profile<'a, const N: usize>(
             .enumerate()
             .map(|(i, strat)| {
                 let gk = gk.clone();
-                strategy(
-                    strat.init(),
+                strategy_alt(
+                    strat.init_tuple(),
                     move |o_gk, mem| {
                         let gki = &gk.origin().gki[i];
 
@@ -52,8 +53,8 @@ pub fn mkbsc_to_kbsc_profile<'a, const N: usize>(
             .enumerate()
             .map(|(i, strat)| {
                 let gk = gk.clone();
-                strategy(
-                    strat.init(),
+                strategy_alt(
+                    strat.init_tuple(),
                     move |o_gki, mem| {
                         let gki = &gk.origin().gki[i];
 
@@ -68,51 +69,68 @@ pub fn mkbsc_to_kbsc_profile<'a, const N: usize>(
 }
 
 #[derive(new, Debug, Clone)]
-struct KBSCStrategyTranslation<S: Strategy> {
-    gk: ConstructedGame<KBSC, 1>,
-    strat: S // strategy for G^K
+struct MKBSCStrategyTranslation<'a, S: MemorylessStrategy, const N: usize> {
+    stack: &'a MKBSCStack<N>,
+    agt: Agt,
+    strat: S // strategy for (G^(jK)|_i)^K, where j=stack.len()-1
 }
 
 // impl strategy for G
-impl<S: Strategy> Strategy for KBSCStrategyTranslation<S> {
-    type M = (Option<(Loc, Act)>, S::M); // Loc in G^K
+impl<'a, S: MemorylessStrategy, const N: usize> Strategy for MKBSCStrategyTranslation<'a, S, N> {
+    type M = Loc; // Loc in (G^(jK)|_i)^K
 
-    fn call(&self, o_g: Obs, (la0, m): &Self::M) -> Option<(Act, Self::M)> {
-        let g = &self.gk.origin().g;
-        let gk = &self.gk;
-        let strat = &self.strat;
+    fn update(&self, o_g: Obs, &s: &Self::M) -> Option<Self::M> {
+        let j = self.j();
+        let agt = self.agt;
 
-        // map location in gk to observation in g
-        let map_to_obs = |l_gk| {
-            let l_g = self.gk.origin_loc(l_gk).first().unwrap();
-            let [o_g] = g.observe(l_g);
-            o_g
-        };
+        let g = &self.stack.base;
+        let gk = self.gk();
 
-        let l_gk = if let &Some((l0_gk, a0)) = la0 {
-            let mut post = gk.post(l0_gk, [a0])
-                .filter(|&l_gk| map_to_obs(l_gk) == o_g);
-            
-            if let Some(l_gk) = post.next() {
-                assert!(post.next().is_none()); // should be guaranteed by theory
-                l_gk
-            } else {
-                return None;
-            }
-        } else {
-            gk.l0()
-        };
+        let s2 = gk.post(s, [self.action(&s)])
+            .filter(|&s2| {
+                let mut s_k = s2;
+                for k in j..=0 {
+                    let gi_k = self.stack.projection(k, agt);
+                    let gk_k = self.stack.kbsc(k, agt);
 
-        let [o_gk] = gk.observe(l_gk);
+                    let l_gi = gk_k.origin_loc(s_k).first().unwrap();
+                    let &l_g = gi_k.origin_loc(l_gi);
 
-        if let Some((a, m2)) = strat.call(o_gk, &m) {
-            return Some((a, (Some((l_gk, a)), m2)));
-        }
+                    s_k = match self.stack.get(k) {
+                        StackElement::MKBSC(g_k) => g_k.origin_loc(l_g)[agt.index()],
+                        StackElement::Base(_) => l_g
+                    };
+                }
+                let l = s_k;
+                g.observe(l)[agt.index()] == o_g
+            })
+            .at_most_one()
+            .ok().unwrap();
         
-        None
+        if let Some(s2) = s2 {
+            if self.strat.call_ml(gk.observe(s2)[0]).is_some() {
+                Some(s2)
+            } else { None }
+        } else { None }
+    }
+
+    fn action(&self, &s: &Self::M) -> Act {
+        self.strat.call_ml(
+            self.gk().observe(s)[0]
+        ).unwrap()
     }
 
     fn init(&self) -> Self::M {
-        (None, self.strat.init())
+        self.gk().l0()
+    }
+}
+
+impl<'a, S: MemorylessStrategy, const N: usize> MKBSCStrategyTranslation<'a, S, N> {
+    fn j(&self) -> usize {
+        self.stack.len().checked_sub(2).unwrap()
+    }
+
+    fn gk(&self) -> &Rc<Game<1>> {
+        &self.stack.kbsc(self.j(), self.agt).game
     }
 }

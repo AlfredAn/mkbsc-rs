@@ -48,20 +48,18 @@ impl Debug for Strat {
     }
 }
 
-impl Strategy for Strat {
-    type M = ();
-
-    fn call(&self, obs: Obs, _: &Self::M) -> Option<(Act, Self::M)> {
-        // println!("{:?}", obs);
+impl MemorylessStrategy for Strat {
+    fn call_ml(&self, obs: Obs) -> Option<Act> {
         if let Some(l) = self.1.to_unique_loc(obs, agt(0)) {
-            // println!("-{:?}", l);
-            self.0.get(l.index()).map(|&a| (a, ()))
+            self.0.get(l.index()).copied()
         } else {
             panic!("expected a perfect information game")
         }
     }
 
-    fn init(&self) -> Self::M { () }
+    fn init_ml(&self) -> Act {
+        *self.0.get(self.1.l0().index()).unwrap()
+    }
 }
 
 pub fn find_strategy<const N: usize>(
@@ -316,12 +314,25 @@ fn _find_strategy<const N: usize>(
     }
 }
 
-
-
 pub trait Strategy {
     type M: Clone + Eq + Hash;
-    fn call(&self, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)>;
+
+    fn update(&self, obs: Obs, mem: &Self::M) -> Option<Self::M>;
+    fn action(&self, mem: &Self::M) -> Act;
+
     fn init(&self) -> Self::M;
+
+    fn init_tuple(&self) -> (Act, Self::M) {
+        let mem = self.init();
+        let act = self.action(&mem);
+        (act, mem)
+    }
+
+    fn call(&self, obs: Obs, mem: &Self::M) -> Option<(Act, Self::M)> {
+        self.update(obs, mem).map(|mem|
+            (self.action(&mem), mem)
+        )
+    }
 
     fn transducer(&self, g: &Game<1>) -> Transducer {
         Transducer::build(g, self)
@@ -332,38 +343,112 @@ pub trait Strategy {
     }
 }
 
-pub trait MemorylessStrategy: Strategy<M=()> {
-    fn call_ml(&self, obs: Obs) -> Option<Act> {
-        self.call(obs, &()).map(|(a, _)| a)
+impl<S: MemorylessStrategy> Strategy for S {
+    type M = Act;
+
+    fn update(&self, obs: Obs, _: &Self::M) -> Option<Self::M> {
+        self.call_ml(obs)
+    }
+
+    fn action(&self, &mem: &Self::M) -> Act {
+        mem
+    }
+
+    fn init(&self) -> Self::M {
+        self.init_ml()
     }
 }
 
-impl<S> MemorylessStrategy for S
-where S: Strategy<M=()> {}
-
-impl<S: Strategy, R: Deref<Target=S>> Strategy for R {
-    type M = S::M;
-    fn call(&self, obs: Obs, mem: &S::M) -> Option<(Act, S::M)> {
-        (**self).call(obs, mem)
-    }
-    fn init(&self) -> S::M {
-        (**self).init()
-    }
+pub trait MemorylessStrategy {
+    fn call_ml(&self, obs: Obs) -> Option<Act>;
+    fn init_ml(&self) -> Act;
 }
 
-struct FnStrat<M, F: Fn(Obs, &M) -> Option<(Act, M)>>(F, M);
+struct FnStrat<M, U, A>(M, U, A);
 
-impl<M: Clone + Eq + Hash, F: Fn(Obs, &M) -> Option<(Act, M)>> Strategy for FnStrat<M, F> {
+impl<
+    M: Clone + Eq + Hash,
+    U: Fn(Obs, &M) -> Option<M>,
+    A: Fn(&M) -> Act
+> Strategy for FnStrat<M, U, A> {
     type M = M;
-    fn call(&self, obs: Obs, mem: &M) -> Option<(Act, M)> {
-        (self.0)(obs, mem)
+
+    fn update(&self, obs: Obs, mem: &Self::M) -> Option<Self::M> {
+        self.1(obs, mem)
     }
-    fn init(&self) -> M { self.1.clone() }
+
+    fn action(&self, mem: &Self::M) -> Act {
+        self.2(mem)
+    }
+
+    fn init(&self) -> Self::M {
+        self.0.clone()
+    }
+}
+
+struct FnStratAlt<M, F>((Act, M), F);
+
+impl<
+    M: Clone + Eq + Hash,
+    F: Fn(Obs, &M) -> Option<(Act, M)>
+> Strategy for FnStratAlt<M, F> {
+    type M = (Act, M);
+
+    fn update(&self, obs: Obs, (_, mem): &Self::M) -> Option<Self::M> {
+        self.1(obs, mem)
+    }
+
+    fn action(&self, (a, _): &Self::M) -> Act {
+        *a
+    }
+
+    fn init(&self) -> Self::M {
+        self.0.clone()
+    }
+}
+
+struct MLessFnStrat<F>(Act, F);
+
+impl<
+    F: Fn(Obs) -> Option<Act>
+> MemorylessStrategy for MLessFnStrat<F> {
+    fn call_ml(&self, obs: Obs) -> Option<Act> {
+        self.1(obs)
+    }
+
+    fn init_ml(&self) -> Act {
+        self.0
+    }
 }
 
 pub fn strategy<M: Clone + Eq + Hash>(
     init: M,
+    u: impl Fn(Obs, &M) -> Option<M>,
+    a: impl Fn(&M) -> Act
+) -> impl Strategy {
+    FnStrat(init, u, a)
+}
+
+pub fn strategy_alt<M: Clone + Eq + Hash>(
+    init: (Act, M),
     f: impl Fn(Obs, &M) -> Option<(Act, M)>
 ) -> impl Strategy {
-    FnStrat(f, init)
+    FnStratAlt(init, f)
+}
+
+pub fn memoryless_strategy(
+    g: &Game<1>,
+    f: impl Fn(Obs) -> Option<Act>
+) -> Option<impl MemorylessStrategy> {
+    memoryless_strategy_ma(g, agt(0), f)
+}
+
+pub fn memoryless_strategy_ma<const N: usize>(
+    g: &Game<N>,
+    agt: Agt,
+    f: impl Fn(Obs) -> Option<Act>
+) -> Option<impl MemorylessStrategy> {
+    f(g.obs0()[agt.index()]).map(|a|
+        MLessFnStrat(a, f)
+    )
 }

@@ -181,7 +181,7 @@ impl<const N: usize> Runner<N> {
             
             if !self.is_quiet() { println!("finding strategy..."); }
 
-            let (result, stats2) = stack.find_strategy(!self.is_quiet(), a.find_all);
+            let (result, stats2) = stack.find_strategy_profile(!self.is_quiet(), a.find_all);
             stats += stats2;
 
             if let Some(profile) = result {

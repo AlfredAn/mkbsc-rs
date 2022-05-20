@@ -47,12 +47,3 @@ impl AbstractGame<1> for KBSC {
         )
     }
 }
-
-impl ConstructedGame<KBSC, 1> {
-    pub fn translate_strategy(
-        &self,
-        strat: impl Strategy
-    ) -> impl Strategy {
-        translate_kbsc_strategy(self.clone(), strat)
-    }
-}

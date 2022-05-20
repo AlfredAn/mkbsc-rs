@@ -145,6 +145,10 @@ impl<const N: usize> Game<N> {
         loc(0)
     }
 
+    pub fn obs0(&self) -> [Obs; N] {
+        self.observe(self.l0())
+    }
+
     pub fn is_obs_winning(&self, agt: Agt, obs: Obs) -> bool {
         self.obs_set(agt, obs)
             .iter()

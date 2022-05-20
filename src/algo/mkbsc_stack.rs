@@ -31,7 +31,6 @@ impl<'a, const N: usize> StackElement<'a, N> {
 pub struct MKBSCStack<const N: usize> {
     pub base: G<N>,
     stack: Vec<GK<N>>,
-    strat: Vec<[Transducer; N]>,
 
     base_proj: OnceCell<[ConstructedGame<Project<N>, 1>; N]>
 }
@@ -41,7 +40,6 @@ impl<const N: usize> MKBSCStack<N> {
         Self {
             base,
             stack: Vec::new(),
-            strat: Vec::new(),
             base_proj: OnceCell::new()
         }
     }
@@ -63,9 +61,22 @@ impl<const N: usize> MKBSCStack<N> {
         self.get(self.len() - 1)
     }
 
+    pub fn projection(&self, i: usize, agt: Agt) -> &ConstructedGame<Project<N>, 1> {
+        &self.mkbsc(i+1)
+            .origin().gi[agt.index()]
+    }
+
+    pub fn kbsc(&self, i: usize, agt: Agt) -> &ConstructedGame<KBSC, 1> {
+        &self.mkbsc(i+1)
+            .origin().gki[agt.index()]
+    }
+
+    pub fn mkbsc(&self, i: usize) -> &ConstructedGame<MKBSC<N>, N> {
+        &self.get(i).mkbsc().unwrap()
+    }
+
     pub fn clear(&mut self) {
         self.stack.clear();
-        self.strat.clear();
     }
 
     pub fn push(&mut self) -> &GK<N> {
@@ -90,10 +101,6 @@ impl<const N: usize> MKBSCStack<N> {
         }
     }
 
-    pub fn strat(&self, level: usize) -> Option<&[Transducer; N]> {
-        self.strat.get(level)
-    }
-
     fn base_proj(&self) -> &[ConstructedGame<Project<N>, 1>; N] {
         self.base_proj.get_or_init(||
             array_init(move |i|
@@ -102,9 +109,8 @@ impl<const N: usize> MKBSCStack<N> {
         )
     }
 
-    pub fn find_strategy(&mut self, print: bool, find_all: bool) -> (Option<&[Transducer; N]>, Stats) {
+    pub fn find_strategy_profile(&mut self, print: bool, find_all: bool) -> (Option<[Transducer; N]>, Stats) {
         let entry = self.last();
-        let g = entry.game();
         
         if let Some(mkbsc) = entry.mkbsc() {
             if print { println!("starting strategy synthesis"); }
@@ -140,56 +146,48 @@ impl<const N: usize> MKBSCStack<N> {
             if profile.is_none() { return (None, stats); }
             let profile = profile.unwrap();
 
-            let transducer = match entry {
-                StackElement::Base(_) => {
-                    let s = array_init(|i|
-                        self.base_proj()[i]
-                            .translate_strategy(&profile[i])
-                    );
-                    let works = verify_strategy(g, &s);
-                    assert!(works);
-                    from_iter(s.into_iter().enumerate().map(|(i, si)|
-                        si.transducer_ma(g, agt(i))
-                    )).unwrap()
-                },
-                StackElement::MKBSC(g) => {
-                    let profile = g.from_kbsc_profile(profile.ref_array());
-                    let s = profile.ref_array();
-                    let works = verify_strategy(g, &s);
-                    assert!(works);
-                    from_iter(s.into_iter().enumerate().map(|(i, si)|
-                        si.transducer_ma(g, agt(i))
-                    )).unwrap()
-                }
-            };
+            assert!(verify_strategy(&*self.base, &profile));
 
-            assert!(verify_strategy(g, &transducer));
+            let transducers = profile.into_iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    let translated = translate_strategy(self, agt(i), s);
+                    let transducer = translated.transducer_ma(&*self.base, agt(i));
+                    transducer
+                })
+                .collect_array()
+                .unwrap();
 
-            self.strat.clear();
-            self.strat.push(transducer);
+            assert!(verify_strategy(&*self.base, &transducers));
 
-            for i in (0..self.len()-1).rev() {
-                let last_strat = self.strat.last().unwrap().ref_array();
-
-                let last_g = self.get(i+1).mkbsc().unwrap();
-                let g = self.get(i).game();
-
-                let transducer = {
-                    let translated = last_g.translate_strategy(last_strat);
-                    array_init(|i|
-                        translated[i].transducer_ma(g, agt(i))
-                    )
-                };
-
-                assert!(verify_strategy(g, &transducer));
-
-                self.strat.push(transducer);
-            }
-
-            self.strat.reverse();
-            return (self.strat(0), stats);
+            return (Some(transducers), stats);
         }
 
         (None, Stats::default())
     }
+}
+
+#[test]
+fn test_cup_game() {
+    let g = include_game!("../../games/cup_game", 2)
+        .build().game;
+    let mut stack = MKBSCStack::new(g);
+
+    assert!(stack.find_strategy_profile(false, false).0.is_none());
+    assert!(stack.find_strategy_profile(false, true).0.is_none());
+
+    stack.push();
+
+    assert!(stack.find_strategy_profile(false, false).0.is_none());
+    assert!(stack.find_strategy_profile(false, true).0.is_none());
+
+    stack.push();
+
+    assert!(stack.find_strategy_profile(false, false).0.is_some());
+    assert!(stack.find_strategy_profile(false, true).0.is_some());
+
+    stack.push();
+
+    assert!(stack.find_strategy_profile(false, false).0.is_some());
+    assert!(stack.find_strategy_profile(false, true).0.is_some());
 }

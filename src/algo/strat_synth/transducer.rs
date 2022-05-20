@@ -3,16 +3,21 @@ use crate::*;
 pub use strategy::*;
 pub use strategy1::*;
 
-// (obs, mem) -> option(act, mem)
-
 #[derive(Debug, Clone)]
-pub struct Transducer(BTreeMap<(Obs, TransducerState), (Act, TransducerState)>);
+pub struct Transducer(
+    BTreeMap<(Obs, TransducerState), TransducerState>,
+    Vec<Act>
+);
 
 impl Strategy for Transducer {
     type M = TransducerState;
 
-    fn call(&self, obs: Obs, &mem: &Self::M) -> Option<(Act, Self::M)> {
-        self.0.get(&(obs, mem)).map(|&x| x)
+    fn update(&self, obs: Obs, &mem: &Self::M) -> Option<Self::M> {
+        self.0.get(&(obs, mem)).copied()
+    }
+
+    fn action(&self, mem: &Self::M) -> Act {
+        self.1[mem.index()]
     }
 
     fn init(&self) -> Self::M {
@@ -26,7 +31,9 @@ impl Transducer {
     }
 
     pub fn build_ma<S: Strategy + ?Sized, const N: usize>(g: &Game<N>, agt: Agt, strat: &S) -> Self {
-        let mut tr = BTreeMap::new();
+        let mut transitions = BTreeMap::default();
+        let mut actions = Vec::new();
+
         let mut state_map = FxHashMap::default();
         let mut visited = FxHashSet::default();
         let mut states = Vec::new();
@@ -34,52 +41,58 @@ impl Transducer {
         macro_rules! state {
             ($mem:expr) => {{
                 let mem = $mem;
-                match state_map.get(&mem) {
+                match state_map.get(mem) {
                     Some(&s) => s,
                     None => {
                         let s = transducer_state(states.len());
                         state_map.insert(mem.clone(), s);
-                        states.push(mem);
+                        actions.push(strat.action(&mem));
+                        states.push(mem.clone());
                         s
                     }
                 }
             }}
         }
 
-        let mut stack = vec![(g.l0(), state!(strat.init()))];
+        let mut stack = vec![(g.l0(), state!(&strat.init()))];
+        let mut first = true;
 
-        // eprintln!("--------------------------------------------------");
-
-        while let Some((l, s)) = stack.pop() {
-            if visited.contains(&(l, s)) {
+        while let Some((l1, s1)) = stack.pop() {
+            if visited.contains(&(l1, s1)) {
                 continue;
             }
 
-            let o = g.observe(l)[agt.index()];
+            let m1 = &states[s1.index()];
+            let o1 = g.observe(l1)[agt.index()];
 
-            // eprint!("(l{l}) o{o},s{s}");
-
-            let m = &states[s.index()];
-            if let Some((a, m2)) = strat.call(o, m) {
-                let s2 = state!(m2);
-                tr.insert((o, s), (a, s2));
-
-                // eprintln!(" -> (a{a}) -> s{s2}");
-
-                // eprintln!("{:?}\n", g.successors(l));
-                for &(a_succ, l2) in g.successors(l) {
-                    // eprintln!("{:?}", (a_succ, l2));
-                    if a == a_succ[agt.index()] {
-                        // eprintln!("yes");
-                        stack.push((l2, s2));
-                    } // else { eprintln!("no"); }
-                }
+            let m2 = if first {
+                Some(m1.clone())
             } else {
-                // eprintln!(" -> None");
+                strat.update(o1, m1)
+            };
+
+            if let Some(m2) = m2 {
+                let s2 = if first {
+                    s1
+                } else {
+                    let s2 = state!(&m2);
+                    transitions.insert((o1, s1), s2);
+                    s2
+                };
+
+                let a = strat.action(&m2);
+
+                for &(a_succ, l2) in g.successors(l1) {
+                    if a == a_succ[agt.index()] {
+                        stack.push((l2, s2));
+                    }
+                }
             }
-            visited.insert((l, s));
+
+            visited.insert((l1, s1));
+            first = false;
         }
 
-        Transducer(tr)
+        Transducer(transitions, actions)
     }
 }

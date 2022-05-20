@@ -343,8 +343,6 @@ fn test_cup_game() {
         for j in 0..=4 {
             debug!("running test", (i, j));
 
-            // if (i, j) != (1, 2) {continue}
-
             let (g0, g1) = (stack.get(i).game(), stack.get(j).game());
             debug!("---g0---", g0);
             debug!("---g1---", g1);

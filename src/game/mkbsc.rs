@@ -107,21 +107,6 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
 }
 
 impl<'a, const N: usize> ConstructedGame<MKBSC<N>, N> {
-    pub fn translate_strategy(
-        &self,
-        strat_gk: [impl Strategy + 'a; N]
-    ) -> [impl Strategy + 'a; N] {
-        let strat_gki = self.to_kbsc_profile(strat_gk);
-        let strat_g = strat_gki.into_iter()
-            .enumerate()
-            .map(|(i, strat_gki)| {
-                let strat_gi = self.origin().gki[i].translate_strategy(strat_gki);
-                let strat_g = self.origin().gi[i].translate_strategy(strat_gi);
-                strat_g
-            });
-        from_iter(strat_g).unwrap()
-    }
-
     pub fn to_kbsc_profile(
         &self,
         strat_gk: [impl Strategy + 'a; N]
