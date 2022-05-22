@@ -178,19 +178,21 @@ impl<const N: usize> Runner<N> {
             } else {
                 if !self.is_quiet() { println!("n = {}", stack.last().game().n_loc()); }
             }
-            
-            if !self.is_quiet() { println!("finding strategy..."); }
 
-            let (result, stats2) = stack.find_strategy_profile(!self.is_quiet(), a.find_all);
+            let (result, stats2) = stack.find_strategy_profile(a.find_all, true, !self.is_quiet());
             stats += stats2;
 
-            if let Some(profile) = result {
-                if !self.is_quiet() { println!("strategy found"); }
-                println!("{:?}", profile);
+            if result.len() > 0 {
+                if !self.is_quiet() {
+                    println!("terminating search\n{} {} found",
+                        result.len(),
+                        if result.len() == 1 { "strategy" } else { "strategies" }
+                    );
+                }
                 break;
             }
 
-            println!("no strategy found");
+            if !self.is_quiet() { println!("no strategy found"); }
 
             if i as u64 >= a.max_iterations {
                 if !self.is_quiet() { println!("reached limit, stopping"); }

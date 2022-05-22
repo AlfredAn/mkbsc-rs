@@ -109,28 +109,50 @@ impl<const N: usize> MKBSCStack<N> {
         )
     }
 
-    pub fn find_strategy_profile(&mut self, print: bool, find_all: bool) -> (Option<[Transducer; N]>, Stats) {
+    fn translate_strategy(&self, profile: &[Strat; N], print: bool) -> [Transducer; N] {
+        let mkbsc = self.last().mkbsc().unwrap();
+
+        assert!(verify_strategy(&mkbsc.game, &mkbsc.from_kbsc_profile(profile.clone())));
+
+        let transducers = profile.iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let translated = translate_strategy(self, agt(i), s.clone());
+                let transducer = translated.transducer_ma(self.base.clone(), agt(i));
+                transducer
+            })
+            .collect_array()
+            .unwrap();
+
+        assert!(verify_strategy(&*self.base, &transducers));
+
+        if print { println!("\n{:?}", transducers); }
+
+        transducers
+    }
+
+    pub fn find_strategy_profile(&self, find_all: bool, print_result: bool, print_text: bool)
+    -> (impl Iterator<Item=[Transducer; N]> + ExactSizeIterator, Stats) {
+        let mut stats = Stats::default();
+        let mut found_strategies = FxHashMap::default();
+
         let entry = self.last();
         
         if let Some(mkbsc) = entry.mkbsc() {
-            if print { println!("starting strategy synthesis"); }
+            if print_text { println!("starting strategy synthesis"); }
 
-            let mut found_strategies = FxHashSet::default();
-
-            let mut profile = None;
-            let stats = find_strategy(
+            stats += find_strategy(
                 mkbsc,
                 |depth| {
-                    if print { println!("depth: {depth}"); }
+                    if print_text { println!("depth: {depth}"); }
                     ControlFlow::Continue(())
                 },
                 |strat| {
-                    if profile.is_none() {
-                        profile = Some(strat.clone());
-                    }
-                    if !found_strategies.contains(strat) {
-                        found_strategies.insert(strat.clone());
-                        if print { println!("found strategy: {:#?}", strat); }
+                    if !found_strategies.contains_key(strat) {
+                        if print_text { print!("found strategy:"); }
+                        let translated = self.translate_strategy(strat, print_result);
+                        if print_text { println!("--------------------------------------------------"); }
+                        found_strategies.insert(strat.clone(), translated);
                     }
                     if find_all {
                         ControlFlow::Continue(())
@@ -140,31 +162,11 @@ impl<const N: usize> MKBSCStack<N> {
                 },
                 find_all
             );
-
-            if print { println!("number of strategies found: {}", found_strategies.len()); }
-
-            if profile.is_none() { return (None, stats); }
-            let profile = profile.unwrap();
-
-            assert!(verify_strategy(&mkbsc.game, &mkbsc.from_kbsc_profile(profile.clone())));
-
-            let transducers = profile.into_iter()
-                .enumerate()
-                .map(|(i, s)| {
-                    let translated = translate_strategy(self, agt(i), s);
-                    let transducer = translated.transducer_ma(self.base.clone(), agt(i));
-                    // println!("\n{:?}", transducer);
-                    transducer
-                })
-                .collect_array()
-                .unwrap();
-
-            assert!(verify_strategy(&*self.base, &transducers));
-
-            return (Some(transducers), stats);
+        } else {
+            if print_text { println!("strategy synthesis for G^(0K) is not yet supported"); }
         }
 
-        (None, Stats::default())
+        (found_strategies.into_values(), stats)
     }
 }
 
@@ -174,21 +176,21 @@ fn test_cup_game() {
         .build().game;
     let mut stack = MKBSCStack::new(g);
 
-    assert!(stack.find_strategy_profile(false, false).0.is_none());
-    assert!(stack.find_strategy_profile(false, true).0.is_none());
+    assert!(stack.find_strategy_profile(false, false, false).0.next().is_none());
+    assert!(stack.find_strategy_profile(true, false, false).0.next().is_none());
 
     stack.push();
 
-    assert!(stack.find_strategy_profile(false, false).0.is_none());
-    assert!(stack.find_strategy_profile(false, true).0.is_none());
+    assert!(stack.find_strategy_profile(false, false, false).0.next().is_none());
+    assert!(stack.find_strategy_profile(true, false, false).0.next().is_none());
 
     stack.push();
 
-    assert!(stack.find_strategy_profile(false, false).0.is_some());
-    assert!(stack.find_strategy_profile(false, true).0.is_some());
+    assert!(stack.find_strategy_profile(false, false, false).0.exactly_one().is_ok());
+    assert!(stack.find_strategy_profile(true, false, false).0.exactly_one().is_ok());
 
     stack.push();
 
-    assert!(stack.find_strategy_profile(false, false).0.is_some());
-    assert!(stack.find_strategy_profile(false, true).0.is_some());
+    assert!(stack.find_strategy_profile(false, false, false).0.exactly_one().is_ok());
+    assert!(stack.find_strategy_profile(true, false, false).0.exactly_one().is_ok());
 }
