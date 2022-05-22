@@ -330,49 +330,54 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
     false
 }
 
-#[test]
-fn test_cup_game() {
-    let g = include_game!("../../games/cup_game", 2)
-        .build().game;
-    let mut stack = MKBSCStack::new(g);
-    for _ in 0..4 {
-        stack.push();
-    }
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    for i in 0..=4 {
-        for j in 0..=4 {
-            debug!("running test", (i, j));
+    #[test]
+    fn test_cup_game() {
+        let g = include_game!("../../games/cup_game", 2)
+            .build().game;
+        let mut stack = MKBSCStack::new(g);
+        for _ in 0..4 {
+            stack.push();
+        }
 
-            let (g0, g1) = (stack.get(i).game(), stack.get(j).game());
-            debug!("---g0---", g0);
-            debug!("---g1---", g1);
+        for i in 0..=4 {
+            for j in 0..=4 {
+                debug!("running test", (i, j));
 
-            assert_eq!(
-                is_isomorphic(g0, g1, false),
-                i == j || min(i, j) >= 1
-            );
-            assert_eq!(
-                is_isomorphic(g0, g1, true),
-                i == j || min(i, j) >= 2
-            );
+                let (g0, g1) = (stack.get(i).game(), stack.get(j).game());
+                debug!("---g0---", g0);
+                debug!("---g1---", g1);
+
+                assert_eq!(
+                    is_isomorphic(g0, g1, false),
+                    i == j || min(i, j) >= 1
+                );
+                assert_eq!(
+                    is_isomorphic(g0, g1, true),
+                    i == j || min(i, j) >= 2
+                );
+            }
         }
     }
-}
 
-#[test]
-fn test_obs() {
-    let g = [
-        include_game!("../../games/test/test_obs_1.game", 1),
-        include_game!("../../games/test/test_obs_2.game", 1),
-    ].map(|g| g.build().game);
+    #[test]
+    fn test_obs() {
+        let g = [
+            include_game!("../../games/test/test_obs_1.game", 1),
+            include_game!("../../games/test/test_obs_2.game", 1),
+        ].map(|g| g.build().game);
 
-    assert!( is_isomorphic(&g[0], &g[0], true));
-    assert!( is_isomorphic(&g[1], &g[1], true));
-    assert!(!is_isomorphic(&g[0], &g[1], true));
-    assert!(!is_isomorphic(&g[1], &g[0], true));
+        assert!( is_isomorphic(&g[0], &g[0], true));
+        assert!( is_isomorphic(&g[1], &g[1], true));
+        assert!(!is_isomorphic(&g[0], &g[1], true));
+        assert!(!is_isomorphic(&g[1], &g[0], true));
 
-    assert!( is_isomorphic(&g[0], &g[0], false));
-    assert!( is_isomorphic(&g[1], &g[1], false));
-    assert!( is_isomorphic(&g[0], &g[1], false));
-    assert!( is_isomorphic(&g[1], &g[0], false));
+        assert!( is_isomorphic(&g[0], &g[0], false));
+        assert!( is_isomorphic(&g[1], &g[1], false));
+        assert!( is_isomorphic(&g[0], &g[1], false));
+        assert!( is_isomorphic(&g[1], &g[0], false));
+    }
 }
