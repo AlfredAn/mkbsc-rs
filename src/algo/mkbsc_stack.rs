@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use derive_more::*;
 use once_cell::unsync::OnceCell;
 use crate::*;
@@ -109,7 +111,7 @@ impl<const N: usize> MKBSCStack<N> {
         )
     }
 
-    fn translate_strategy(&self, profile: &[Strat; N], print: bool) -> [Transducer; N] {
+    fn translate_strategy(&self, profile: &[Strat; N], output: &mut (impl Write + ?Sized)) -> anyhow::Result<[Transducer; N]> {
         let mkbsc = self.last().mkbsc().unwrap();
 
         assert!(verify_strategy(&mkbsc.game, &mkbsc.from_kbsc_profile(profile.clone())));
@@ -126,13 +128,14 @@ impl<const N: usize> MKBSCStack<N> {
 
         assert!(verify_strategy(&*self.base, &transducers));
 
-        if print { println!("\n{:?}", transducers); }
+        writeln!(output, "{:?}", transducers)?;
+        output.flush()?;
 
-        transducers
+        Ok(transducers)
     }
 
-    pub fn find_strategy_profile(&self, find_all: bool, print_result: bool, print_text: bool)
-    -> (impl Iterator<Item=[Transducer; N]> + ExactSizeIterator, Stats) {
+    pub fn find_strategy_profile(&self, find_all: bool, output: &mut (impl Write + ?Sized), print_text: bool)
+    -> anyhow::Result<(impl Iterator<Item=[Transducer; N]> + ExactSizeIterator, Stats)> {
         let mut stats = Stats::default();
         let mut found_strategies = FxHashMap::default();
 
@@ -141,6 +144,7 @@ impl<const N: usize> MKBSCStack<N> {
         if let Some(mkbsc) = entry.mkbsc() {
             if print_text { println!("starting strategy synthesis"); }
 
+            let mut error = None;
             stats += find_strategy(
                 mkbsc,
                 |depth| {
@@ -149,48 +153,69 @@ impl<const N: usize> MKBSCStack<N> {
                 },
                 |strat| {
                     if !found_strategies.contains_key(strat) {
-                        if print_text { print!("found strategy:"); }
-                        let translated = self.translate_strategy(strat, print_result);
-                        if print_text { println!("--------------------------------------------------"); }
-                        found_strategies.insert(strat.clone(), translated);
-                    }
-                    if find_all {
-                        ControlFlow::Continue(())
+                        if print_text { println!("found strategy #{}", found_strategies.len()+1); }
+
+                        match self.translate_strategy(strat, output) {
+                            Ok(translated) => {
+                                found_strategies.insert(strat.clone(), translated);
+
+                                if find_all {
+                                    ControlFlow::Continue(())
+                                } else {
+                                    ControlFlow::Break(())
+                                }
+                            },
+                            Err(err) => {
+                                error = Some(err);
+                                ControlFlow::Break(())
+                            },
+                        }
                     } else {
-                        ControlFlow::Break(())
+                        ControlFlow::Continue(())
                     }
                 },
                 find_all
             );
+            if let Some(error) = error {
+                return Err(error);
+            }
         } else {
             if print_text { println!("strategy synthesis for G^(0K) is not yet supported"); }
         }
 
-        (found_strategies.into_values(), stats)
+        Ok((found_strategies.into_values(), stats))
     }
 }
 
-#[test]
-fn test_cup_game() {
-    let g = include_game!("../../games/cup_game", 2)
-        .build().game;
-    let mut stack = MKBSCStack::new(g);
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::io::sink;
 
-    assert!(stack.find_strategy_profile(false, false, false).0.next().is_none());
-    assert!(stack.find_strategy_profile(true, false, false).0.next().is_none());
+    #[test]
+    fn test_cup_game() -> anyhow::Result<()> {
+        let g = include_game!("../../games/cup_game", 2)
+            .build().game;
+        let mut stack = MKBSCStack::new(g);
 
-    stack.push();
+        assert!(stack.find_strategy_profile(false, &mut sink(), false)?.0.next().is_none());
+        assert!(stack.find_strategy_profile(true, &mut sink(), false)?.0.next().is_none());
 
-    assert!(stack.find_strategy_profile(false, false, false).0.next().is_none());
-    assert!(stack.find_strategy_profile(true, false, false).0.next().is_none());
+        stack.push();
 
-    stack.push();
+        assert!(stack.find_strategy_profile(false, &mut sink(), false)?.0.next().is_none());
+        assert!(stack.find_strategy_profile(true, &mut sink(), false)?.0.next().is_none());
 
-    assert!(stack.find_strategy_profile(false, false, false).0.exactly_one().is_ok());
-    assert!(stack.find_strategy_profile(true, false, false).0.exactly_one().is_ok());
+        stack.push();
 
-    stack.push();
+        assert!(stack.find_strategy_profile(false, &mut sink(), false)?.0.exactly_one().is_ok());
+        assert!(stack.find_strategy_profile(true, &mut sink(), false)?.0.exactly_one().is_ok());
 
-    assert!(stack.find_strategy_profile(false, false, false).0.exactly_one().is_ok());
-    assert!(stack.find_strategy_profile(true, false, false).0.exactly_one().is_ok());
+        stack.push();
+
+        assert!(stack.find_strategy_profile(false, &mut sink(), false)?.0.exactly_one().is_ok());
+        assert!(stack.find_strategy_profile(true, &mut sink(), false)?.0.exactly_one().is_ok());
+
+        Ok(())
+    }
 }

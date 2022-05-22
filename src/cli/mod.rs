@@ -49,7 +49,7 @@ struct CliInternal {
 
     /// Synthesize strategies. The game will be expanded until at least one strategy is found, or until further expansions lead to isomorphic games.
     #[clap(short, long, conflicts_with_all(&[
-        "output", "format",
+        "format",
         "kbsc", "project",
         "no-iso-check", "no-structure",
         "transform"

@@ -84,7 +84,7 @@ impl<const N: usize> RunnerTrait for Runner<N> {
     fn run(&self, a: &Action, output: &mut (impl Write + ?Sized)) -> anyhow::Result<()> {
         match a {
             Action::Transform(a) => self.mkbsc(a, output),
-            Action::Synthesize(a) => self.synthesize(a)
+            Action::Synthesize(a) => self.synthesize(a, output)
         }
     }
 }
@@ -157,7 +157,7 @@ impl<const N: usize> Runner<N> {
         Ok(())
     }
 
-    fn synthesize(&self, a: &SynthesizeAction) -> anyhow::Result<()> {
+    fn synthesize(&self, a: &SynthesizeAction, output: &mut (impl Write + ?Sized)) -> anyhow::Result<()> {
         let mut stack = MKBSCStack::new(self.io_game.clone().build().game);
         let mut stats = Stats::default();
 
@@ -179,7 +179,7 @@ impl<const N: usize> Runner<N> {
                 if !self.is_quiet() { println!("n = {}", stack.last().game().n_loc()); }
             }
 
-            let (result, stats2) = stack.find_strategy_profile(a.find_all, true, !self.is_quiet());
+            let (result, stats2) = stack.find_strategy_profile(a.find_all, output, !self.is_quiet())?;
             stats += stats2;
 
             if result.len() > 0 {
