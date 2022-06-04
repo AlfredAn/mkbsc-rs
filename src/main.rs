@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use std::time::SystemTime;
-
 pub use prelude::*;
 
 mod prelude;

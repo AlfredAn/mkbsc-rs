@@ -1,4 +1,4 @@
-use std::{path::Path, fs::File, io::{Read, stdin, stdout, sink, BufWriter}, str::FromStr, error::Error};
+use std::{path::Path, fs::File, io::{Read, stdin, stdout, sink, BufWriter}, str::FromStr, error::Error, time::SystemTime};
 use anyhow::bail;
 use clap::*;
 use derive_more::IsVariant;
@@ -125,7 +125,8 @@ pub struct SynthesizeAction {
 #[derive(ArgEnum, Debug, Clone, IsVariant, SmartDefault)]
 pub enum Format {
     #[default] Default,
-    Tikz
+    Tikz,
+    Dot
 }
 
 pub fn parse() -> anyhow::Result<Cli> {

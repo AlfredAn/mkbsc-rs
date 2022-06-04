@@ -1,5 +1,8 @@
+use std::io::Write;
+
 use itertools::chain;
 use indoc::{writedoc};
+use tabbycat::GraphBuilder;
 use crate::{*, cli::Format};
 
 #[derive(Clone, SmartDefault)]
@@ -83,6 +86,23 @@ impl<const N: usize> Game<N> {
                 d.successors.iter()
                     .map(move |&(a, l2)| (l, a, l2))
             )
+    }
+
+    pub fn edges_dedup(&self) -> impl Iterator<Item=(Loc, Vec<[Act; N]>, Loc)> + '_ {
+        self.iter()
+            .flat_map(|(l, d)| {
+                d.successors.iter()
+                    .sort_and_group_by_key(|(_, l2)| l2)
+                    .into_iter()
+                    .map(|(l2, g)| (
+                            l,
+                            g.map(|&(a, _)| a)
+                                .collect(),
+                            *l2
+                        ))
+                    .collect_vec()
+                    .into_iter()
+            })
     }
 
     pub fn successors(&self, l: Loc) -> &[([Act; N], Loc)] {
@@ -316,6 +336,7 @@ impl<const N: usize> Game<N> {
         match fmt {
             Format::Default => write!(f, "{}", self),
             Format::Tikz => self.format_tikz(f),
+            Format::Dot => self.format_dot(f),
         }
     }
 
@@ -413,5 +434,41 @@ impl<const N: usize> Game<N> {
         ")?;
 
         Ok(())
+    }
+
+    pub fn format_dot(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use tabbycat::*;
+
+        let idt = |l|
+            Identity::quoted(format!("{}", display(|f| self.fmt_loc(f, l))));
+
+        let graph = GraphBuilder::default()
+            .graph_type(GraphType::DiGraph)
+            .strict(false)
+            .id(Identity::id("Game").unwrap())
+            .stmts({
+                let mut list = StmtList::new();
+
+                for (l, _) in self.iter() {
+                    list = list.add_node(
+                        idt(l),
+                        None,
+                        None
+                    );
+                }
+
+                for (l, a, l2) in self.edges() {
+                    list = list.add_edge(
+                        Edge::head_node(idt(l), None)
+                            .arrow_to_node(idt(l2), None)
+                    );
+                }
+
+                list
+            })
+            .build()
+            .unwrap();
+
+        write!(f, "{}", graph)
     }
 }
