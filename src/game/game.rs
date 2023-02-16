@@ -1,8 +1,5 @@
-use std::io::Write;
-
 use itertools::chain;
 use indoc::{writedoc};
-use tabbycat::GraphBuilder;
 use crate::{*, cli::Format};
 
 #[derive(Clone, SmartDefault)]
@@ -438,6 +435,7 @@ impl<const N: usize> Game<N> {
 
     pub fn format_dot(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use tabbycat::*;
+        use collections::HashMap;
 
         let idt = |l|
             Identity::quoted(format!("{}", display(|f| self.fmt_loc(f, l))));
@@ -449,6 +447,7 @@ impl<const N: usize> Game<N> {
             .stmts({
                 let mut list = StmtList::new();
 
+                // add nodes
                 for (l, _) in self.iter() {
                     list = list.add_node(
                         idt(l),
@@ -457,10 +456,35 @@ impl<const N: usize> Game<N> {
                     );
                 }
 
+                // merge edges between the same two nodes
+                let mut edge_map: HashMap<(Loc, Loc), Vec<[Act; N]>> = HashMap::new();
+
                 for (l, a, l2) in self.edges() {
+                    let key = (l, l2);
+                    edge_map.entry(key)
+                        .and_modify(|actions| actions.push(a))
+                        .or_insert_with(|| vec![a]);
+                }
+
+                // add edges
+                for ((l, l2), actions) in edge_map {
+                    let mut label = String::new();
+                    for a in actions {
+                        let row_str = format!("({})", a.iter()
+                            .map(|x| x.index().to_string())
+                            .join(" "));
+                        label.push_str(&row_str);
+                        label.push_str(",");
+                    }
+                    label.pop();
+
                     list = list.add_edge(
                         Edge::head_node(idt(l), None)
                             .arrow_to_node(idt(l2), None)
+                            .add_attribute(
+                                Identity::quoted("label"),
+                                Identity::quoted(label)
+                            )
                     );
                 }
 
