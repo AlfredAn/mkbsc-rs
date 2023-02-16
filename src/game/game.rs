@@ -200,6 +200,14 @@ impl<const N: usize> Game<N> {
             self.fmt_loc(f, l)
         )
     }
+
+    pub fn fmt_act(&self, f: &mut fmt::Formatter, a: Act) -> fmt::Result {
+        if let Some(origin) = &self.origin {
+            origin.fmt_act(f, a)
+        } else {
+            write!(f, "{}", a)
+        }
+    }
 }
 
 impl<const N: usize> Index<Loc> for Game<N> {
@@ -440,6 +448,9 @@ impl<const N: usize> Game<N> {
         let idt = |l|
             Identity::quoted(format!("{}", display(|f| self.fmt_loc(f, l))));
 
+        let act = |a|
+            format!("{}", display(|f| self.fmt_act(f, a)));
+
         let graph = GraphBuilder::default()
             .graph_type(GraphType::DiGraph)
             .strict(false)
@@ -471,7 +482,7 @@ impl<const N: usize> Game<N> {
                     let mut label = String::new();
                     for a in actions {
                         let row_str = format!("({})", a.iter()
-                            .map(|x| x.index().to_string())
+                            .map(|&x| act(x))
                             .join(" "));
                         label.push_str(&row_str);
                         label.push_str(",");

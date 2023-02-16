@@ -254,4 +254,8 @@ impl<const N: usize> AbstractGame<N> for IOGame<N> {
     fn fmt_loc(&self, f: &mut std::fmt::Formatter, l: &Loc) -> std::fmt::Result {
         write!(f, "{}", l)
     }
+
+    fn fmt_act(&self, f: &mut fmt::Formatter, a: crate::Act) -> fmt::Result {
+        write!(f, "{}", self.act[a.index()])
+    }
 }

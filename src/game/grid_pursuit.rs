@@ -349,6 +349,10 @@ impl<const N: usize> AbstractGame<N> for GridPursuitGame<N> {
             if l.l.is_winning() { "W" } else { if l.is_winning() { "X" } else { "" } }
         )
     }
+
+    fn fmt_act(&self, f: &mut fmt::Formatter, a: Act) -> fmt::Result {
+        write!(f, "{}", a)
+    }
 }
 
 fn in_bounds<const N: usize>(l: RawLoc<N>) -> bool {

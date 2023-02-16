@@ -28,6 +28,10 @@ impl<const N: usize> AbstractGame<1> for Project<N> {
     fn fmt_obs(&self, f: &mut fmt::Formatter, agt: Agt, &o: &Self::Obs) -> fmt::Result {
         self.g.fmt_obs(f, agt, o)
     }
+
+    fn fmt_act(&self, f: &mut fmt::Formatter, a: Act) -> fmt::Result {
+        self.g.fmt_act(f, a)
+    }
 }
 
 impl<const N: usize> ConstructedGame<Project<N>, 1> {
