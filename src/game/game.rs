@@ -444,6 +444,7 @@ impl<const N: usize> Game<N> {
     pub fn format_dot(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use tabbycat::*;
         use collections::HashMap;
+        use unordered_pair::UnorderedPair;
 
         let idt = |l|
             Identity::quoted(format!("{}", display(|f| self.fmt_loc(f, l))));
@@ -495,6 +496,66 @@ impl<const N: usize> Game<N> {
                             .add_attribute(
                                 Identity::quoted("label"),
                                 Identity::quoted(label)
+                            )
+                    );
+                }
+
+                // figure out which edges are needed for observations
+                let mut obs_map: HashMap<UnorderedPair<Loc>, [bool; N]> = HashMap::new();
+
+                for agt in self.iter_agt() {
+                    for (obs, locs) in self.iter_obs(agt) {
+                        // iterate through all pairs in locs
+                        let pairs = locs.iter().enumerate()
+                            .flat_map(|(i, &l)| locs
+                                .iter()
+                                .skip(i+1)
+                                .map(move |&l2| (l, l2))
+                            );
+                        
+                        for (l, l2) in pairs {
+                            let key = UnorderedPair::from((l, l2));
+                            obs_map.entry(key)
+                                .and_modify(|agents| agents[agt.index()] = true)
+                                .or_insert_with(|| {
+                                    let mut agents = [false; N];
+                                    agents[agt.index()] = true;
+                                    agents
+                                });
+                        }
+                    }
+                }
+
+                // add obs edges
+                for (loc_pair, agents) in obs_map {
+                    let (l, l2) = loc_pair.into_ordered_tuple();
+                    let mut agents = agents
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, &b)|
+                            if b { Some(agt(i)) } else { None }
+                        );
+                    
+                    let label = format!("~{}", agents.join(","));
+                    
+                    list = list.add_edge(
+                        Edge::head_node(idt(l), None)
+                            .arrow_to_node(idt(l2), None)
+                            .add_attribute(
+                                Identity::quoted("dir"),
+                                Identity::quoted("none")
+                            )
+                            .add_attribute(
+                                Identity::quoted("label"),
+                                Identity::quoted(label)
+                            )
+                            .add_attribute(
+                                Identity::quoted("color"),
+                                Identity::quoted("gray")
+                            )
+                            .add_attribute(
+                                Identity::quoted("style"),
+                                Identity::quoted("dashed")
                             )
                     );
                 }

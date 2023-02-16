@@ -353,6 +353,7 @@ dependencies = [
  "slice-group-by",
  "smart-default",
  "tabbycat",
+ "unordered-pair",
  "vec_map",
  "weak-table",
 ]
@@ -549,6 +550,12 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
+
+[[package]]
+name = "unordered-pair"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d82c34093ea7dd15b4e42ecbc22adf732b466ac6e03abc83a56741fad611b0ec"
 
 [[package]]
 name = "vec_map"
