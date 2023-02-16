@@ -112,6 +112,10 @@ impl<const N: usize> AbstractGame<N> for MKBSC<N> {
     fn fmt_act(&self, f: &mut fmt::Formatter, a: Act) -> fmt::Result {
         self.g.fmt_act(f, a)
     }
+
+    fn fmt_agt(&self, f: &mut fmt::Formatter, agt: Agt) -> fmt::Result {
+        self.g.fmt_agt(f, agt)
+    }
 }
 
 impl<'a, const N: usize> ConstructedGame<MKBSC<N>, N> {

@@ -258,4 +258,8 @@ impl<const N: usize> AbstractGame<N> for IOGame<N> {
     fn fmt_act(&self, f: &mut fmt::Formatter, a: crate::Act) -> fmt::Result {
         write!(f, "{}", self.act[a.index()])
     }
+
+    fn fmt_agt(&self, f: &mut fmt::Formatter, agt: crate::Agt) -> fmt::Result {
+        write!(f, "{}", self.agt[agt.index()])
+    }
 }

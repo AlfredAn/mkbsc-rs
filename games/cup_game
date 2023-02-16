@@ -1,4 +1,4 @@
-agt: 0, 1
+agt: agt0, agt1
 act: g, s, l
 
 loc: start, bad, good, lose, win

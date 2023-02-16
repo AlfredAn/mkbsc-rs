@@ -353,6 +353,10 @@ impl<const N: usize> AbstractGame<N> for GridPursuitGame<N> {
     fn fmt_act(&self, f: &mut fmt::Formatter, a: Act) -> fmt::Result {
         write!(f, "{}", a)
     }
+
+    fn fmt_agt(&self, f: &mut fmt::Formatter, agt: Agt) -> fmt::Result {
+        write!(f, "{}", agt)
+    }
 }
 
 fn in_bounds<const N: usize>(l: RawLoc<N>) -> bool {

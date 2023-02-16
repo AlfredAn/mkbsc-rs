@@ -208,6 +208,14 @@ impl<const N: usize> Game<N> {
             write!(f, "{}", a)
         }
     }
+
+    pub fn fmt_agt(&self, f: &mut fmt::Formatter, agt: Agt) -> fmt::Result {
+        if let Some(origin) = &self.origin {
+            origin.fmt_agt(f, agt)
+        } else {
+            write!(f, "{}", agt)
+        }
+    }
 }
 
 impl<const N: usize> Index<Loc> for Game<N> {
@@ -504,7 +512,7 @@ impl<const N: usize> Game<N> {
                 let mut obs_map: HashMap<UnorderedPair<Loc>, [bool; N]> = HashMap::new();
 
                 for agt in self.iter_agt() {
-                    for (obs, locs) in self.iter_obs(agt) {
+                    for (_, locs) in self.iter_obs(agt) {
                         // iterate through all pairs in locs
                         let pairs = locs.iter().enumerate()
                             .flat_map(|(i, &l)| locs
@@ -533,7 +541,7 @@ impl<const N: usize> Game<N> {
                         .iter()
                         .enumerate()
                         .filter_map(|(i, &b)|
-                            if b { Some(agt(i)) } else { None }
+                            if b { Some(display(move |f| self.fmt_agt(f, agt(i)))) } else { None }
                         );
                     
                     let label = format!("~{}", agents.join(","));

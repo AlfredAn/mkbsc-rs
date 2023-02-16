@@ -27,6 +27,8 @@ pub trait AbstractGame<const N: usize> {
 
     fn fmt_act(&self, f: &mut fmt::Formatter, a: Act) -> fmt::Result;
 
+    fn fmt_agt(&self, f: &mut fmt::Formatter, agt: Agt) -> fmt::Result;
+
     fn fmt_obs(&self, f: &mut fmt::Formatter, _agt: Agt, _o: &Self::Obs) -> fmt::Result {
         write!(f, "?")
     }
