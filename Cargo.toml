@@ -1,6 +1,6 @@
 [package]
 name = "mkbsc-rs"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["Alfred Andersson <alfred@rygno.net>"]
 description = "An implementation of the MKBSC and strategy synthesis for multi-agent games of imperfect information."
 repository = "https://github.com/AlfredAn/mkbsc-rs"
