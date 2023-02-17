@@ -127,7 +127,9 @@ impl<const N: usize> Runner<N> {
             }
 
             if a.check_iso && is_isomorphic(&g, &g_prev, true) {
-                println!("isomorphic, stopping at G^({}K)", i);
+                if !self.is_quiet() {
+                    println!("isomorphic, stopping at G^({}K)", i);
+                }
                 g = g_prev;
                 break;
             }
