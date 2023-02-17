@@ -380,4 +380,34 @@ mod test {
         assert!( is_isomorphic(&g[0], &g[1], false));
         assert!( is_isomorphic(&g[1], &g[0], false));
     }
+
+    #[test]
+    fn test_key_not_present_1() {
+        for i in 0..50 {
+            let g = [
+                include_game!("../../games/test/test_iso_1", 2),
+                include_game!("../../games/test/test_iso_2", 2),
+            ].map(|g| g.build().game);
+
+            println!("test #{}", i);
+            println!("[{},\n{}]", g[0], g[1]);
+
+            assert!(is_isomorphic(&g[0], &g[1], false));
+        }
+    }
+
+    #[test]
+    fn test_key_not_present_2() {
+        for i in 0..50 {
+            let g = [
+                include_game!("../../games/test/test_iso_3", 2),
+                include_game!("../../games/test/test_iso_4", 2),
+            ].map(|g| g.build().game);
+
+            println!("test #{}", i);
+            println!("[{},\n{}]", g[0], g[1]);
+
+            assert!(is_isomorphic(&g[0], &g[1], false));
+        }
+    }
 }

@@ -1,0 +1,18 @@
+agt: Simon, Sam
+act: push, wait, init
+
+loc: start, left, middle, right
+l0: start
+
+obs Simon: left|middle
+obs Sam: middle|right
+
+delta:
+start (init init) (left, middle, right),
+left (push push, wait push, wait wait) left,
+left (push wait) middle,
+middle (wait push) left,
+middle (wait wait, push push) middle,
+middle (push wait) right,
+right (wait push) middle,
+right (push push, push wait, wait wait) right
