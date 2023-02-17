@@ -173,6 +173,19 @@ impl<const N: usize> IOGame<N> {
             }
         }
 
+        let mut delta = delta.into_iter()
+            .collect_vec();
+        
+        delta.sort_by(|(al1, aa, al2), (bl1, ba, bl2)| {
+                let (al1, al2) = (loc[al1], loc[al2]);
+                let (bl1, bl2) = (loc[bl1], loc[bl2]);
+                
+                al1.cmp(&bl1)
+                    .then(aa.cmp(ba))
+                    .then(al2.cmp(&bl2))
+            }
+        );
+
         let agt = from_iter(
             agents.into_iter()
                 .sorted_by(|(_, i), (_, j)| i.cmp(j))
@@ -182,9 +195,6 @@ impl<const N: usize> IOGame<N> {
         let act = act.into_iter()
             .sorted_by(|(_, i), (_, j)| i.cmp(j))
             .map(|(name, _)| name)
-            .collect();
-            
-        let delta = delta.into_iter()
             .collect();
 
         let l0 = if let Some(l0) = l0 {
@@ -244,7 +254,10 @@ impl<const N: usize> AbstractGame<N> for IOGame<N> {
         l: &Loc,
         mut f: impl FnMut([crate::Act; N], Loc)
     ) {
-        let found = find_group(&self.delta, |(l_, _, _)| l.cmp(l_));
+        let found = find_group(
+            &self.delta,
+            |(l_, _, _)| self.loc[l].cmp(&self.loc[l_])
+        );
         for (l_, a, l2) in found {
             assert!(l_ == l);
             f(*a, l2.clone());
