@@ -4,9 +4,11 @@ use vec_map::VecMap;
 
 use crate::*;
 
+// based on the VF2 algorithm
+
 type Depth = u32;
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 macro_rules! debug {
     ($s:expr) => {
         if DEBUG { println!("{:?}", $s) };
@@ -20,6 +22,7 @@ struct State<'game, const N: usize> {
     g: [&'game Game<N>; 2],
     check_obs: bool,
 
+    // partial mapping between the two games
     m: [VecMap<Loc>; 2],
     m_obs: [[VecMap<(Obs, Depth)>; N]; 2],
 
@@ -35,7 +38,7 @@ macro_rules! ins {
     ($self:ident, $s:ident, $i:expr, $l:expr) => {{
         let (i, l) = ($i, $l);
         let depth = $self.m[0].len() as u32;
-        debug!(format!("ins: i={}, l={}, d={}, s={:?}", i, l, depth, $self.$s[i]));
+        //debug!(format!("ins: i={}, l={}, d={}, s={:?}", i, l, depth, $self.$s[i]));
         if !$self.$s[i].contains_key(l.index()) {
             if !$self.visited(i, l) { $self.visited_count[i] += 1; }
             $self.$s[i].insert(l.index(), depth);
@@ -47,7 +50,7 @@ macro_rules! rm {
     ($self:ident, $s:ident, $i:expr, $l:expr) => {{
         let (i, l) = ($i, $l);
         let depth = $self.m[0].len() as u32;
-        debug!(format!("rm: i={}, l={}, d={}, s={:?}", i, l, depth, $self.$s[i]));
+        //debug!(format!("rm: i={}, l={}, d={}, s={:?}", i, l, depth, $self.$s[i]));
         if $self.$s[i][l.index()] == depth {
             $self.$s[i].remove(l.index());
             if !$self.visited(i, l) { $self.visited_count[i] -= 1; }
@@ -150,7 +153,8 @@ impl<'g, const N: usize> State<'g, N> {
     }
 
     fn remove_mapping(&mut self, l: [Loc; 2], obs: [[Obs; N]; 2]) {
-        debug!("remove_mapping");
+        debug!(format!("remove_mapping: {}<->{}", l[0], l[1]));
+
         for i in [0, 1] {
             assert!(self.m[i].contains_key(l[i].index()));
 
@@ -159,10 +163,14 @@ impl<'g, const N: usize> State<'g, N> {
             rm!(self, in_set, i, l[i]);
             
             for (_, l2) in self.g[i].successors(l[i]) {
-                rm!(self, out_set, i, *l2);
+                if *l2 != l[i] {
+                    rm!(self, out_set, i, *l2);
+                }
             }
             for (_, l2) in self.g[i].predecessors(l[i]) {
-                rm!(self, in_set, i, *l2);
+                if *l2 != l[i] {
+                    rm!(self, in_set, i, *l2);
+                }
             }
 
             if self.check_obs {
@@ -177,6 +185,9 @@ impl<'g, const N: usize> State<'g, N> {
     }
 
     fn match_neighbors(&mut self, n: [&[([Act; N], Loc)]; 2]) -> bool {
+        debug!("n[0]", n[0]);
+        debug!("n[1]", n[1]);
+
         if n[0].len() != n[1].len() { return false; }
 
         self.buf.reserve_len(n[0].len());
@@ -200,12 +211,21 @@ impl<'g, const N: usize> State<'g, N> {
     }
 
     fn is_feasible(&mut self, l: [Loc; 2]) -> bool {
+        debug!(format!("is_feasible([{}, {}])", l[0], l[1]));
+
+        debug!("check winning");
         if self.g[0].is_winning(l[0]) != self.g[1].is_winning(l[1]) { return false; }
 
         let (s0, s1) = (self.g[0].successors(l[0]), self.g[1].successors(l[1]));
         let (p0, p1) = (self.g[0].predecessors(l[0]), self.g[1].predecessors(l[1]));
         
-        self.match_neighbors([s0, s1]) && self.match_neighbors([p0, p1])
+        debug!("match successors");
+        if !self.match_neighbors([s0, s1]) {
+            return false
+        }
+        
+        debug!("match predecessors");
+        self.match_neighbors([p0, p1])
     }
 
     fn is_obs_feasible(&mut self, obs: [[Obs; N]; 2]) -> bool {
@@ -279,11 +299,25 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
     macro_rules! expand {
         ($f:expr) => {
             for l1 in (0..n).map(|l| loc(l)) {
-                if !($f)(1, l1) { continue; }
+                debug!(format!("l1={}", l1));
+
+                if !($f)(1, l1) { debug!("rejected (a)"); continue; }
+                debug!("accepted (a)");
 
                 for l0 in (0..n).map(|l| loc(l)) {
                     let l = [l0, l1];
-                    if ($f)(0, l0) && state.is_feasible(l) {
+
+                    debug!(format!("l0={}", l0));
+
+                    if !($f)(0, l0) {
+                        debug!("rejected (b)");
+                        continue;
+                    } else {
+                        debug!("accepted (b)");
+                    }
+
+                    if state.is_feasible(l) {
+                        debug!("accepted (c)");
                         let obs: [_; 2] = array_init(|i|
                             state.g[i].observe(l[i])
                         );
@@ -294,6 +328,8 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
                             }
                             state.remove_mapping(l, obs);
                         }
+                    } else {
+                        debug!("rejected (c)");
                     }
                 }
 
@@ -383,14 +419,11 @@ mod test {
 
     #[test]
     fn test_key_not_present_1() {
-        for i in 0..50 {
+        for _ in 0..50 {
             let g = [
                 include_game!("../../games/test/test_iso_1", 2),
                 include_game!("../../games/test/test_iso_2", 2),
             ].map(|g| g.build().game);
-
-            println!("test #{}", i);
-            println!("[{},\n{}]", g[0], g[1]);
 
             assert!(is_isomorphic(&g[0], &g[1], false));
         }
@@ -398,16 +431,14 @@ mod test {
 
     #[test]
     fn test_key_not_present_2() {
-        for i in 0..50 {
-            let g = [
-                include_game!("../../games/test/test_iso_3", 2),
-                include_game!("../../games/test/test_iso_4", 2),
-            ].map(|g| g.build().game);
+        let g = [
+            include_game!("../../games/test/test_iso_3", 2),
+            include_game!("../../games/test/test_iso_4", 2),
+        ].map(|g| g.build().game);
 
-            println!("test #{}", i);
-            println!("[{},\n{}]", g[0], g[1]);
+        // just test that there is no error
+        is_isomorphic(&g[0], &g[1], false);
 
-            assert!(is_isomorphic(&g[0], &g[1], false));
-        }
+        assert!(!is_isomorphic(&g[0], &g[1], true));
     }
 }
