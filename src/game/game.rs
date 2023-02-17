@@ -262,13 +262,13 @@ impl<const N: usize> Display for Game<N> {
         write!(f, "agt: ")?;
         format_sep(f, ", ",
             0..N,
-            |f, i| write!(f, "{}", i)
+            |f, i| self.fmt_agt(f, agt(i))
         )?;
 
         write!(f, "\nact: ")?;
         format_sep(f, ", ",
             0..self.n_actions.into_iter().max().unwrap(),
-            |f, i| write!(f, "{}", i)
+            |f, i| self.fmt_act(f, act(i))
         )?;
 
         write!(f, "\nloc: ")?;
@@ -298,7 +298,7 @@ impl<const N: usize> Display for Game<N> {
                 .filter(|(_, set)| set.len() > 1);
 
             if let Some(first) = obs.next() {
-                write!(f, "\nobs {}: ", agt)?;
+                write!(f, "\nobs {}: ", display(|f| self.fmt_agt(f, agt)))?;
                 format_sep(f, ", ",
                     chain!(iter::once(first), obs),
                     |f, (_, set)| format_sep(f, "|",
@@ -321,7 +321,7 @@ impl<const N: usize> Display for Game<N> {
                         end: ") "
                     },
                     a.into_iter(),
-                    |f, a| write!(f, "{}", a)
+                    |f, a| self.fmt_act(f, a)
                 )?;
                 self.fmt_loc(f, l2)
             }
