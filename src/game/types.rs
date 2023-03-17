@@ -38,6 +38,16 @@ impl From<$name> for $t {
         t.0
     }
 }
+
+impl TryFrom<usize> for $name {
+    type Error = <$t as TryFrom<usize>>::Error;
+
+    fn try_from(t: usize) -> Result<Self, Self::Error> {
+        <$t as TryFrom<usize>>::try_from(t)
+            .map(|x| $name(x))
+    }
+}
+
     };
 }
 

@@ -30,3 +30,6 @@ indoc = "1.0.6"
 rustc-hash = "1.1.0"
 tabbycat = "0.1.3"
 unordered-pair = "0.2.4"
+
+[dev-dependencies]
+superslice = "1.0.0"

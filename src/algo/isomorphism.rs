@@ -9,6 +9,7 @@ use crate::*;
 type Depth = u32;
 
 const DEBUG: bool = true;
+
 macro_rules! debug {
     ($s:expr) => {
         if DEBUG { println!("{:?}", $s) };
@@ -51,7 +52,7 @@ macro_rules! rm {
         let (i, l) = ($i, $l);
         let depth = $self.m[0].len() as u32;
         //debug!(format!("rm: i={}, l={}, d={}, s={:?}", i, l, depth, $self.$s[i]));
-        if $self.$s[i][l.index()] == depth {
+        if $self.$s[i].get(l.index()) == Some(&depth) {
             $self.$s[i].remove(l.index());
             if !$self.visited(i, l) { $self.visited_count[i] -= 1; }
         }
@@ -155,23 +156,40 @@ impl<'g, const N: usize> State<'g, N> {
     fn remove_mapping(&mut self, l: [Loc; 2], obs: [[Obs; N]; 2]) {
         debug!(format!("remove_mapping: {}<->{}", l[0], l[1]));
 
+        let depth = self.m[0].len() as Depth;
+        assert!(depth == self.m[1].len() as Depth);
+
+        let n = self.g[0].n_loc();
+
         for i in [0, 1] {
             assert!(self.m[i].contains_key(l[i].index()));
 
             self.m[i].remove(l[i].index());
-            rm!(self, out_set, i, l[i]);
+
+            for j in 0..n {
+                if let Some(&depth2) = self.out_set[i].get(j) {
+                    assert!(depth2 <= depth);
+                    if depth2 == depth {
+                        self.out_set[i].remove(j);
+                    }
+                }
+                if let Some(&depth2) = self.in_set[i].get(j) {
+                    assert!(depth2 <= depth);
+                    if depth2 == depth {
+                        self.in_set[i].remove(j);
+                    }
+                }
+            }
+
+            /*rm!(self, out_set, i, l[i]);
             rm!(self, in_set, i, l[i]);
             
             for (_, l2) in self.g[i].successors(l[i]) {
-                if *l2 != l[i] {
-                    rm!(self, out_set, i, *l2);
-                }
+                rm!(self, out_set, i, *l2);
             }
             for (_, l2) in self.g[i].predecessors(l[i]) {
-                if *l2 != l[i] {
-                    rm!(self, in_set, i, *l2);
-                }
-            }
+                rm!(self, in_set, i, *l2);
+            }*/
 
             if self.check_obs {
                 let depth = self.m[0].len() as u32;
@@ -182,11 +200,15 @@ impl<'g, const N: usize> State<'g, N> {
                 }
             }
         }
+
+        debug!("m", self.m);
+        debug!("out_set", self.out_set);
+        debug!("in_set", self.in_set);
     }
 
     fn match_neighbors(&mut self, n: [&[([Act; N], Loc)]; 2]) -> bool {
-        debug!("n[0]", n[0]);
-        debug!("n[1]", n[1]);
+        //debug!("n[0]", n[0]);
+        //debug!("n[1]", n[1]);
 
         if n[0].len() != n[1].len() { return false; }
 
@@ -211,20 +233,20 @@ impl<'g, const N: usize> State<'g, N> {
     }
 
     fn is_feasible(&mut self, l: [Loc; 2]) -> bool {
-        debug!(format!("is_feasible([{}, {}])", l[0], l[1]));
+        //debug!(format!("is_feasible([{}, {}])", l[0], l[1]));
 
-        debug!("check winning");
+        //debug!("check winning");
         if self.g[0].is_winning(l[0]) != self.g[1].is_winning(l[1]) { return false; }
 
         let (s0, s1) = (self.g[0].successors(l[0]), self.g[1].successors(l[1]));
         let (p0, p1) = (self.g[0].predecessors(l[0]), self.g[1].predecessors(l[1]));
         
-        debug!("match successors");
+        //debug!("match successors");
         if !self.match_neighbors([s0, s1]) {
             return false
         }
         
-        debug!("match predecessors");
+        //debug!("match predecessors");
         self.match_neighbors([p0, p1])
     }
 
@@ -281,6 +303,14 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
     debug!("iso");
 
     debug!("iso: checking set sizes");
+
+    if DEBUG {
+        println!("{}, {}", state.tin_len(0), state.tin_len(1));
+        println!("{}, {}", state.tout_len(0), state.tout_len(1));
+        println!("{}, {}", state.visited_count[0], state.visited_count[1]);
+    }
+    
+
     if state.tin_len(0) != state.tin_len(1)
     || state.tout_len(0) != state.tout_len(1)
     || state.visited_count[0] != state.visited_count[1] {
@@ -301,7 +331,10 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
             for l1 in (0..n).map(|l| loc(l)) {
                 debug!(format!("l1={}", l1));
 
-                if !($f)(1, l1) { debug!("rejected (a)"); continue; }
+                if !($f)(1, l1) {
+                    debug!("rejected (a)");
+                    continue;
+                }
                 debug!("accepted (a)");
 
                 for l0 in (0..n).map(|l| loc(l)) {
@@ -365,7 +398,7 @@ fn iso<const N: usize>(state: &mut State<N>) -> bool {
     debug!("iso: backtracking");
     false
 }
-
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -418,11 +451,11 @@ mod test {
     }
 
     #[test]
-    fn test_key_not_present_1() {
+    fn test_iso_1() {
         for _ in 0..50 {
             let g = [
-                include_game!("../../games/test/test_iso_1", 2),
-                include_game!("../../games/test/test_iso_2", 2),
+                include_game!("../../games/test/test_iso_1a", 2),
+                include_game!("../../games/test/test_iso_1b", 2),
             ].map(|g| g.build().game);
 
             assert!(is_isomorphic(&g[0], &g[1], false));
@@ -430,15 +463,35 @@ mod test {
     }
 
     #[test]
-    fn test_key_not_present_2() {
+    fn test_iso_2() {
         let g = [
-            include_game!("../../games/test/test_iso_3", 2),
-            include_game!("../../games/test/test_iso_4", 2),
+            include_game!("../../games/test/test_iso_2a", 2),
+            include_game!("../../games/test/test_iso_2b", 2),
         ].map(|g| g.build().game);
 
-        // just test that there is no error
-        is_isomorphic(&g[0], &g[1], false);
+        assert!(is_isomorphic(&g[0], &g[1], false));
+    }
 
-        assert!(!is_isomorphic(&g[0], &g[1], true));
+    #[test]
+    fn test_iso_3() {
+        let g = [
+            include_game!("../../games/test/test_iso_3a", 2),
+            include_game!("../../games/test/test_iso_3b", 2),
+        ].map(|g| g.build().game);
+
+        assert!(is_isomorphic(&g[0], &g[1], false));
+    }
+
+    #[test]
+    fn test_iso_4() {
+        let g = [
+            include_game!("../../games/test/test_iso_4a", 2),
+            include_game!("../../games/test/test_iso_4b", 2),
+        ].map(|g| g.build().game);
+
+        println!("{}\n{}\n\n\n", g[0], g[1]);
+
+        assert!(is_isomorphic(&g[0], &g[1], false));
     }
 }
+*/

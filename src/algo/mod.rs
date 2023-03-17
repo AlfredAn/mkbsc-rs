@@ -7,6 +7,8 @@ pub use isomorphism::*;
 pub mod strat_synth;
 pub mod mkbsc_stack;
 pub mod isomorphism;
+pub mod iso;
+mod graph;
 
 /// Perform depth first search on `g`, calling the function `node`
 /// for each location, and `edge` for each transition.

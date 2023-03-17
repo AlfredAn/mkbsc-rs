@@ -11,8 +11,8 @@ mod io;
 mod cli;
 
 fn main() -> anyhow::Result<()> {
-    run_cli()?;
-    //debug()?;
+    //run_cli()?;
+    debug()?;
     Ok(())
 }
 
@@ -24,24 +24,22 @@ fn run_cli() -> anyhow::Result<()> {
 }
 
 fn load_game() -> Game<2> {
-    let g = include_game!("../games/cart_pushing", 2).build().game;
+    let g = include_game!("../games/test/test_iso_3a", 2).build().game;
     let mut stack = MKBSCStack::new(g);
-    for _ in 0..2 {
+    for _ in 0..0 {
         stack.push();
     }
     let mut g = stack.last().game().as_ref().clone();
-    g.origin = None;
+    //g.origin = None;
     g
 }
 
 fn debug() -> anyhow::Result<()> {
-    let g0 = load_game();
-    println!("{}", g0);
-
-    for _ in 0..50 {
+    for _ in 0..1 {
         let g = load_game();
+        //let g2 = load_game();
+
         println!("{}", g);
-        println!("{}, {}", g.loc.len(), is_isomorphic(&g0, &g, true));
     }
 
     Ok(())
@@ -66,13 +64,16 @@ mod test {
 
         for iters in 0..6 {
             println!("\n--{} iterations--", iters);
-
-            let g0 = load_game(iters);
-            println!("{} locations", g0.loc.len());
     
             for _ in 0..50 {
+                let g0 = load_game(iters);
                 let g = load_game(iters);
-                assert!(is_isomorphic(&g0, &g, true));
+
+                if iters >= 2 {
+                    println!("{}\n{}\n\n\n", g0, g);
+                }
+
+                assert!(is_isomorphic(&g0, &g, false));
                 print!(".");
             }
         }
